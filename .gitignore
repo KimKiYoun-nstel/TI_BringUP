@@ -1,0 +1,19 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# logs that are too large; curated logs should be committed as markdown
+*.log
+*.tmp
+
+# build outputs
+build/
+out/
+tmp/
+
+# archives
+*.zip
+*.tar
+*.tar.gz
