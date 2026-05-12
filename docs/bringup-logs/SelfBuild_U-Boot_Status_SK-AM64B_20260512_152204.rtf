@@ -1,0 +1,485 @@
+{\rtf1\ansi\ansicpg949\deff0\deflang1033\deflangfe1042{\fonttbl{\f0\fmodern Consolas;}{\f1\fnil\fcharset129 Courier New;}}
+{\colortbl ;\red20\green20\blue20;\red142\green142\blue142;}
+\viewkind4\uc1\pard\cf1\highlight2\lang1042\f0\fs20 
+\par \cf0\highlight0 root@am64xx-evm:~#\cf1\highlight2 
+\par \cf0\highlight0 U-Boot SPL 2026.01-g2549829cc194 (May 12 2026 - 13:08:32 +0900)\cf1\highlight2 
+\par \cf0\highlight0 Resetting on cold boot to workaround ErrataID:i2331\cf1\highlight2 
+\par \cf0\highlight0 Please resend tiboot3.bin in case of UART/DFU boot\cf1\highlight2 
+\par \cf0\highlight0 resetting ...\cf1\highlight2 
+\par 
+\par \cf0\highlight0 U-Boot SPL 2026.01-g2549829cc194 (May 12 2026 - 13:08:32 +0900)\cf1\highlight2 
+\par \cf0\highlight0 SYSFW ABI: 4.0 (firmware rev 0x000c '12.0.2--v12.00.02 (Clever Cat)')\cf1\highlight2 
+\par \cf0\highlight0 EEPROM not available at 0x50, trying to read at 0x51\cf1\highlight2 
+\par \cf0\highlight0 Set clock rates for '/a53@0', CPU: 1000MHz at Speed Grade 'S'\cf1\highlight2 
+\par \cf0\highlight0 SPL initial stack usage: 13528 bytes\cf1\highlight2 
+\par \cf0\highlight0 Trying to boot from MMC2\cf1\highlight2 
+\par \cf0\highlight0 Authentication passed\cf1\highlight2 
+\par \cf0\highlight0 Authentication passed\cf1\highlight2 
+\par \cf0\highlight0 Loading Environment from nowhere... OK\cf1\highlight2 
+\par \cf0\highlight0 Authentication passed\cf1\highlight2 
+\par \cf0\highlight0 Authentication passed\cf1\highlight2 
+\par \cf0\highlight0 Starting ATF on ARM64 core...\cf1\highlight2 
+\par 
+\par \cf0\highlight0 NOTICE:  BL31: v2.14.0(release):sandbox/v2.14-472-g76500ceaee\cf1\highlight2 
+\par \cf0\highlight0 NOTICE:  BL31: Built : 11:33:22, Feb  2 2026\cf1\highlight2 
+\par \cf0\highlight0 I/TC:\cf1\highlight2 
+\par \cf0\highlight0 I/TC: OP-TEE version: 4.9.0-49-gf2a7ad063 (gcc version 15.2.0 (GCC)) #1 Tue Mar  3 09:03:35 UTC 2026 aarch64\cf1\highlight2 
+\par \cf0\highlight0 I/TC: WARNING: This OP-TEE configuration might be insecure!\cf1\highlight2 
+\par \cf0\highlight0 I/TC: WARNING: Please check https://optee.readthedocs.io/en/latest/architecture/porting_guidelines.html\cf1\highlight2 
+\par \cf0\highlight0 I/TC: Primary CPU initializing\cf1\highlight2 
+\par \cf0\highlight0 I/TC: GIC redistributor base address not provided\cf1\highlight2 
+\par \cf0\highlight0 I/TC: Assuming default GIC group status and modifier\cf1\highlight2 
+\par \cf0\highlight0 I/TC: SYSFW ABI: 4.0 (firmware rev 0x000c '12.0.2--v12.00.02 (Clever Cat)')\cf1\highlight2 
+\par \cf0\highlight0 I/TC: Activated SA2UL device\cf1\highlight2 
+\par \cf0\highlight0 I/TC: Enabled firewalls for SA2UL TRNG device\cf1\highlight2 
+\par \cf0\highlight0 I/TC: EIP76D TRNG initialized\cf1\highlight2 
+\par \cf0\highlight0 I/TC: SA2UL Drivers initialized\cf1\highlight2 
+\par \cf0\highlight0 I/TC: HUK Initialized\cf1\highlight2 
+\par \cf0\highlight0 I/TC: Disabling output console\cf1\highlight2 
+\par 
+\par \cf0\highlight0 U-Boot SPL 2026.01-g2549829cc194 (May 12 2026 - 13:42:33 +0900)\cf1\highlight2 
+\par \cf0\highlight0 SYSFW ABI: 4.0 (firmware rev 0x000c '12.0.2--v12.00.02 (Clever Cat)')\cf1\highlight2 
+\par \cf0\highlight0 Trying to boot from MMC2\cf1\highlight2 
+\par \cf0\highlight0 Authentication passed\cf1\highlight2 
+\par \cf0\highlight0 Authentication passed\cf1\highlight2 
+\par 
+\par 
+\par \cf0\highlight0 U-Boot 2026.01-g2549829cc194 (May 12 2026 - 13:42:33 +0900)\cf1\highlight2 
+\par 
+\par \cf0\highlight0 SoC:   AM64X SR2.0 HS-FS\cf1\highlight2 
+\par \cf0\highlight0 Reset reason: RST\cf1\highlight2 
+\par \cf0\highlight0 Model: Texas Instruments AM642 SK\cf1\highlight2 
+\par \cf0\highlight0 Board: AM64B-SKEVM rev A\cf1\highlight2 
+\par \cf0\highlight0 DRAM:  2 GiB\cf1\highlight2 
+\par \cf0\highlight0 Core:  102 devices, 36 uclasses, devicetree: separate\cf1\highlight2 
+\par \cf0\highlight0 MMC:   mmc@fa00000: 1\cf1\highlight2 
+\par \cf0\highlight0 Loading Environment from nowhere... OK\cf1\highlight2 
+\par \cf0\highlight0 In:    serial@2800000\cf1\highlight2 
+\par \cf0\highlight0 Out:   serial@2800000\cf1\highlight2 
+\par \cf0\highlight0 Err:   serial@2800000\cf1\highlight2 
+\par \cf0\highlight0 Failed to probe prueth driver\cf1\highlight2 
+\par \cf0\highlight0 Net:   eth0: ethernet@8000000port@1, eth1: ethernet@8000000port@2\cf1\highlight2 
+\par \cf0\highlight0 Hit any key to stop autoboot: 0\cf1\highlight2 
+\par \cf0\highlight0 => version\cf1\highlight2 
+\par \cf0\highlight0 U-Boot 2026.01-g2549829cc194 (May 12 2026 - 13:42:33 +0900)\cf1\highlight2 
+\par 
+\par \cf0\highlight0 aarch64-oe-linux-gcc (GCC) 15.2.0\cf1\highlight2 
+\par \cf0\highlight0 GNU ld (GNU Binutils) 2.46\cf1\highlight2 
+\par \cf0\highlight0 => dm tree\cf1\highlight2 
+\par \cf0\highlight0  Class     Seq    Probed  Driver                Name\cf1\highlight2 
+\par \cf0\highlight0 -----------------------------------------------------------\cf1\highlight2 
+\par \cf0\highlight0  root          0  [ + ]   root_driver           root_driver\cf1\highlight2 
+\par \cf0\highlight0  rsa_mod_ex    0  [   ]   mod_exp_sw            |-- mod_exp_sw\cf1\highlight2 
+\par \cf0\highlight0  rtc           0  [   ]   rtc_emul              |-- rtc_emul\cf1\highlight2 
+\par \cf0\highlight0  simple_bus    0  [ + ]   simple_bus            |-- bus@f4000\cf1\highlight2 
+\par \cf0\highlight0  simple_bus    1  [   ]   simple_bus            |   |-- bus@4000000\cf1\highlight2 
+\par \cf0\highlight0  pinctrl       0  [   ]   single-pinctrl        |   |   |-- pinctrl@4084000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc    0  [   ]   k3_m4                 |   |   `-- m4fss@5000000\cf1\highlight2 
+\par \cf0\highlight0  syscon        0  [ + ]   syscon                |   |-- syscon@43000000\cf1\highlight2 
+\par \cf0\highlight0  soc           0  [ + ]   soc_ti_k3             |   |   |-- chipid@14\cf1\highlight2 
+\par \cf0\highlight0  syscon        1  [   ]   syscon                |   |   |-- pcie-ctrl@4070\cf1\highlight2 
+\par \cf0\highlight0  mux           0  [ + ]   mmio-mux              |   |   `-- mux-controller@4080\cf1\highlight2 
+\par \cf0\highlight0  simple_bus    2  [ + ]   simple_bus            |   |-- bus@48000000\cf1\highlight2 
+\par \cf0\highlight0  mailbox       0  [ + ]   k3-secure-proxy       |   |   |-- mailbox@4d000000\cf1\highlight2 
+\par \cf0\highlight0  dma           0  [   ]   ti-udma               |   |   |-- dma-controller@485c0100\cf1\highlight2 
+\par \cf0\highlight0  dma           1  [   ]   ti-udma               |   |   `-- dma-controller@485c0000\cf1\highlight2 
+\par \cf0\highlight0  firmware      0  [ + ]   ti_sci                |   |-- system-controller@44043000\cf1\highlight2 
+\par \cf0\highlight0  power_doma    0  [ + ]   ti-sci-pm-domains     |   |   |-- power-controller\cf1\highlight2 
+\par \cf0\highlight0  reset         0  [   ]   ti-sci-reset          |   |   |-- reset-controller\cf1\highlight2 
+\par \cf0\highlight0  sysreset      0  [   ]   ti-sci-sysreset       |   |   `-- sysreset\cf1\highlight2 
+\par \cf0\highlight0  pinctrl       1  [ + ]   single-pinctrl        |   |-- pinctrl@f4000\cf1\highlight2 
+\par \cf0\highlight0  pinconfig     0  [ + ]   pinconfig             |   |   |-- main-mmc1-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig     1  [ + ]   pinconfig             |   |   |-- main-uart0-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig     2  [   ]   pinconfig             |   |   |-- main-uart1-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig     3  [   ]   pinconfig             |   |   |-- main-usb0-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig     4  [   ]   pinconfig             |   |   |-- main-i2c0-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig     5  [ + ]   pinconfig             |   |   |-- main-i2c1-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig     6  [ + ]   pinconfig             |   |   |-- mdio1-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig     7  [ + ]   pinconfig             |   |   |-- rgmii1-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig     8  [ + ]   pinconfig             |   |   |-- rgmii2-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig     9  [   ]   pinconfig             |   |   |-- ospi0-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig    10  [   ]   pinconfig             |   |   |-- main-ecap0-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig    11  [   ]   pinconfig             |   |   |-- main-eqep0-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig    12  [   ]   pinconfig             |   |   |-- main-wlan-en-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig    13  [ + ]   pinconfig             |   |   |-- main-com8-ls-en-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig    14  [   ]   pinconfig             |   |   |-- main-wlan-default-pins\cf1\highlight2 
+\par \cf0\highlight0  pinconfig    15  [   ]   pinconfig             |   |   `-- icssg0-uart-default-pins\cf1\highlight2 
+\par \cf0\highlight0  serial        2  [ + ]   omap_serial           |   |-- serial@2800000\cf1\highlight2 
+\par \cf0\highlight0  i2c           0  [   ]   i2c_omap              |   |-- i2c@20000000\cf1\highlight2 
+\par \cf0\highlight0  i2c           1  [ + ]   i2c_omap              |   |-- i2c@20010000\cf1\highlight2 
+\par \cf0\highlight0  gpio          0  [ + ]   pca953x               |   |   `-- gpio@70\cf1\highlight2 
+\par \cf0\highlight0  gpio          1  [ + ]   ti_dm6441_gpio        |   |-- gpio@600000\cf1\highlight2 
+\par \cf0\highlight0  gpio          2  [   ]   ti_dm6441_gpio        |   |-- gpio@601000\cf1\highlight2 
+\par \cf0\highlight0  mmc           1  [ + ]   am654_sdhci           |   |-- mmc@fa00000\cf1\highlight2 
+\par \cf0\highlight0  blk           0  [   ]   mmc_blk               |   |   |-- mmc@fa00000.blk\cf1\highlight2 
+\par \cf0\highlight0  bootdev       0  [   ]   mmc_bootdev           |   |   `-- mmc@fa00000.bootdev\cf1\highlight2 
+\par \cf0\highlight0  misc          0  [ + ]   am65_cpsw_nuss        |   |-- ethernet@8000000\cf1\highlight2 
+\par \cf0\highlight0  ethernet      0  [ + ]   am65_cpsw_nuss_port   |   |   |-- ethernet@8000000port@1\cf1\highlight2 
+\par \cf0\highlight0  bootdev       1  [   ]   eth_bootdev           |   |   |   `-- port@1.bootdev\cf1\highlight2 
+\par \cf0\highlight0  ethernet      1  [ + ]   am65_cpsw_nuss_port   |   |   |-- ethernet@8000000port@2\cf1\highlight2 
+\par \cf0\highlight0  bootdev       2  [   ]   eth_bootdev           |   |   |   `-- port@2.bootdev\cf1\highlight2 
+\par \cf0\highlight0  mdio          0  [ + ]   cpsw_mdio             |   |   `-- mdio@f00\cf1\highlight2 
+\par \cf0\highlight0  nop           0  [   ]   cdns-ti               |   |-- cdns-usb@f900000\cf1\highlight2 
+\par \cf0\highlight0  usb           0  [   ]   cdns-usb3-host        |   |   `-- usb@f400000\cf1\highlight2 
+\par \cf0\highlight0  simple_bus    3  [   ]   simple_bus            |   |-- bus@fc00000\cf1\highlight2 
+\par \cf0\highlight0  spi           0  [   ]   cadence_spi           |   |   `-- spi@fc40000\cf1\highlight2 
+\par \cf0\highlight0  spi_flash     0  [   ]   jedec_spi_nor         |   |       `-- flash@0\cf1\highlight2 
+\par \cf0\highlight0  misc          1  [   ]   k3_r5fss              |   |-- r5fss@78000000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc    1  [   ]   k3_r5f_rproc          |   |   |-- r5f@78000000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc    2  [   ]   k3_r5f_rproc          |   |   `-- r5f@78200000\cf1\highlight2 
+\par \cf0\highlight0  misc          2  [   ]   k3_r5fss              |   |-- r5fss@78400000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc    3  [   ]   k3_r5f_rproc          |   |   |-- r5f@78400000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc    4  [   ]   k3_r5f_rproc          |   |   `-- r5f@78600000\cf1\highlight2 
+\par \cf0\highlight0  nop           1  [   ]   phy-j721e-wiz         |   |-- wiz@f000000\cf1\highlight2 
+\par \cf0\highlight0  phy           0  [   ]   cdns,torrent          |   |   `-- serdes@f000000\cf1\highlight2 
+\par \cf0\highlight0  misc          3  [   ]   pruss                 |   |-- icssg@30000000\cf1\highlight2 
+\par \cf0\highlight0  syscon        2  [   ]   syscon                |   |   |-- cfg@26000\cf1\highlight2 
+\par \cf0\highlight0  syscon        3  [   ]   syscon                |   |   |-- mii-rt@32000\cf1\highlight2 
+\par \cf0\highlight0  syscon        4  [   ]   syscon                |   |   |-- mii-g-rt@33000\cf1\highlight2 
+\par \cf0\highlight0  syscon        5  [   ]   syscon                |   |   |-- pa-stats@2c000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc    5  [   ]   pru                   |   |   |-- pru@34000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc    6  [   ]   pru                   |   |   |-- rtu@4000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc    7  [   ]   pru                   |   |   |-- txpru@a000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc    8  [   ]   pru                   |   |   |-- pru@38000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc    9  [   ]   pru                   |   |   |-- rtu@6000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc   10  [   ]   pru                   |   |   `-- txpru@c000\cf1\highlight2 
+\par \cf0\highlight0  misc          4  [   ]   pruss                 |   `-- icssg@30080000\cf1\highlight2 
+\par \cf0\highlight0  syscon        6  [   ]   syscon                |       |-- cfg@26000\cf1\highlight2 
+\par \cf0\highlight0  syscon        7  [   ]   syscon                |       |-- mii-rt@32000\cf1\highlight2 
+\par \cf0\highlight0  syscon        8  [   ]   syscon                |       |-- mii-g-rt@33000\cf1\highlight2 
+\par \cf0\highlight0  syscon        9  [   ]   syscon                |       |-- pa-stats@2c000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc   11  [   ]   pru                   |       |-- pru@34000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc   12  [   ]   pru                   |       |-- rtu@4000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc   13  [   ]   pru                   |       |-- txpru@a000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc   14  [   ]   pru                   |       |-- pru@38000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc   15  [   ]   pru                   |       |-- rtu@6000\cf1\highlight2 
+\par \cf0\highlight0  remoteproc   16  [   ]   pru                   |       `-- txpru@c000\cf1\highlight2 
+\par \cf0\highlight0  clk           1  [   ]   fixed_clock           |-- clock-cmnrefclk\cf1\highlight2 
+\par \cf0\highlight0  regulator     0  [ + ]   regulator_fixed       |-- regulator-0\cf1\highlight2 
+\par \cf0\highlight0  regulator     1  [ + ]   regulator_fixed       |-- regulator-1\cf1\highlight2 
+\par \cf0\highlight0  regulator     2  [ + ]   regulator_fixed       |-- regulator-2\cf1\highlight2 
+\par \cf0\highlight0  regulator     3  [ + ]   regulator_fixed       |-- regulator-3\cf1\highlight2 
+\par \cf0\highlight0  regulator     4  [   ]   regulator_fixed       |-- regulator-4\cf1\highlight2 
+\par \cf0\highlight0  tee           0  [ + ]   optee                 |-- optee\cf1\highlight2 
+\par \cf0\highlight0  rng           0  [   ]   optee-rng             |   `-- optee-rng\cf1\highlight2 
+\par \cf0\highlight0  firmware      1  [   ]   psci                  |-- psci\cf1\highlight2 
+\par \cf0\highlight0  bootstd       0  [ + ]   bootstd_drv           |-- bootstd\cf1\highlight2 
+\par \cf0\highlight0  bootmeth      0  [   ]   bootmeth_extlinux     |   |-- extlinux\cf1\highlight2 
+\par \cf0\highlight0  bootmeth      1  [   ]   bootmeth_script       |   |-- script\cf1\highlight2 
+\par \cf0\highlight0  bootmeth      2  [   ]   bootmeth_efi          |   |-- efi\cf1\highlight2 
+\par \cf0\highlight0  bootmeth      3  [   ]   bootmeth_pxe          |   |-- pxe\cf1\highlight2 
+\par \cf0\highlight0  bootmeth      4  [   ]   vbe_simple            |   `-- vbe_simple\cf1\highlight2 
+\par \cf0\highlight0  efi           0  [   ]   EFI block driver      `-- efi\cf1\highlight2 
+\par \cf0\highlight0 => dm uclass\cf1\highlight2 
+\par \cf0\highlight0 uclass 0: root\cf1\highlight2 
+\par \cf0\highlight0 0   * root_driver @ fdeb0050, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 23: blk\cf1\highlight2 
+\par \cf0\highlight0 0     mmc@fa00000.blk @ fdeb2520, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 26: bootdev\cf1\highlight2 
+\par \cf0\highlight0 0     mmc@fa00000.bootdev @ fdeb26c0, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1     port@1.bootdev @ fdeb29b0, seq 1\cf1\highlight2 
+\par \cf0\highlight0 2     port@2.bootdev @ fdeb2b60, seq 2\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 27: bootmeth\cf1\highlight2 
+\par \cf0\highlight0 0     extlinux @ fdeb51b0, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1     script @ fdeb5290, seq 1\cf1\highlight2 
+\par \cf0\highlight0 2     efi @ fdeb5350, seq 2\cf1\highlight2 
+\par \cf0\highlight0 3     pxe @ fdeb5410, seq 3\cf1\highlight2 
+\par \cf0\highlight0 4     vbe_simple @ fdeb54d0, seq 4\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 28: bootstd\cf1\highlight2 
+\par \cf0\highlight0 0   * bootstd @ fdeb50d0, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 31: clk\cf1\highlight2 
+\par \cf0\highlight0 0   * clock-controller @ fdeb0f30, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1     clock-cmnrefclk @ fdeb4830, seq 1\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 35: dma\cf1\highlight2 
+\par \cf0\highlight0 0     dma-controller@485c0100 @ fdeb0bd0, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1     dma-controller@485c0000 @ fdeb0c70, seq 1\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 39: efi\cf1\highlight2 
+\par \cf0\highlight0 0     efi @ fdeba010, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 41: ethernet\cf1\highlight2 
+\par \cf0\highlight0 0   * ethernet@8000000port@1 @ fdeb28c0, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1   * ethernet@8000000port@2 @ fdeb2a70, seq 1\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 47: firmware\cf1\highlight2 
+\par \cf0\highlight0 0   * system-controller@44043000 @ fdeb0d50, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1     psci @ fdeb4ff0, seq 1\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 50: fs-loader\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 52: gpio\cf1\highlight2 
+\par \cf0\highlight0 0   * gpio@70 @ fdeb1ee0, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1   * gpio@600000 @ fdeb1fe0, seq 1\cf1\highlight2 
+\par \cf0\highlight0 2     gpio@601000 @ fdeb20a0, seq 2\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 56: i2c\cf1\highlight2 
+\par \cf0\highlight0 0     i2c@20000000 @ fdeb1d20, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1   * i2c@20010000 @ fdeb1de0, seq 1\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 58: i2c_generic\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 68: mailbox\cf1\highlight2 
+\par \cf0\highlight0 0   * mailbox@4d000000 @ fdeb0af0, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 69: usb_mass_storage\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 70: mdio\cf1\highlight2 
+\par \cf0\highlight0 0   * mdio@f00 @ fdeb2c60, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 74: misc\cf1\highlight2 
+\par \cf0\highlight0 0   * ethernet@8000000 @ fdeb27c0, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1     r5fss@78000000 @ fdeb3230, seq 1\cf1\highlight2 
+\par \cf0\highlight0 2     r5fss@78400000 @ fdeb3470, seq 2\cf1\highlight2 
+\par \cf0\highlight0 3     icssg@30000000 @ fdeb3830, seq 3\cf1\highlight2 
+\par \cf0\highlight0 4     icssg@30080000 @ fdeb4030, seq 4\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 75: mmc\cf1\highlight2 
+\par \cf0\highlight0 0   * mmc@fa00000 @ fdeb21a0, seq 1\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 76: rsa_mod_exp\cf1\highlight2 
+\par \cf0\highlight0 0     mod_exp_sw @ fdeb0130, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 77: mtd\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 78: mux\cf1\highlight2 
+\par \cf0\highlight0 0   * mux-controller@4080 @ fdeb0950, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 79: nop\cf1\highlight2 
+\par \cf0\highlight0 0     cdns-usb@f900000 @ fdeb2d40, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1     wiz@f000000 @ fdeb36b0, seq 1\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 81: nvme\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 86: partition\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 88: pci\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 89: pci_ep\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 90: pci_generic\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 91: phy\cf1\highlight2 
+\par \cf0\highlight0 0     serdes@f000000 @ fdeb3790, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 92: pinconfig\cf1\highlight2 
+\par \cf0\highlight0 0   * main-mmc1-default-pins @ fdeb11c0, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1   * main-uart0-default-pins @ fdeb1260, seq 1\cf1\highlight2 
+\par \cf0\highlight0 2     main-uart1-default-pins @ fdeb1300, seq 2\cf1\highlight2 
+\par \cf0\highlight0 3     main-usb0-default-pins @ fdeb13a0, seq 3\cf1\highlight2 
+\par \cf0\highlight0 4     main-i2c0-default-pins @ fdeb1440, seq 4\cf1\highlight2 
+\par \cf0\highlight0 5   * main-i2c1-default-pins @ fdeb14e0, seq 5\cf1\highlight2 
+\par \cf0\highlight0 6   * mdio1-default-pins @ fdeb1580, seq 6\cf1\highlight2 
+\par \cf0\highlight0 7   * rgmii1-default-pins @ fdeb1620, seq 7\cf1\highlight2 
+\par \cf0\highlight0 8   * rgmii2-default-pins @ fdeb16c0, seq 8\cf1\highlight2 
+\par \cf0\highlight0 9     ospi0-default-pins @ fdeb1760, seq 9\cf1\highlight2 
+\par \cf0\highlight0 10    main-ecap0-default-pins @ fdeb1800, seq 10\cf1\highlight2 
+\par \cf0\highlight0 11    main-eqep0-default-pins @ fdeb18a0, seq 11\cf1\highlight2 
+\par \cf0\highlight0 12    main-wlan-en-default-pins @ fdeb1940, seq 12\cf1\highlight2 
+\par \cf0\highlight0 13  * main-com8-ls-en-default-pins @ fdeb19e0, seq 13\cf1\highlight2 
+\par \cf0\highlight0 14    main-wlan-default-pins @ fdeb1a80, seq 14\cf1\highlight2 
+\par \cf0\highlight0 15    icssg0-uart-default-pins @ fdeb1b20, seq 15\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 93: pinctrl\cf1\highlight2 
+\par \cf0\highlight0 0     pinctrl@4084000 @ fdeb04b0, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1   * pinctrl@f4000 @ fdeb10b0, seq 1\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 94: pmic\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 95: power_domain\cf1\highlight2 
+\par \cf0\highlight0 0   * power-controller @ fdeb0e30, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 102: regulator\cf1\highlight2 
+\par \cf0\highlight0 0   * regulator-0 @ fdeb4950, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1   * regulator-1 @ fdeb4a70, seq 1\cf1\highlight2 
+\par \cf0\highlight0 2   * regulator-2 @ fdeb4b90, seq 2\cf1\highlight2 
+\par \cf0\highlight0 3   * regulator-3 @ fdeb4cb0, seq 3\cf1\highlight2 
+\par \cf0\highlight0 4     regulator-4 @ fdeb4dd0, seq 4\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 103: remoteproc\cf1\highlight2 
+\par \cf0\highlight0 0     m4fss@5000000 @ fdeb05c0, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1     r5f@78000000 @ fdeb32d0, seq 1\cf1\highlight2 
+\par \cf0\highlight0 2     r5f@78200000 @ fdeb33a0, seq 2\cf1\highlight2 
+\par \cf0\highlight0 3     r5f@78400000 @ fdeb3510, seq 3\cf1\highlight2 
+\par \cf0\highlight0 4     r5f@78600000 @ fdeb35e0, seq 4\cf1\highlight2 
+\par \cf0\highlight0 5     pru@34000 @ fdeb3b50, seq 5\cf1\highlight2 
+\par \cf0\highlight0 6     rtu@4000 @ fdeb3c20, seq 6\cf1\highlight2 
+\par \cf0\highlight0 7     txpru@a000 @ fdeb3cf0, seq 7\cf1\highlight2 
+\par \cf0\highlight0 8     pru@38000 @ fdeb3dc0, seq 8\cf1\highlight2 
+\par \cf0\highlight0 9     rtu@6000 @ fdeb3e90, seq 9\cf1\highlight2 
+\par \cf0\highlight0 10    txpru@c000 @ fdeb3f60, seq 10\cf1\highlight2 
+\par \cf0\highlight0 11    pru@34000 @ fdeb4350, seq 11\cf1\highlight2 
+\par \cf0\highlight0 12    rtu@4000 @ fdeb4420, seq 12\cf1\highlight2 
+\par \cf0\highlight0 13    txpru@a000 @ fdeb44f0, seq 13\cf1\highlight2 
+\par \cf0\highlight0 14    pru@38000 @ fdeb45c0, seq 14\cf1\highlight2 
+\par \cf0\highlight0 15    rtu@6000 @ fdeb4690, seq 15\cf1\highlight2 
+\par \cf0\highlight0 16    txpru@c000 @ fdeb4760, seq 16\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 104: reset\cf1\highlight2 
+\par \cf0\highlight0 0     reset-controller @ fdeb1010, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 106: rng\cf1\highlight2 
+\par \cf0\highlight0 0     optee-rng @ fdeb6990, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 107: rtc\cf1\highlight2 
+\par \cf0\highlight0 0     rtc_emul @ fdeb0210, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 111: serial\cf1\highlight2 
+\par \cf0\highlight0 0   * serial@2800000 @ fdeb1c00, seq 2\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 112: simple_bus\cf1\highlight2 
+\par \cf0\highlight0 0   * bus@f4000 @ fdeb02f0, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1     bus@4000000 @ fdeb03b0, seq 1\cf1\highlight2 
+\par \cf0\highlight0 2   * bus@48000000 @ fdeb09f0, seq 2\cf1\highlight2 
+\par \cf0\highlight0 3     bus@fc00000 @ fdeb2f10, seq 3\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 114: soc\cf1\highlight2 
+\par \cf0\highlight0 0   * chipid@14 @ fdeb07b0, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 116: spi\cf1\highlight2 
+\par \cf0\highlight0 0     spi@fc40000 @ fdeb3010, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 117: spi_flash\cf1\highlight2 
+\par \cf0\highlight0 0     flash@0 @ fdeb3170, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 118: spi_generic\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 120: syscon\cf1\highlight2 
+\par \cf0\highlight0 0   * syscon@43000000 @ fdeb06d0, seq 0\cf1\highlight2 
+\par \cf0\highlight0 1     pcie-ctrl@4070 @ fdeb0870, seq 1\cf1\highlight2 
+\par \cf0\highlight0 2     cfg@26000 @ fdeb38d0, seq 2\cf1\highlight2 
+\par \cf0\highlight0 3     mii-rt@32000 @ fdeb3970, seq 3\cf1\highlight2 
+\par \cf0\highlight0 4     mii-g-rt@33000 @ fdeb3a10, seq 4\cf1\highlight2 
+\par \cf0\highlight0 5     pa-stats@2c000 @ fdeb3ab0, seq 5\cf1\highlight2 
+\par \cf0\highlight0 6     cfg@26000 @ fdeb40d0, seq 6\cf1\highlight2 
+\par \cf0\highlight0 7     mii-rt@32000 @ fdeb4170, seq 7\cf1\highlight2 
+\par \cf0\highlight0 8     mii-g-rt@33000 @ fdeb4210, seq 8\cf1\highlight2 
+\par \cf0\highlight0 9     pa-stats@2c000 @ fdeb42b0, seq 9\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 122: sysreset\cf1\highlight2 
+\par \cf0\highlight0 0     sysreset @ fdeb6170, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 124: tee\cf1\highlight2 
+\par \cf0\highlight0 0   * optee @ fdeb4f30, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 125: thermal\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 129: usb\cf1\highlight2 
+\par \cf0\highlight0 0     usb@f400000 @ fdeb2e70, seq 0\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 130: usb_dev_generic\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 131: usb_hub\cf1\highlight2 
+\par 
+\par \cf0\highlight0 uclass 132: usb_gadget\cf1\highlight2 
+\par 
+\par \cf0\highlight0 => printenv\cf1\highlight2 
+\par \cf0\highlight0 addr_fit=0x90000000\cf1\highlight2 
+\par \cf0\highlight0 arch=arm\cf1\highlight2 
+\par \cf0\highlight0 args_all=setenv optargs earlycon=ns16550a,mmio32,0x02800000\cf1\highlight2 
+\par \cf0\highlight0 args_mmc=run finduuid;setenv bootargs console=$\{console\} $\{optargs\} root=PARTUUID=$\{uuid\} rw rootfstype=$\{mmcrootfstype\}\cf1\highlight2 
+\par \cf0\highlight0 args_usb=run finduuid;setenv bootargs console=$\{console\} $\{optargs\} root=PARTUUID=$\{uuid\} rw rootfstype=$\{mmcrootfstype\}\cf1\highlight2 
+\par \cf0\highlight0 baudrate=115200\cf1\highlight2 
+\par \cf0\highlight0 board=am64x\cf1\highlight2 
+\par \cf0\highlight0 board_name=am64x_skevm\cf1\highlight2 
+\par \cf0\highlight0 board_rev=A\cf1\highlight2 
+\par \cf0\highlight0 board_serial=0104\cf1\highlight2 
+\par \cf0\highlight0 board_software_revision=01\cf1\highlight2 
+\par \cf0\highlight0 boot=mmc\cf1\highlight2 
+\par \cf0\highlight0 boot_fdt=try\cf1\highlight2 
+\par \cf0\highlight0 boot_fit=0\cf1\highlight2 
+\par \cf0\highlight0 boot_rprocs=if test $\{dorprocboot\} -eq 1 && test $\{boot\} = mmc; then rproc init; run boot_rprocs_mmc; fi;\cf1\highlight2 
+\par \cf0\highlight0 boot_rprocs_mmc=env set rproc_id; env set rproc_fw; env set secure_suffix; if test $\{secure_rprocs\} -eq 1; then env set secure_suffix -sec; fi; for i in $\{rproc_fw_binaries\} ; do if test -z "$\{rproc_id\}" ; then env set rproc_id $i; else env set rproc_fw $i$\{secure_suffix\}; run rproc_load_and_boot_one; env set rproc_id; env set rproc_fw; fi; done\cf1\highlight2 
+\par \cf0\highlight0 boot_targets=mmc1 mmc0 usb pxe dhcp\cf1\highlight2 
+\par \cf0\highlight0 bootcmd=run envboot; run bootcmd_ti_mmc; bootflow scan -lb\cf1\highlight2 
+\par \cf0\highlight0 bootcmd_ti_mmc=run init_$\{boot\}; if env exists do_main_cpsw0_qsgmii_phyinit; then run main_cpsw0_qsgmii_phyinit; fi; run boot_rprocs; if test $\{boot_fit\} -eq 1; then run get_fit_$\{boot\}; run get_fit_overlaystring; run run_fit; else; run get_kern_$\{boot\}; run get_fdt_$\{boot\}; run get_overlay_$\{boot\}; run run_kern; fi;\cf1\highlight2 
+\par \cf0\highlight0 bootdelay=2\cf1\highlight2 
+\par \cf0\highlight0 bootdir=/boot\cf1\highlight2 
+\par \cf0\highlight0 bootenvfile=uEnv.txt\cf1\highlight2 
+\par \cf0\highlight0 bootmeths=script efi extlinux\cf1\highlight2 
+\par \cf0\highlight0 bootpart=1:2\cf1\highlight2 
+\par \cf0\highlight0 bootscript=echo Running bootscript from mmc$\{mmcdev\} ...; source $\{loadaddr\}\cf1\highlight2 
+\par \cf0\highlight0 console=ttyS2,115200n8\cf1\highlight2 
+\par \cf0\highlight0 cpu=armv8\cf1\highlight2 
+\par \cf0\highlight0 dfu_alt_info_emmc=rawemmc raw 0 0x800000 mmcpart 1; rootfs part 0 1 mmcpart 0; tiboot3.bin.raw raw 0x0 0x800 mmcpart 1; tispl.bin.raw raw 0x800 0x1000 mmcpart 1; u-boot.img.raw raw 0x1800 0x2000 mmcpart 1; u-env.raw raw 0x3400 0x100 mmcpart 1;\cf1\highlight2 
+\par \cf0\highlight0 dfu_alt_info_mmc=boot part 1 1; rootfs part 1 2; tiboot3.bin fat 1 1; tispl.bin fat 1 1; u-boot.img fat 1 1; uEnv.txt fat 1 1; sysfw.itb fat 1 1\cf1\highlight2 
+\par \cf0\highlight0 dfu_alt_info_ospi=tiboot3.bin raw 0x0 0x100000; tispl.bin raw 0x100000 0x200000; u-boot.img raw 0x300000 0x400000; u-boot-env raw 0x700000 0x020000; rootfs raw 0x800000 0x3800000\cf1\highlight2 
+\par \cf0\highlight0 dfu_alt_info_ram=tispl.bin ram 0x80080000 0x200000; u-boot.img ram 0x81000000 0x400000\cf1\highlight2 
+\par \cf0\highlight0 dorprocboot=0\cf1\highlight2 
+\par \cf0\highlight0 dtboaddr=0x89000000\cf1\highlight2 
+\par \cf0\highlight0 envboot=if mmc dev $\{mmcdev\}; then if mmc rescan; then echo SD/MMC found on device $\{mmcdev\}; if test -n "$\{loadbootscript\}" && run loadbootscript; then run bootscript; else if run loadbootenv; then echo Loaded env from $\{bootenvfile\}; run importbootenv; fi; if test -n $uenvcmd; then echo Running uenvcmd ...; run uenvcmd; fi; fi; run bootcmd_ti_mmc; fi; fi;\cf1\highlight2 
+\par \cf0\highlight0 eth1addr=70:ff:76:1f:f2:87\cf1\highlight2 
+\par \cf0\highlight0 ethaddr=28:b5:e8:cc:2a:3f\cf1\highlight2 
+\par \cf0\highlight0 fdt_addr_r=0x88000000\cf1\highlight2 
+\par \cf0\highlight0 fdtaddr=0x88000000\cf1\highlight2 
+\par \cf0\highlight0 fdtcontroladdr=fde9b8c0\cf1\highlight2 
+\par \cf0\highlight0 fdtfile=ti/k3-am642-sk.dtb\cf1\highlight2 
+\par \cf0\highlight0 fdtoverlay_addr_r=0x89000000\cf1\highlight2 
+\par \cf0\highlight0 findfdt=echo WARN: fdtfile already set. Stop using findfdt in script\cf1\highlight2 
+\par \cf0\highlight0 finduuid=part uuid $\{boot\} $\{bootpart\} uuid\cf1\highlight2 
+\par \cf0\highlight0 fw_dev_part=1:2\cf1\highlight2 
+\par \cf0\highlight0 get_fdt_mmc=load mmc $\{bootpart\} $\{fdtaddr\} $\{bootdir\}/dtb/$\{fdtfile\}\cf1\highlight2 
+\par \cf0\highlight0 get_fdt_usb=load usb $\{bootpart\} $\{fdtaddr\} $\{bootdir\}/$\{name_fdt\}\cf1\highlight2 
+\par \cf0\highlight0 get_fit_config=setexpr name_fit_config gsub / _ conf-$\{fdtfile\}\cf1\highlight2 
+\par \cf0\highlight0 get_fit_mmc=load mmc $\{bootpart\} $\{addr_fit\} $\{bootdir\}/$\{name_fit\}\cf1\highlight2 
+\par \cf0\highlight0 get_fit_overlaystring=for overlay in $name_overlays; do; setexpr name_fit_overlay gsub / _ conf-$\{overlay\}; setenv overlaystring $\{overlaystring\}'#'$\{name_fit_overlay\}; done;\cf1\highlight2 
+\par \cf0\highlight0 get_fit_usb=load usb $\{bootpart\} $\{addr_fit\} $\{bootdir\}/$\{name_fit\}\cf1\highlight2 
+\par \cf0\highlight0 get_initramfs_mmc=load mmc $\{mmcdev\}:1 $\{rdaddr\} $\{name_initramfs\}\cf1\highlight2 
+\par \cf0\highlight0 get_kern_mmc=load mmc $\{bootpart\} $\{loadaddr\} $\{bootdir\}/$\{name_kern\}; run load_initramfs_mmc\cf1\highlight2 
+\par \cf0\highlight0 get_kern_usb=load usb $\{bootpart\} $\{loadaddr\} $\{bootdir\}/$\{name_kern\}\cf1\highlight2 
+\par \cf0\highlight0 get_overlay_mmc=fdt address $\{fdtaddr\}; fdt resize 0x100000; for overlay in $name_overlays; do; load mmc $\{bootpart\} $\{dtboaddr\} $\{bootdir\}/dtb/$\{overlay\} && fdt apply $\{dtboaddr\}; done;\cf1\highlight2 
+\par \cf0\highlight0 get_overlay_usb=fdt address $\{fdtaddr\}; fdt resize 0x100000; for overlay in $name_overlays; do; load usb $\{bootpart\} $\{dtboaddr\} $\{bootdir\}/$\{overlay\} && fdt apply $\{dtboaddr\}; done;\cf1\highlight2 
+\par \cf0\highlight0 importbootenv=echo Importing environment from mmc$\{mmcdev\} ...; env import -t $\{loadaddr\} $\{filesize\}\cf1\highlight2 
+\par \cf0\highlight0 init_mmc=run args_all args_mmc\cf1\highlight2 
+\par \cf0\highlight0 init_usb=run args_all args_usb\cf1\highlight2 
+\par \cf0\highlight0 kernel_addr_r=0x82000000\cf1\highlight2 
+\par \cf0\highlight0 load_initramfs_mmc=if run get_initramfs_mmc; then if test $\{filesize\} -gt 0; then setenv _initramfs $\{rdaddr\}:$\{filesize\}; setenv rd_spec $\{_initramfs\}; echo Initramfs loaded at $\{rdaddr\}, size $\{filesize\}; else echo WARNING: Initramfs file is empty or not found; setenv rd_spec -; fi; else echo WARNING: Initramfs not found, continuing without initramfs; setenv rd_spec -; fi;\cf1\highlight2 
+\par \cf0\highlight0 loadaddr=0x82000000\cf1\highlight2 
+\par \cf0\highlight0 loadbootenv=fatload mmc $\{mmcdev\} $\{loadaddr\} $\{bootenvfile\}\cf1\highlight2 
+\par \cf0\highlight0 loadfdt=load $\{devtype\} $\{bootpart\} $\{fdtaddr\} $\{bootdir\}/dtb/$\{fdtfile\}\cf1\highlight2 
+\par \cf0\highlight0 loadimage=load $\{devtype\} $\{bootpart\} $\{loadaddr\} $\{bootdir\}/$\{bootfile\}\cf1\highlight2 
+\par \cf0\highlight0 mmcboot=if mmc dev $\{mmcdev\}; then devnum=$\{mmcdev\}; devtype=mmc; if mmc rescan; then echo SD/MMC found on device $\{mmcdev\}; if run loadimage; then run args_mmc; if test $\{boot_fit\} -eq 1; then run run_fit; else run mmcloados; fi; fi; fi; fi;\cf1\highlight2 
+\par \cf0\highlight0 mmcdev=1\cf1\highlight2 
+\par \cf0\highlight0 mmcloados=run load_initramfs_mmc; if test $\{boot_fdt\} = yes || test $\{boot_fdt\} = try; then if run get_fdt_mmc; then bootz $\{loadaddr\} $\{rd_spec\} $\{fdtaddr\}; else if test $\{boot_fdt\} = try; then bootz; else echo WARN: Cannot load the DT; fi; fi; else bootz; fi;\cf1\highlight2 
+\par \cf0\highlight0 mmcrootfstype=ext4 rootwait\cf1\highlight2 
+\par \cf0\highlight0 name_fdt=ti/k3-am642-sk.dtb\cf1\highlight2 
+\par \cf0\highlight0 name_fit=fitImage\cf1\highlight2 
+\par \cf0\highlight0 name_initramfs=ti-core-initramfs.cpio.xz\cf1\highlight2 
+\par \cf0\highlight0 name_kern=Image\cf1\highlight2 
+\par \cf0\highlight0 partitions=name=rootfs,start=0,size=-,uuid=$\{uuid_gpt_rootfs\}\cf1\highlight2 
+\par \cf0\highlight0 pxefile_addr_r=0x80100000\cf1\highlight2 
+\par \cf0\highlight0 ramdisk_addr_r=0x88080000\cf1\highlight2 
+\par \cf0\highlight0 rd_spec=-\cf1\highlight2 
+\par \cf0\highlight0 rdaddr=0x88080000\cf1\highlight2 
+\par \cf0\highlight0 rproc_fw_binaries= 0 /lib/firmware/am64-mcu-m4f0_0-fw 1 /lib/firmware/am64-main-r5f0_0-fw 2 /lib/firmware/am64-main-r5f0_1-fw 3 /lib/firmware/am64-main-r5f1_0-fw 4 /lib/firmware/am64-main-r5f1_1-fw\cf1\highlight2 
+\par \cf0\highlight0 rproc_load_and_boot_one=if load mmc $\{bootpart\} $loadaddr $\{rproc_fw\}; then if rproc load $\{rproc_id\} $\{loadaddr\} $\{filesize\}; then rproc start $\{rproc_id\}; fi; fi\cf1\highlight2 
+\par \cf0\highlight0 run_fit=run get_fit_config; bootm $\{addr_fit\}#$\{name_fit_config\}$\{overlaystring\}\cf1\highlight2 
+\par \cf0\highlight0 run_kern=booti $\{loadaddr\} $\{rd_spec\} $\{fdtaddr\}\cf1\highlight2 
+\par \cf0\highlight0 scriptaddr=0x80000000\cf1\highlight2 
+\par \cf0\highlight0 secure_rprocs=0\cf1\highlight2 
+\par \cf0\highlight0 serial#=0000000000000104\cf1\highlight2 
+\par \cf0\highlight0 soc=k3\cf1\highlight2 
+\par \cf0\highlight0 stderr=serial@2800000\cf1\highlight2 
+\par \cf0\highlight0 stdin=serial@2800000\cf1\highlight2 
+\par \cf0\highlight0 stdout=serial@2800000\cf1\highlight2 
+\par \cf0\highlight0 storage_interface=mmc\cf1\highlight2 
+\par \cf0\highlight0 update_to_fit=setenv loadaddr $\{addr_fit\}; setenv bootfile $\{name_fit\}\cf1\highlight2 
+\par \cf0\highlight0 usbboot=setenv boot usb; setenv bootpart 0:2; usb start; run init_usb; run get_kern_usb; run get_fdt_usb; run run_kern;\cf1\highlight2 
+\par \cf0\highlight0 vendor=ti\cf1\highlight2 
+\par 
+\par \cf0\highlight0 Environment size: 6437/131068 bytes\cf1\highlight2 
+\par \cf0\highlight0 => fdt addr $fdtcontroladdr\cf1\highlight2 
+\par \cf0\highlight0 Working FDT set to fde9b8c0\cf1\highlight2 
+\par \cf0\highlight0 => fdt print /model\cf1\highlight2 
+\par \cf0\highlight0 libfdt fdt_path_offset() returned FDT_ERR_NOTFOUND\cf1\highlight2 
+\par \cf0\highlight0 => fdt print /compatible\cf1\highlight2 
+\par \cf0\highlight0 libfdt fdt_path_offset() returned FDT_ERR_NOTFOUND\cf1\highlight2 
+\par \cf0\highlight0 =>\cf1\highlight2 
+\par \pard\cf0\highlight0\f1\fs8 
+\par }
+ 
