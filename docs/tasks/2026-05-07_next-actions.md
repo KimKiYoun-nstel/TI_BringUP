@@ -82,7 +82,7 @@ Linux dd 기록 경로
 
 ```bash
 git add docs/bringup-logs docs/boards/SK-AM64B docs/common docs/tasks
-git commit -m "docs: record SK-AM64B first boot bring-up"
+git commit -m "docs: SK-AM64B 첫 부팅 브링업 기록"
 ```
 
 ## 권장 후속 문서
