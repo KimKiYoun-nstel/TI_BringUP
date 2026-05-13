@@ -8,12 +8,48 @@ Thumbs.db
 *.log
 *.tmp
 
-# build outputs
-build/
-out/
-tmp/
+# Local BSP source workspaces copied from TI SDK
+/workspace/
+
+# Local build/deploy outputs
+/out/
+/deploy/
+/build-output/
+/tmp-build/
+/build/
+/tmp/
 
 # archives
 *.zip
 *.tar
 *.tar.gz
+*.tar.xz
+
+# Local env files. Commit the matching .env.example only.
+/tools/env/*.env
+!/tools/env/*.env.example
+
+# Heavy generated artifacts
+*.wic
+*.wic.xz
+*.img
+*.cpio
+*.cpio.gz
+*.itb
+*.dtb
+*.dtbo
+*.bin
+*.map
+*.elf
+*.o
+*.ko
+*.mod
+*.mod.c
+*.cmd
+*.order
+*.symvers
+
+# Mounted SD card paths or local scratch
+/mnt-sd/
+/sdcard/
+/scratch/
