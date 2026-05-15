@@ -54,3 +54,7 @@ Thumbs.db
 /mnt-sd/
 /sdcard/
 /scratch/
+
+# Local TFTP root payloads are operator-managed artifacts, not git-tracked outputs.
+/tftp/*
+!/tftp/README.md
