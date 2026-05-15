@@ -179,3 +179,44 @@ artifact build -> deploy -> reboot -> running system verification
 TI prebuilt image와 정확히 같은 구성을 재현하려면
 TI SDK kernel config flow(defconfig/config fragment/prune flow)를 추가 확인해야 한다.
 ```
+
+## Follow-up
+
+이후 추가로 확인된 사항:
+
+```text
+1. 현재 active kernel/dtb는 golden으로 승격 가능하도록 관리 mode가 추가되었다.
+2. DTB-only 실제 deploy 및 reboot 검증이 성공했다.
+3. U-Boot prompt에서 SD golden 세트 또는 TFTP를 이용해 복구 부팅할 수 있는 command template 문서가 추가되었다.
+4. 현재 repo-build kernel/dtb 세트가 실제 golden baseline으로 승격되었다.
+```
+
+## 현재 복구 모델 요약
+
+현재 기준 recovery model은 다음과 같다.
+
+```text
+Bootloader 문제:
+  OSPI golden bootloader 사용
+
+Kernel/DTB 문제:
+  1차 -> SD 내부 golden kernel/dtb 사용
+  2차 -> Host PC TFTP kernel/dtb RAM boot 사용
+
+DTB-only 문제:
+  active kernel 유지 + golden dtb 또는 TFTP dtb 사용
+```
+
+## TFTP Recovery Validation Note
+
+추가로 U-Boot prompt에서 다음 흐름이 실제로 검증되었다.
+
+```text
+1. setenv ipaddr / serverip 설정
+2. Host PC TFTP root의 golden kernel/DTB 다운로드
+3. RAM address에 적재
+4. booti로 Linux 진입
+5. login prompt 도달
+```
+
+즉 현재 recovery model에서 **TFTP 2차 복구 경로는 문서화 수준을 넘어 실제 부팅 성공까지 확인된 상태**로 본다.

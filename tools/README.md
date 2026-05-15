@@ -92,6 +92,9 @@ kernel/DTB:
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 all --reboot
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 image-only --reboot
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 dtb-only --reboot
+./tools/install/install-kernel-to-sd.sh 192.168.0.110 promote-golden
+./tools/install/install-kernel-to-sd.sh 192.168.0.110 restore-golden
+./tools/install/install-kernel-to-sd.sh 192.168.0.110 restore-golden-dtb --reboot
 ```
 
 ## Option A 기준 동작 원칙
@@ -213,6 +216,25 @@ SD는 반복 실험 대상 영역으로 사용한다.
 9. SD 부팅 재검증
 ```
 
+## Kernel/DTB golden 운용
+
+현재 repo는 다음 파일 체계를 기준으로 recovery를 확장한다.
+
+```text
+/boot/Image
+/boot/Image.golden
+/boot/dtb/ti/k3-am642-sk.dtb
+/boot/dtb/ti/k3-am642-sk.dtb.golden
+```
+
+원칙:
+
+- active 파일은 현재 부팅 대상
+- golden 파일은 마지막 부팅 성공이 확인된 정상 세트
+- deploy 직후 자동 golden 승격은 하지 않음
+- 실제 부팅 성공 확인 후 `promote-golden`으로 승격
+- 실패 시 `restore-golden*` mode로 active를 되돌림
+
 ## 스크립트 사용 시 주의사항
 
 - 실제 write 전에는 dry-run을 먼저 실행한다.
@@ -227,3 +249,4 @@ SD는 반복 실험 대상 영역으로 사용한다.
 - SK-AM64B BASE: [../docs/boards/SK-AM64B/boot-flow-baseline.md](file:///home/nstel/ti/TI_Bringup/docs/boards/SK-AM64B/boot-flow-baseline.md)
 - Option A deploy 전략: [../docs/setup/sk-am64b-option-a-deploy-strategy.md](file:///home/nstel/ti/TI_Bringup/docs/setup/sk-am64b-option-a-deploy-strategy.md)
 - OSPI boot 참고: [../docs/boards/SK-AM64B/2026-05-11_ospi-flash-bootloader-boot-review.md](file:///home/nstel/ti/TI_Bringup/docs/boards/SK-AM64B/2026-05-11_ospi-flash-bootloader-boot-review.md)
+- U-Boot/TFTP kernel recovery: [../docs/setup/sk-am64b-u-boot-kernel-dtb-recovery-commands.md](file:///home/nstel/ti/TI_Bringup/docs/setup/sk-am64b-u-boot-kernel-dtb-recovery-commands.md)

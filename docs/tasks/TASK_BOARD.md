@@ -2,7 +2,6 @@
 
 ## 현재
 
-- [ ] DTB-only 실제 deploy 검증
 - [ ] RootFS overlay build/deploy skeleton 정리
 - [ ] TI prebuilt kernel config flow 확인
 
@@ -31,4 +30,7 @@
 - [x] SK-AM64B boot-flow BASE와 Option A deploy strategy 문서화
 - [x] Bootloader 실제 deploy 및 reboot 검증
 - [x] Kernel+DTB 실제 deploy 및 reboot 검증
+- [x] DTB-only 실제 deploy 및 reboot 검증
 - [x] curated logs under `logs/` tracking policy 정리
+- [x] U-Boot SD golden / TFTP recovery command template 문서화
+- [x] U-Boot TFTP recovery 실제 boot 검증
