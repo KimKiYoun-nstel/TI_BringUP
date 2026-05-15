@@ -298,6 +298,9 @@ tools/install/install-kernel-to-sd.sh
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 all
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 dtb-only
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 image-only
+./tools/install/install-kernel-to-sd.sh 192.168.0.110 promote-golden
+./tools/install/install-kernel-to-sd.sh 192.168.0.110 restore-golden
+./tools/install/install-kernel-to-sd.sh 192.168.0.110 restore-golden-dtb
 ```
 
 추가 전제:
@@ -305,6 +308,8 @@ tools/install/install-kernel-to-sd.sh
 - DTB-only deploy는 `/boot/dtb/ti/k3-am642-sk.dtb`만 교체
 - kernel/DTB 문제는 보통 OSPI write 없이도 SD rootfs 경로에서 복구 가능
 - bootloader 문제와 kernel/DTB 문제를 구분해서 대응
+- golden 승격은 deploy 직후 자동이 아니라, 실제 부팅 성공 확인 후 별도 수행한다.
+- `restore-golden*` mode는 Linux 또는 U-Boot 진입이 남아 있는 상태에서 빠른 복구 경로로 사용한다.
 
 ### RootFS overlay deploy script
 
