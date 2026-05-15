@@ -65,3 +65,47 @@
   - 여러 개발 머신 또는 협업자가 동일 source tree branch를 공유해야 할 필요가 생길 때
   - Yocto 기반 제품 이미지 관리 단계로 넘어가 `meta-nstel` 또는 custom BSP layer 중심 운영이 필요해질 때
   - TI SDK major version 변경으로 기존 patch set 재적용 비용이 커질 때
+
+## D-004. 현재 SK-AM64B 파이프라인 BASE는 U-Boot env 기반 SD boot flow로 유지한다
+
+- 날짜: 2026-05-14
+- 상태: Accepted
+- 배경:
+  - self-built U-Boot boot logs show the current successful path loading kernel and DTB directly before `booti`.
+  - U-Boot `printenv` confirms the active policy is driven by `bootcmd`, `bootcmd_ti_mmc`, `bootpart=1:2`, `bootdir=/boot`, and `fdtfile=ti/k3-am642-sk.dtb`.
+  - The currently running board state matches this path and does not depend on an active `extlinux.conf` baseline.
+- 결정:
+  - The first deploy pipeline will preserve the current U-Boot environment-driven SD boot flow as the project BASE.
+  - Kernel deploy will target `/boot/Image`.
+  - DTB deploy will target `/boot/dtb/ti/k3-am642-sk.dtb`.
+  - Bootloader deploy will target the FAT boot partition artifacts without rewriting boot policy.
+- 영향:
+  - Bootloader, kernel, DTB-only, and rootfs loops will be implemented independently against the current working layout.
+  - Future boot-policy changes must be documented explicitly as deltas from this baseline.
+  - extlinux/test-golden slot management is deferred until there is a concrete operational need.
+- 재검토 조건:
+  - repeated testing requires slot-based rollback
+  - direct U-Boot env boot becomes difficult to manage safely
+  - extlinux or EFI menu control becomes operationally necessary
+
+## D-005. 반복 SD bring-up 작업의 recovery anchor로 OSPI known-good bootloader를 유지한다
+
+- 날짜: 2026-05-14
+- 상태: Accepted
+- 배경:
+  - SK-AM64B에서 OSPI Flash에 bootloader를 기록하고 boot mode switch를 바꾸어 OSPI 기반 U-Boot 부팅을 검증한 기록이 이미 있다.
+  - SD bootloader 실험은 `tiboot3.bin`, `tispl.bin`, `u-boot.img` overwrite를 포함하므로 실패 시 SD 자체로는 복구가 어려울 수 있다.
+  - kernel/DTB/rootfs 문제와 달리 bootloader 문제는 SSH 복구 진입점 자체를 잃을 수 있다.
+- 결정:
+  - 반복 bring-up 작업에서는 OSPI에 known-good bootloader를 유지하는 전략을 사용한다.
+  - 초기 안정화 단계에서는 TI prebuilt bootloader 또는 이미 충분히 검증된 조합을 OSPI golden으로 사용한다.
+  - SD는 반복 실험 대상 영역으로 운영한다.
+  - SD bootloader 문제 발생 시 boot mode switch를 OSPI 쪽으로 바꾸어 복구 경로를 확보한다.
+- 영향:
+  - bootloader deploy 전략에는 OSPI write/use/recovery 절차가 포함되어야 한다.
+  - deploy 전 체크리스트에 OSPI golden 존재 여부와 boot mode switch 상태 확인이 포함된다.
+  - OSPI를 Linux 전체 대체 경로가 아니라 U-Boot까지의 recovery anchor로 다룬다.
+- 재검토 조건:
+  - OSPI에도 self-built golden을 승격할 정도로 충분한 검증 체계가 마련될 때
+  - SD/OSPI를 함께 포함한 A/B slot 전략이 필요해질 때
+  - 보드 운용 방식이 바뀌어 OSPI recovery 의존도를 낮출 수 있을 때

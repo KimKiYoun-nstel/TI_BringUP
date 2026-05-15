@@ -7,6 +7,7 @@ Thumbs.db
 # logs that are too large; curated logs should be committed as markdown
 *.log
 *.tmp
+!/logs/**/*.log
 
 # Local BSP source workspaces copied from TI SDK
 /workspace/

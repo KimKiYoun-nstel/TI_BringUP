@@ -52,6 +52,13 @@ docs/decisions/DECISION_LOG.md
 - build/install/prepare scripts
 - 선별된 boot/U-Boot/kernel 로그
 
+## 문서 작성 규칙
+
+- 이 저장소에 새로 추가하거나 수정하는 Markdown 문서는 기본적으로 한글로 작성한다.
+- 코드, 경로, 명령어, 환경변수, 로그 원문은 필요 시 원문 그대로 유지한다.
+- 영어 자료를 인용할 때도 문서 본문 설명과 판단 근거는 한글로 정리한다.
+- 작업 히스토리, 의사결정, 보드 메모, setup 가이드는 모두 한글을 기본 언어로 사용한다.
+
 관리하지 않는 대상:
 
 - TI SDK 전체 source tree

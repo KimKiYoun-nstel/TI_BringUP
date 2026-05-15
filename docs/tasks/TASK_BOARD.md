@@ -1,28 +1,34 @@
 # Task Board
 
-## Now
+## 현재
 
-- [ ] TI Processor SDK Linux 버전 선정
-- [ ] Ubuntu 22.04 WSL 개발 환경 패키지 설치 절차 정리
-- [ ] TMDS64EVM / SK-AM64B 보드별 기본 정보 정리
+- [ ] DTB-only 실제 deploy 검증
+- [ ] RootFS overlay build/deploy skeleton 정리
+- [ ] TI prebuilt kernel config flow 확인
 
-## Next
+## 다음
 
-- [ ] TI SDK 다운로드 및 설치
-- [ ] Prebuilt image로 SD boot 확인
-- [ ] UART console 연결 및 로그 캡처 절차 작성
-- [ ] Boot mode switch 설정 확인
+- [ ] RootFS-only deploy loop 설계 및 검증
+- [ ] U-Boot FDT fixup 관찰 절차 정리
+- [ ] boot-flow 변경 이력 관리 규칙 정착
 
-## Later
+## 이후
 
-- [ ] U-Boot 환경 변수 분석
-- [ ] Kernel defconfig 분석
+- [ ] extlinux 또는 EFI slot strategy 필요성 재평가
+- [ ] Kernel defconfig 확정
 - [ ] Device Tree 구조 분석
 - [ ] Peripheral별 bring-up checklist 작성
 - [ ] 자체 보드 포팅 차이점 체크리스트 작성
 
-## Done
+## 완료
 
 - [x] Ubuntu 22.04 WSL 준비
 - [x] `TI_BringUP` GitHub repo 생성
 - [x] Git 기반 프로젝트 지식 저장소 운영 방식 결정
+- [x] TI SDK source workspace와 patch 기반 repo 운영 정책 확정
+- [x] Bootloader build pipeline 구현
+- [x] Kernel build pipeline 구현
+- [x] SK-AM64B boot-flow BASE와 Option A deploy strategy 문서화
+- [x] Bootloader 실제 deploy 및 reboot 검증
+- [x] Kernel+DTB 실제 deploy 및 reboot 검증
+- [x] curated logs under `logs/` tracking policy 정리
