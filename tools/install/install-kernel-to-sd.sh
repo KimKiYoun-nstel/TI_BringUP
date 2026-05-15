@@ -16,9 +16,12 @@ BOARD_IP="${1:-}"
 MODE=""
 REBOOT_AFTER=0
 DRY_RUN=0
+VERIFY_POST_DEPLOY=0
 ARTIFACTS_DIR="$BRINGUP_ROOT/out/kernel/artifacts"
 KERNEL_DST="/boot/Image"
 DTB_DST="/boot/dtb/ti/k3-am642-sk.dtb"
+KERNEL_GOLDEN_DST="/boot/Image.golden"
+DTB_GOLDEN_DST="/boot/dtb/ti/k3-am642-sk.dtb.golden"
 IMAGE_SRC="$ARTIFACTS_DIR/Image"
 DTB_SRC="$ARTIFACTS_DIR/k3-am642-sk.dtb"
 LOCAL_SHA_FILE=""
@@ -28,12 +31,15 @@ BACKUP_KEEP_COUNT=3
 usage() {
     cat <<'EOF'
 사용법:
-  ./tools/install/install-kernel-to-sd.sh <board-ip> <all|image-only|dtb-only> [--reboot] [--dry-run]
+  ./tools/install/install-kernel-to-sd.sh <board-ip> <all|image-only|dtb-only|promote-golden|restore-golden|restore-golden-image|restore-golden-dtb> [--reboot] [--dry-run] [--verify-post-deploy]
 
 예:
   ./tools/install/install-kernel-to-sd.sh 192.168.0.110 all
   ./tools/install/install-kernel-to-sd.sh 192.168.0.110 dtb-only --reboot
   ./tools/install/install-kernel-to-sd.sh 192.168.0.110 image-only --dry-run
+  ./tools/install/install-kernel-to-sd.sh 192.168.0.110 promote-golden
+  ./tools/install/install-kernel-to-sd.sh 192.168.0.110 restore-golden-dtb --reboot
+  ./tools/install/install-kernel-to-sd.sh 192.168.0.110 all --reboot --verify-post-deploy
 EOF
 }
 
@@ -122,6 +128,10 @@ while [ "$#" -gt 0 ]; do
         --dry-run)
             DRY_RUN=1
             ;;
+        --verify-post-deploy)
+            VERIFY_POST_DEPLOY=1
+            REBOOT_AFTER=1
+            ;;
         -h|--help)
             usage
             exit 0
@@ -136,7 +146,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 case "$MODE" in
-    all|image-only|dtb-only)
+    all|image-only|dtb-only|promote-golden|restore-golden|restore-golden-image|restore-golden-dtb)
         ;;
     *)
         echo "[ERROR] Unknown mode: $MODE" >&2
@@ -162,9 +172,19 @@ case "$MODE" in
         require_file "$DTB_SRC" "baseline DTB"
         sha256sum "$DTB_SRC" > "$LOCAL_SHA_FILE"
         ;;
+    promote-golden)
+        ;;
+    restore-golden)
+        ;;
+    restore-golden-image)
+        ;;
+    restore-golden-dtb)
+        ;;
 esac
 
-awk '{print $1}' "$LOCAL_SHA_FILE" > "$LOCAL_HASH_ONLY_FILE"
+if [ -s "$LOCAL_SHA_FILE" ]; then
+    awk '{print $1}' "$LOCAL_SHA_FILE" > "$LOCAL_HASH_ONLY_FILE"
+fi
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 REMOTE_STAGE="/tmp/ti-bringup-kernel-$TIMESTAMP"
@@ -173,6 +193,39 @@ REMOTE_BACKUP_BASE="/boot/backup/kernel/$TIMESTAMP"
 ssh_run "test -d '/boot' && test -d '/boot/dtb/ti'"
 ssh_run "command -v sha256sum >/dev/null"
 ssh_run "mkdir -p '$REMOTE_STAGE' '$REMOTE_BACKUP_BASE/dtb'"
+
+backup_active_file() {
+    local active_path="$1"
+    local backup_path="$2"
+
+    ssh_run "if [ -f '$active_path' ]; then cp '$active_path' '$backup_path'; fi"
+}
+
+promote_active_to_golden() {
+    local active_path="$1"
+    local golden_path="$2"
+
+    ssh_run "test -f '$active_path'"
+    ssh_run "cp '$active_path' '$golden_path.new' && mv '$golden_path.new' '$golden_path'"
+    if [ "$DRY_RUN" -eq 0 ]; then
+        LOCAL_PROMOTE_SHA="$(ssh_capture "sha256sum '$active_path' '$golden_path'")"
+        diff -u <(printf '%s\n' "$LOCAL_PROMOTE_SHA" | sed -n '1p' | awk '{print $1}') <(printf '%s\n' "$LOCAL_PROMOTE_SHA" | sed -n '2p' | awk '{print $1}')
+    fi
+}
+
+restore_golden_to_active() {
+    local golden_path="$1"
+    local active_path="$2"
+    local backup_path="$3"
+
+    ssh_run "test -f '$golden_path'"
+    backup_active_file "$active_path" "$backup_path"
+    ssh_run "cp '$golden_path' '$active_path.new' && mv '$active_path.new' '$active_path'"
+    if [ "$DRY_RUN" -eq 0 ]; then
+        LOCAL_RESTORE_SHA="$(ssh_capture "sha256sum '$golden_path' '$active_path'")"
+        diff -u <(printf '%s\n' "$LOCAL_RESTORE_SHA" | sed -n '1p' | awk '{print $1}') <(printf '%s\n' "$LOCAL_RESTORE_SHA" | sed -n '2p' | awk '{print $1}')
+    fi
+}
 
 case "$MODE" in
     all|image-only)
@@ -202,6 +255,23 @@ case "$MODE" in
         ;;
 esac
 
+case "$MODE" in
+    promote-golden)
+        promote_active_to_golden "$KERNEL_DST" "$KERNEL_GOLDEN_DST"
+        promote_active_to_golden "$DTB_DST" "$DTB_GOLDEN_DST"
+        ;;
+    restore-golden)
+        restore_golden_to_active "$KERNEL_GOLDEN_DST" "$KERNEL_DST" "$REMOTE_BACKUP_BASE/Image"
+        restore_golden_to_active "$DTB_GOLDEN_DST" "$DTB_DST" "$REMOTE_BACKUP_BASE/dtb/k3-am642-sk.dtb"
+        ;;
+    restore-golden-image)
+        restore_golden_to_active "$KERNEL_GOLDEN_DST" "$KERNEL_DST" "$REMOTE_BACKUP_BASE/Image"
+        ;;
+    restore-golden-dtb)
+        restore_golden_to_active "$DTB_GOLDEN_DST" "$DTB_DST" "$REMOTE_BACKUP_BASE/dtb/k3-am642-sk.dtb"
+        ;;
+esac
+
 if [ "$DRY_RUN" -eq 0 ]; then
     case "$MODE" in
         all)
@@ -216,16 +286,51 @@ if [ "$DRY_RUN" -eq 0 ]; then
             REMOTE_FINAL_SHA="$(ssh_capture "sha256sum '$DTB_DST'")"
             diff -u "$LOCAL_HASH_ONLY_FILE" <(printf '%s\n' "$REMOTE_FINAL_SHA" | awk '{print $1}')
             ;;
+        promote-golden|restore-golden|restore-golden-image|restore-golden-dtb)
+            ;;
     esac
 
     cleanup_remote_stage_on_success "$REMOTE_STAGE"
     cleanup_remote_backup_retention "/boot/backup/kernel"
 fi
 
-ssh_run "sync && if [ -f '$KERNEL_DST' ]; then ls -lh '$KERNEL_DST'; fi && if [ -f '$DTB_DST' ]; then ls -lh '$DTB_DST'; fi && echo '---' && ls -R '$REMOTE_BACKUP_BASE' || true"
+ssh_run "sync && if [ -f '$KERNEL_DST' ]; then ls -lh '$KERNEL_DST'; fi && if [ -f '$DTB_DST' ]; then ls -lh '$DTB_DST'; fi && if [ -f '$KERNEL_GOLDEN_DST' ]; then ls -lh '$KERNEL_GOLDEN_DST'; fi && if [ -f '$DTB_GOLDEN_DST' ]; then ls -lh '$DTB_GOLDEN_DST'; fi && echo '---' && ls -R '$REMOTE_BACKUP_BASE' || true"
 
 if [ "$REBOOT_AFTER" -eq 1 ]; then
     ssh_run "sync && reboot"
+fi
+
+if [ "$VERIFY_POST_DEPLOY" -eq 1 ] && [ "$DRY_RUN" -eq 0 ]; then
+    python3 - <<PY
+import subprocess, time, sys
+host = "root@${BOARD_IP}"
+cmd = ['ssh','-o','BatchMode=yes','-o','StrictHostKeyChecking=accept-new',host,'true']
+deadline = time.time() + 300
+for _ in range(30):
+    r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if r.returncode != 0:
+        break
+    time.sleep(1)
+while time.time() < deadline:
+    r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if r.returncode == 0:
+        sys.exit(0)
+    time.sleep(5)
+sys.exit(1)
+PY
+
+    verify_mode="$MODE"
+    if [ "$MODE" = "promote-golden" ] || [ "$MODE" = "restore-golden" ] || [ "$MODE" = "restore-golden-image" ] || [ "$MODE" = "restore-golden-dtb" ]; then
+        verify_mode="all"
+        if [ "$MODE" = "restore-golden-image" ]; then
+            verify_mode="image-only"
+        fi
+        if [ "$MODE" = "restore-golden-dtb" ]; then
+            verify_mode="dtb-only"
+        fi
+    fi
+
+    "$SCRIPT_DIR/verify-kernel-dtb-postdeploy.sh" "$BOARD_IP" "$verify_mode"
 fi
 
 echo "[INFO] Kernel/DTB deploy flow completed."
