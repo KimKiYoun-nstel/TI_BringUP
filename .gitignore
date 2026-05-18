@@ -8,6 +8,7 @@ Thumbs.db
 *.log
 *.tmp
 !/logs/**/*.log
+/logs/runtime_log
 
 # Local BSP source workspaces copied from TI SDK
 /workspace/

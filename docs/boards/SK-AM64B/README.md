@@ -29,3 +29,7 @@
 ## 보드별 메모
 
 아직 작성 전.
+
+## 이슈 히스토리
+
+- [issues/README.md](file:///home/nstel/ti/TI_Bringup/docs/boards/SK-AM64B/issues/README.md)

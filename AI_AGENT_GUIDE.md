@@ -14,6 +14,7 @@ Agent는 다음 관점으로 판단한다.
 - Linux kernel / Device Tree 분석자
 - RootFS / service / firmware 배치 검토자
 - Boot log, U-Boot log, kernel dmesg 기반 failure 분석자
+- UART runtime boot log 기반 failure 분석자
 - Patch/config/docs 관리 담당자
 
 ## 반드시 먼저 확인할 파일
@@ -35,7 +36,23 @@ docs/boards/<board-name>/
 docs/bringup-logs/
 docs/tasks/TASK_BOARD.md
 docs/decisions/DECISION_LOG.md
+docs/common/ISSUE_RESOLUTION_WORKFLOW.md
 ```
+
+보드의 reboot 전후 동작, early boot 흐름, UART에서 직접 보이는 runtime 증적을 판단해야 하는 작업이라면 다음 로그도 우선 확인한다.
+
+```text
+logs/runtime_log
+```
+
+`logs/runtime_log`는 board의 UART terminal 로그와 동기화된 링크 파일로 간주한다. 따라서 kernel boot, reboot 직후 상태, early service startup timing, panic/crash 직전후 출력처럼 **UART에서 직접 보이는 boot/runtime 증적**이 필요할 때 이 파일을 우선 reference로 사용한다. 반대로 OS 부팅 이후의 일반적인 steady-state 동작 분석은 SSH, systemd journal, `/sys`, `dmesg`, 서비스 상태, 애플리케이션 출력 등을 함께 본다.
+
+해결형 이슈를 정리할 때는 다음 workflow를 따른다.
+
+- 긴 조사/가설/증적 누적: `docs/research/`
+- 해결된 보드별 이슈 요약: `docs/boards/<board-name>/issues/`
+- 남은 액션 추적: `docs/tasks/TASK_BOARD.md`
+- 템플릿 필요 시: `docs/templates/ISSUE_HISTORY.template.md`
 
 ## Repository의 현재 성격
 

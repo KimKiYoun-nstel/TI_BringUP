@@ -11,6 +11,7 @@
 - 원본 증적과 정리 문서는 분리합니다.
   - 원본 로그, 명령 출력, 실패 재현 기록은 `bringup-logs/`
   - 정리된 해설, 절차, 요약은 `boards/`, `common/`, `setup/`, `outputs/`
+- 보드별로 반복 참조할 **해결된 이슈 히스토리**는 `boards/<board-name>/issues/` 처럼 보드 폴더 아래에 둡니다.
 - 보드에 강하게 종속되면 `boards/<board-name>/`, 보드와 무관하게 재사용되면 `common/` 또는 `setup/`에 둡니다.
 - 확정된 결론은 `decisions/`, 아직 탐색 중인 내용은 `research/`에 둡니다.
 - 진행 관리 문서는 `tasks/`, 재사용 서식은 `templates/`에 둡니다.
@@ -23,6 +24,7 @@
    - `bringup-logs/`
 2. 특정 보드 하나의 특성, 설정, 이슈, 검증 메모인가?
    - `boards/<board-name>/`
+   - 해결된 이슈의 짧은 히스토리는 `boards/<board-name>/issues/`
 3. SDK, 툴체인, 호스트 환경, 빌드 환경 준비 절차인가?
    - `setup/`
 4. 여러 보드에서 공통으로 쓰는 개념, 흐름, 용어, 범용 팁인가?
@@ -49,6 +51,7 @@
 - 부트 플로우 설명
 - BSP 용어 정리
 - 공통 이미지 작성 절차
+- 공통 issue resolution workflow
 
 ### `boards/`
 
@@ -60,6 +63,7 @@
 - 보드별 UART/부트 모드/전원 메모
 - 특정 보드에서만 유효한 검증 결과
 - 특정 보드용 사용 가이드
+- 보드별 해결 이슈 히스토리
 
 권장 구조:
 
@@ -67,6 +71,9 @@
 boards/
   SK-AM64B/
     README.md
+    issues/
+      README.md
+      YYYY-MM-DD_<topic>.md
     power-notes.md
     uart-console-windows.md
   TMDS64EVM/
@@ -139,6 +146,7 @@ YYYY-MM-DD_<board>_<topic>.md
 - bring-up log 템플릿
 - decision 템플릿
 - research note 템플릿
+- issue history 템플릿
 
 ### `outputs/`
 
