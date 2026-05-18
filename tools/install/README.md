@@ -29,6 +29,13 @@
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 dtb-only --reboot
 ```
 
+### kernel modules deploy
+
+```bash
+./tools/install/install-kernel-modules-to-sd.sh 192.168.0.110 deploy --dry-run
+./tools/install/install-kernel-modules-to-sd.sh 192.168.0.110 deploy --verify-post-deploy
+```
+
 ### golden 운용
 
 ```bash
@@ -36,6 +43,8 @@
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 restore-golden
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 restore-golden-image
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 restore-golden-dtb
+./tools/install/install-kernel-modules-to-sd.sh 192.168.0.110 promote-golden
+./tools/install/install-kernel-modules-to-sd.sh 192.168.0.110 restore-golden
 ```
 
 ### post-deploy 검증
@@ -44,6 +53,7 @@
 ./tools/install/verify-kernel-dtb-postdeploy.sh 192.168.0.110 all
 ./tools/install/verify-kernel-dtb-postdeploy.sh 192.168.0.110 image-only
 ./tools/install/verify-kernel-dtb-postdeploy.sh 192.168.0.110 dtb-only
+./tools/install/verify-kernel-modules-postdeploy.sh 192.168.0.110 6.18.13-gc21449208550
 ```
 
 ## U-Boot 복구 command

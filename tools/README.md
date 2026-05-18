@@ -78,6 +78,12 @@ kernel/DTB:
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 dtb-only --dry-run
 ```
 
+kernel modules:
+
+```bash
+./tools/install/install-kernel-modules-to-sd.sh 192.168.0.110 deploy --dry-run
+```
+
 ### 6. 실제 deploy
 
 bootloader:
@@ -95,6 +101,14 @@ kernel/DTB:
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 promote-golden
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 restore-golden
 ./tools/install/install-kernel-to-sd.sh 192.168.0.110 restore-golden-dtb --reboot
+```
+
+kernel modules:
+
+```bash
+./tools/install/install-kernel-modules-to-sd.sh 192.168.0.110 deploy --verify-post-deploy
+./tools/install/install-kernel-modules-to-sd.sh 192.168.0.110 promote-golden
+./tools/install/install-kernel-modules-to-sd.sh 192.168.0.110 restore-golden
 ```
 
 ## Option A 기준 동작 원칙
