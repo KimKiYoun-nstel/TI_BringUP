@@ -4,6 +4,9 @@
 - 상태: Resolved on live board
 - 관련 상세 조사:
   - [research note](file:///home/nstel/ti/TI_Bringup/docs/research/2026-05-15_am64x_remoteproc_empty_sysfs_after_module_load.md)
+- 관련 증적:
+  - [bringup resolution log](file:///home/nstel/ti/TI_Bringup/docs/bringup-logs/2026-05-15_sk-am64b_r5f_remoteproc_rpmsg_resolution.md)
+  - [runtime verification log](file:///home/nstel/ti/TI_Bringup/logs/runtime/2026-05-15_sk-am64b_r5f_remoteproc_verification_log.md)
 
 ## 증상
 

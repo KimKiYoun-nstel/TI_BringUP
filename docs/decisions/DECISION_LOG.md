@@ -109,3 +109,29 @@
   - OSPI에도 self-built golden을 승격할 정도로 충분한 검증 체계가 마련될 때
   - SD/OSPI를 함께 포함한 A/B slot 전략이 필요해질 때
   - 보드 운용 방식이 바뀌어 OSPI recovery 의존도를 낮출 수 있을 때
+
+## D-006. SK-AM64B R5F remoteproc 이슈는 module sync + rpmsg userspace startup ordering 이슈로 분류한다
+
+- 날짜: 2026-05-15
+- 상태: Accepted
+- 배경:
+  - SK-AM64B에서 R5F 동작 여부를 확인하는 과정에서 `modprobe ti_k3_r5_remoteproc` 실패, `/sys/class/remoteproc/` empty 관측, `remoteproc ... releasing ...` 로그, `rpmsg_json.service` 실패가 함께 보였다.
+  - 초기에는 R5F remoteproc bring-up 자체 실패로 해석될 수 있었다.
+  - 이후 current kernel release 기준 module tree를 배포한 뒤, clean reboot 재검증과 live board 확인을 통해 remoteproc registration, firmware boot, RPMsg host online, `state=running` 상태가 모두 정상임을 확인했다.
+- 결정:
+  - 이 이슈는 “R5F bring-up 실패”로 분류하지 않는다.
+  - 1차 문제는 kernel/modules sync mismatch로 본다.
+  - 잔여 문제는 `rpmsg_json.service` 가 remoteproc/rpmsg 준비 이전에 시작되는 userspace startup ordering race로 본다.
+  - 장기 히스토리 제목은 `SK-AM64B R5F remoteproc module sync 및 rpmsg startup race 해결`로 유지한다.
+- 영향:
+  - 향후 유사 이슈에서는 먼저 `uname -r` 와 `/lib/modules/<release>` 일치 여부를 확인한다.
+  - remoteproc 문제로 보이면 clean reboot 후 `/sys/class/remoteproc/*/state` 와 boot log를 우선 확인한다.
+  - RPMsg userspace 실패는 remoteproc bring-up 실패와 분리하여 판단한다.
+- 관련 문서:
+  - `docs/research/2026-05-15_am64x_remoteproc_empty_sysfs_after_module_load.md`
+  - `docs/boards/SK-AM64B/issues/2026-05-15_r5f-remoteproc-module-sync-and-rpmsg-race.md`
+  - `docs/bringup-logs/2026-05-15_sk-am64b_r5f_remoteproc_rpmsg_resolution.md`
+  - `logs/runtime/2026-05-15_sk-am64b_r5f_remoteproc_verification_log.md`
+- 재검토 조건:
+  - clean reboot 기준으로 remoteproc `state=running` 이 더 이상 재현되지 않을 때
+  - 다른 보드 또는 다른 boot chain에서 동일 현상이 다른 원인으로 반복될 때
