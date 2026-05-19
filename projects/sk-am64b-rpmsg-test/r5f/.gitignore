@@ -1,0 +1,17 @@
+generated/
+*.out
+*.map
+*.lnkxml
+*.mcelf
+*.mcelf.hs
+*.mcelf.hs_fs
+*.appimage*
+*.rprc*
+*.tiimage*
+*.bin
+*.ossr
+*.o
+*.d
+obj/
+Release/
+Debug/

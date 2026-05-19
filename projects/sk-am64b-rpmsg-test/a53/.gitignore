@@ -1,0 +1,3 @@
+build/
+*.o
+sk_am64b_rpmsg_test_a53
