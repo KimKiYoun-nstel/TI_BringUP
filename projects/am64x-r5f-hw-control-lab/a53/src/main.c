@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <glob.h>
+#include <limits.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +19,8 @@
 #define APP_BUF_SIZE         496U
 #define TRACE_BUF_SIZE       512U
 #define APP_REPLY_TIMEOUT_MS 3000
+#define APP_BLINK_STEP_MS    400
+#define APP_BLINK_MARGIN_MS  2000
 #define REMOTEPROC_GLOB      "/sys/class/remoteproc/remoteproc*/name"
 #define DEBUGFS_PREFIX       "/sys/kernel/debug/remoteproc/"
 #define TRACE_SUFFIX         "/trace0"
@@ -86,6 +89,25 @@ static int build_command(int argc, char **argv, char *tx, size_t tx_size)
     }
 
     return 0;
+}
+
+static int command_timeout_ms(const char *payload)
+{
+    long count;
+
+    if (strncmp(payload, "GPIO_BLINK ", 11U) != 0) {
+        return APP_REPLY_TIMEOUT_MS;
+    }
+
+    if (parse_count(payload + 11, &count) != 0) {
+        return APP_REPLY_TIMEOUT_MS;
+    }
+
+    if (count > (LONG_MAX - APP_BLINK_MARGIN_MS) / APP_BLINK_STEP_MS) {
+        return APP_REPLY_TIMEOUT_MS;
+    }
+
+    return (int)(count * APP_BLINK_STEP_MS + APP_BLINK_MARGIN_MS);
 }
 
 static int copy_fd_to_stdout(int fd)
@@ -249,6 +271,9 @@ static int send_command(const char *payload)
     ssize_t tx_len = (ssize_t)strlen(payload);
     ssize_t rx_len;
     int rc = 0;
+    int timeout_ms;
+
+    timeout_ms = command_timeout_ms(payload);
 
     if (rpmsg_char_init(NULL) < 0) {
         fprintf(stderr, "rpmsg_char_init failed\n");
@@ -283,9 +308,9 @@ static int send_command(const char *payload)
         pfd.events = POLLIN;
         pfd.revents = 0;
 
-        poll_rc = poll(&pfd, 1, APP_REPLY_TIMEOUT_MS);
+        poll_rc = poll(&pfd, 1, timeout_ms);
         if (poll_rc == 0) {
-            fprintf(stderr, "timeout waiting for R5F response\n");
+            fprintf(stderr, "timeout waiting for R5F response (%d ms)\n", timeout_ms);
             rc = 1;
             goto out;
         }
