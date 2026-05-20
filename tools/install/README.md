@@ -36,6 +36,23 @@
 ./tools/install/install-kernel-modules-to-sd.sh 192.168.0.110 deploy --verify-post-deploy
 ```
 
+### lab service policy
+
+```bash
+./tools/install/manage-sk-am64b-lab-service-policy.sh 192.168.0.110 status
+./tools/install/manage-sk-am64b-lab-service-policy.sh 192.168.0.110 apply
+./tools/install/manage-sk-am64b-lab-service-policy.sh 192.168.0.110 restore
+./tools/install/manage-sk-am64b-lab-service-policy.sh 192.168.0.110 overlay-apply
+./tools/install/manage-sk-am64b-lab-service-policy.sh 192.168.0.110 overlay-restore
+```
+
+의미:
+
+- `apply`: `benchmark_server.service`, `rpmsg_json.service`를 `disable --now`
+- `restore`: 두 서비스를 `enable --now`
+- `overlay-apply`: repo-managed lab overlay marker/drop-in을 설치해 서비스는 enabled 상태로 두되 boot 시 skip되게 함
+- `overlay-restore`: overlay marker/drop-in을 제거하고 baseline auto-start 정책으로 복귀
+
 ### golden 운용
 
 ```bash
