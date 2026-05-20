@@ -35,3 +35,36 @@ lab firmware 적용 후에도 `benchmark_server.service`와 `rpmsg_json.service`
 ```bash
 systemctl stop benchmark_server.service rpmsg_json.service || true
 ```
+
+## 8. Blink 응답 시간
+
+`GPIO_BLINK <count>`는 R5F가 blink loop를 모두 수행한 뒤 최종 `OK GPIO_BLINK ...` 응답을 보낸다. 현재 firmware 지연은 1회당 약 400ms(`high 200ms + low 200ms`)이므로, count가 커질수록 A53 응답 timeout도 함께 늘어나야 한다.
+
+예를 들어 `blink 10`은 대략 4초가 걸리므로, 너무 짧은 host timeout이면 다음 현상이 생길 수 있다.
+
+```text
+A53 CLI timeout
+CLI endpoint close
+late R5F reply
+virtio_rpmsg_bus: msg received with no recipient
+```
+
+현재 `r5ctl`은 `GPIO_BLINK` count 기반 timeout을 적용하도록 수정되어 있다.
+
+## 9. Late reply / stale reply 가능성
+
+현재 A53 CLI는 명령마다 RPMsg char endpoint를 열고 닫는 구조다. 이때 timeout이 발생한 뒤 R5F의 늦은 응답이 도착하면, 다음 명령에서 재사용된 local endpoint로 이전 응답이 전달될 가능성이 있다.
+
+관측 예:
+
+```text
+gpio blink 10 -> host timeout
+다음 status 호출 -> 이전 GPIO_BLINK 응답 수신
+```
+
+이 경우 kernel에는 `virtio_rpmsg_bus ... msg received with no recipient` 또는 다음 명령에서 stale reply 수신 형태가 나타날 수 있다.
+
+근본적인 해결은 다음 중 하나다.
+
+1. 요청 ID/sequence를 protocol에 추가하고 응답에서 매칭
+2. persistent endpoint를 유지하는 daemon/session 구조로 변경

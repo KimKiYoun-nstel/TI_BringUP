@@ -105,6 +105,16 @@ PIN_MODE(7)
 3. `MCU_GPIO0_8`에 대한 SysConfig pinmux 구현은 repo에 반영되었다.
 4. 남은 일은 사용자가 실제 보드에서 외부 LED 또는 측정기로 전압 변화/점멸을 확인하는 것이다.
 
+## Blink / 계측 해석 메모
+
+`gpio set 0/1`은 멀티미터로 정적 0V / 3.3V 근처를 확인하는 데 적합하다.
+
+반면 `gpio blink <count>`는 200ms 단위로 상태가 바뀌므로, 일반 멀티미터로는 평균값처럼 보이거나 기대한 ON/OFF 반복이 뚜렷하지 않을 수 있다. blink 관측은 외부 LED, 로직 애널라이저, 오실로스코프가 더 적합하다.
+
+또한 `GPIO_BLINK 10`처럼 긴 명령은 R5F가 전체 blink를 마친 뒤 응답을 보내므로, host timeout이 너무 짧으면 CLI timeout 후 kernel에 `msg received with no recipient`가 남을 수 있다. 이는 blink loop 자체 실패가 아니라 늦은 reply와 endpoint close의 조합으로 해석해야 한다.
+
+추가로 현재 A53 CLI는 명령마다 endpoint를 새로 여는 구조이므로, timeout 뒤 늦게 도착한 응답이 다음 명령에서 stale reply로 읽힐 가능성도 있다. 예를 들어 `gpio blink 10` timeout 직후 `status`가 이전 `OK GPIO_BLINK ...` 응답을 받는 현상이 가능하다. 이 문제를 근본적으로 없애려면 요청 ID 기반 응답 매칭 또는 persistent endpoint 구조가 필요하다.
+
 ## 남은 수동 검증
 
 사용자가 직접 해야 하는 마지막 확인은 아래와 같다.
