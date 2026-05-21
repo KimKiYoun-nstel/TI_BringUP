@@ -135,3 +135,30 @@
 - 재검토 조건:
   - clean reboot 기준으로 remoteproc `state=running` 이 더 이상 재현되지 않을 때
   - 다른 보드 또는 다른 boot chain에서 동일 현상이 다른 원인으로 반복될 때
+
+## D-007. SK-AM64B R5F H/W Control Phase 1은 전용 project docs를 canonical로 사용한다
+
+- 날짜: 2026-05-20
+- 상태: Accepted
+- 배경:
+  - SK-AM64B R5F H/W Control Phase 1 관련 계획, 적용 절차, 프로토콜, 실측 절차, 완료 상태가 project docs와 root `docs/` 아래에 중복 기록되기 시작했다.
+  - root `docs/boards/SK-AM64B/r5f-hw-control/` 아래 문서는 project docs와 주제와 내용이 강하게 겹쳤고, 일부는 connector pin mapping을 project docs보다 더 단정적으로 서술했다.
+- 결정:
+  - Phase 1의 canonical 문서는 `projects/am64x-r5f-hw-control-lab/docs/` 아래에 둔다.
+  - root `docs/` 아래에는 repo-wide decision, research, setup, bring-up history만 남긴다.
+  - root `docs`에 임시로 추가된 Phase 1 중복 문서는 canonical 문서에 흡수하거나 삭제한다.
+- 영향:
+  - project scope 내용은 project docs에서만 유지한다.
+  - repo-level `DECISION_LOG`에는 구조와 운영 원칙만 남기고, 상세 절차/배선/검증 체크리스트는 project docs로 위임한다.
+  - `MCU_GPIO0_8` connector-level mapping은 실제 실측 전까지 project docs 기준으로 미검증으로 유지한다.
+- 관련 문서:
+  - `projects/am64x-r5f-hw-control-lab/README.md`
+  - `projects/am64x-r5f-hw-control-lab/docs/plan.md`
+  - `projects/am64x-r5f-hw-control-lab/docs/board-apply.md`
+  - `projects/am64x-r5f-hw-control-lab/docs/protocol.md`
+  - `projects/am64x-r5f-hw-control-lab/docs/test-procedure.md`
+  - `projects/am64x-r5f-hw-control-lab/docs/completion.md`
+  - `projects/am64x-r5f-hw-control-lab/docs/issues.md`
+- 재검토 조건:
+  - 동일 project에 대해 repo-wide docs가 별도 canonical 위치를 가질 필요가 생길 때
+  - Phase 1이 제품 문서/board 공통 문서로 승격되어 project 범위를 넘어설 때
