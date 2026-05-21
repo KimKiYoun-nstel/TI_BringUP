@@ -173,7 +173,7 @@ YYYY-MM-DD_<short-topic>.md
 
 1. `docs/common/ISSUE_RESOLUTION_WORKFLOW.md` 로 workflow 정의
 2. `docs/templates/ISSUE_HISTORY.template.md` 로 템플릿 제공
-3. `AI_AGENT_GUIDE.md` 와 `docs/README.md` 에 링크 추가
+3. `AGENTS.md` 와 `docs/README.md` 에 링크 추가
 
 즉 지금 단계에서는
 

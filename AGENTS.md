@@ -1,4 +1,4 @@
-# AI Agent Guide
+# AGENTS Guide
 
 이 문서는 ChatGPT, Codex, Copilot, 또는 외부 AI Agent가 이 저장소에서 작업할 때 따라야 하는 기본 지침이다.
 
@@ -23,10 +23,11 @@ Agent는 다음 관점으로 판단한다.
 
 ```text
 PROJECT_BRIEF.md
-AI_AGENT_GUIDE.md
+AGENTS.md
 README.md
 sdk-manifest/workspace-baseline.md
 sdk-manifest/source-commits.md
+sdk-manifest/workspaces.yml
 ```
 
 작업이 보드별 이슈라면 추가로 확인한다.
@@ -47,13 +48,6 @@ logs/runtime_log
 
 `logs/runtime_log`는 board의 UART terminal 로그와 동기화된 링크 파일로 간주한다. 따라서 kernel boot, reboot 직후 상태, early service startup timing, panic/crash 직전후 출력처럼 **UART에서 직접 보이는 boot/runtime 증적**이 필요할 때 이 파일을 우선 reference로 사용한다. 반대로 OS 부팅 이후의 일반적인 steady-state 동작 분석은 SSH, systemd journal, `/sys`, `dmesg`, 서비스 상태, 애플리케이션 출력 등을 함께 본다.
 
-해결형 이슈를 정리할 때는 다음 workflow를 따른다.
-
-- 긴 조사/가설/증적 누적: `docs/research/`
-- 해결된 보드별 이슈 요약: `docs/boards/<board-name>/issues/`
-- 남은 액션 추적: `docs/tasks/TASK_BOARD.md`
-- 템플릿 필요 시: `docs/templates/ISSUE_HISTORY.template.md`
-
 ## Repository의 현재 성격
 
 초기 repo는 문서 중심 지식 저장소였지만, 현재는 실제 bring-up 개발 환경을 포함한다.
@@ -68,15 +62,17 @@ logs/runtime_log
 - rootfs overlay
 - build/install/prepare scripts
 - 선별된 boot/U-Boot/kernel 로그
+- provenance와 rehearsal audit 기록
 
 ## 문서 작성 규칙
 
-- 이 저장소에 새로 추가하거나 수정하는 Markdown 문서는 기본적으로 한글로 작성한다.
+- 이 저장소에 새로 추가하거나 수정하는 Markdown 문서는 **기본적으로 한글로 작성한다.**
 - 코드, 경로, 명령어, 환경변수, 로그 원문은 필요 시 원문 그대로 유지한다.
 - 영어 자료를 인용할 때도 문서 본문 설명과 판단 근거는 한글로 정리한다.
 - 작업 히스토리, 의사결정, 보드 메모, setup 가이드는 모두 한글을 기본 언어로 사용한다.
+- 실험성 문서라도 특별한 이유가 없으면 영문이 아니라 한글을 기본으로 한다.
 
-관리하지 않는 대상:
+## 관리하지 않는 대상
 
 - TI SDK 전체 source tree
 - `workspace/` 전체 source tree
@@ -88,13 +84,41 @@ logs/runtime_log
 ## BSP Workspace 규칙
 
 - SDK 원본 경로 `~/ti/am64x/.../board-support/...`는 reference로만 사용하고 직접 수정하지 않는다.
+- **현재 workspace 외부의 SDK 원본, toolchain, sysroot, live SD/OSPI 내용은 사용자 승인 없이 절대 수정하지 않는다.**
 - 실제 U-Boot source는 `workspace/ti-u-boot-sdk12`에서 분석/수정한다.
 - 실제 Linux kernel source는 `workspace/ti-linux-kernel-sdk12`에서 분석/수정한다.
+- MCU+ SDK 수정이 필요하면 외부 SDK 원본이 아니라 재현 가능한 workspace/patch 흐름을 먼저 만든다.
 - `workspace/`는 상위 repo Git에서 제외한다.
-- source tree 실험 변경은 workspace 내부 git branch/commit으로 관리한다.
-- 장기 보관할 변경은 `git format-patch`로 export하여 `bsp/u-boot/patches/` 또는 `bsp/linux/patches/`에 저장한다.
-- 상위 repo에는 patch, config, DTS 후보, docs, scripts, rootfs overlay, 선별 로그만 commit한다.
-- `tools/prepare/apply-*-patches.sh`는 workspace를 reset/clean하므로 실행 전 workspace 내부 미보관 변경이 없는지 확인한다.
+
+## Workspace 운영 모델
+
+이 저장소는 **혼합 모델**을 사용한다.
+
+### 1. workspace 내부
+
+- `workspace/*`는 실험/리허설을 수행하는 editable local git repo이다.
+- baseline branch에서 직접 실험하지 말고 local topic branch를 만든다.
+- branch 예:
+  - `phase2-button-event`
+  - `phase2-boot-rm`
+  - `custom-board-audio`
+- local branch는 실험 전환, 비교, merge 검토를 쉽게 하기 위한 1차 운영 단위다.
+
+### 2. Main Repo 내부
+
+- Main Repo는 공식 형상 owner이다.
+- workspace 변경 중 장기 보관 가치가 있는 것은 다음으로 반입한다.
+  - `bsp/*/patches/`
+  - `sdk-manifest/`
+  - `logs/provenance/`
+  - `docs/research/`, `docs/decisions/`, `docs/tasks/`
+
+### 3. 채택 규칙
+
+- workspace 변경은 자동으로 최종 output baseline에 누적되지 않는다.
+- `series`에 포함된 patch만 replay 대상이다.
+- patch로 승격되지 않은 변경은 provenance/research에 참고 자산으로만 남긴다.
+- branch는 실험 단위이고, patch/provenance는 공식 기록 단위다.
 
 ## 작업 전 체크리스트
 
@@ -108,31 +132,20 @@ source tools/env/sdk-12.00.00.07.04.env
 [ -d "$KERNEL_SRC/.git" ] && echo "Kernel workspace OK: $KERNEL_SRC"
 git -C "$UBOOT_SRC" status --short --branch
 git -C "$KERNEL_SRC" status --short --branch
+bash tools/prepare/verify-workspace-state.sh
 ```
 
 Workspace가 dirty이면 이유를 먼저 확인한다. 사용자가 만든 변경일 수 있으므로 임의로 되돌리지 않는다. 단, 사용자가 명시적으로 clean baseline 복원을 지시한 경우에만 reset/clean을 수행한다.
 
 ## Source 수정 원칙
 
-- SDK 원본을 직접 수정하지 않는다.
+- 외부 SDK 원본을 직접 수정하지 않는다.
 - workspace 내부에서 topic branch를 만든다.
 - 변경 전 baseline과 현재 branch를 명확히 확인한다.
 - DTS/defconfig 변경은 가능하면 새 board 파일을 추가하는 방식으로 진행한다.
 - TI EVM 원본 파일 수정은 불가피할 때만 수행하고 patch를 분리한다.
-- 변경 후 workspace 내부에서 commit한다.
-- 상위 repo에는 workspace commit 자체가 아니라 `format-patch` 결과를 저장한다.
-
-예시:
-
-```bash
-cd ~/ti/TI_Bringup/workspace/ti-linux-kernel-sdk12
-git switch -c nstel/myboard-dts ti-sdk-12.00.00.07.04-baseline
-# edit source
-git diff
-git add <files>
-git commit -m "arm64: dts: ti: add NSTEL AM64x board"
-git format-patch ti-sdk-12.00.00.07.04-baseline..HEAD -o ~/ti/TI_Bringup/bsp/linux/patches/
-```
+- meaningful change는 workspace 내부 commit 또는 최소 patch export 가능 상태로 정리한다.
+- 상위 repo에는 workspace commit 자체가 아니라 `format-patch` 결과, series, manifest, provenance를 저장한다.
 
 ## Build 작업 원칙
 
@@ -141,6 +154,7 @@ git format-patch ti-sdk-12.00.00.07.04-baseline..HEAD -o ~/ti/TI_Bringup/bsp/lin
 - build 실패 시 command, environment, failing target, first error, relevant log path를 남긴다.
 - U-Boot는 AM64x boot flow상 R5 SPL, A53 SPL/U-Boot proper, TF-A, OP-TEE, SYSFW/TIFS/DM firmware 의존성을 함께 고려한다.
 - Linux kernel은 `ARCH=arm64`, cross compiler prefix, defconfig, DTB target, modules install path를 명확히 구분한다.
+- build/deploy 전에는 `tools/prepare/verify-workspace-state.sh`를 통과해야 한다.
 
 ## Bring-up 분석 기준
 
@@ -177,22 +191,7 @@ Boot ROM
 - 공통 개념: `docs/common/`
 - SDK/source baseline: `sdk-manifest/`
 - board-specific working notes: `board/<board-name>/`
-
-## 저장소 디렉터리 기준
-
-| 문서/폴더 | 용도 |
-|---|---|
-| `PROJECT_BRIEF.md` | 프로젝트 목적, 범위, 현재 상태 |
-| `README.md` | repo 역할, 구조, 빠른 시작 |
-| `sdk-manifest/` | SDK 버전, source commit, workspace baseline, build target |
-| `bsp/u-boot/` | U-Boot patch/config/DTS 후보 |
-| `bsp/linux/` | Linux patch/config/DTS 후보 |
-| `rootfs/` | rootfs overlay와 설정 조각 |
-| `tools/` | env, prepare, build, install helper |
-| `board/` | 현재 작업용 보드별 메모 |
-| `logs/` | 선별 보관하는 boot/U-Boot/kernel 로그 |
-| `docs/` | 장기 지식 베이스 |
-| `workspace/` | local only source workspace, 상위 Git ignore |
+- 실험 provenance: `logs/provenance/`
 
 ## 답변/작업 원칙
 
@@ -204,52 +203,4 @@ Boot ROM
 6. 코드나 설정 변경 시 관련 문서도 함께 업데이트한다.
 7. 사용자가 명시적으로 요청하지 않은 destructive 작업은 하지 않는다.
 8. workspace 또는 SDK source의 예상 밖 dirty 상태를 발견하면 멈추고 사용자에게 확인한다.
-
-## 작업 후 정리 형식
-
-중요한 작업 후에는 필요한 항목만 골라 다음 형식으로 정리한다.
-
-```md
-## Knowledge
-- 새로 이해한 개념 또는 배경지식
-
-## Decision
-- 결정한 사항
-- 이유
-- 영향 범위
-
-## Assumption
-- 현재 전제로 둔 사항
-
-## Action Item
-- 다음 작업
-
-## Open Question
-- 추가 확인이 필요한 항목
-
-## Board Note
-- 특정 보드에만 해당하는 내용
-
-## Artifact
-- 생성된 patch, config, log, script, image 경로
-```
-
-## 커밋 메시지 가이드
-
-```text
-repo: add SDK12 workspace management structure
-bsp: add Linux board DTS patch
-bsp: add U-Boot NSTEL defconfig patch
-docs: record SK-AM64B boot validation
-tools: add AM64x kernel build helper
-logs: add SK-AM64B kernel boot failure analysis
-```
-
-## 금지/주의 사항
-
-- 확인되지 않은 내용을 확정처럼 쓰지 않는다.
-- 보드별 차이를 AM64x 공통 사실처럼 일반화하지 않는다.
-- SDK 버전, board revision, boot mode가 불명확하면 확인 필요로 표시한다.
-- 실제 하드웨어 변경이 필요한 내용을 SW 설정만으로 해결 가능하다고 단정하지 않는다.
-- full SDK source, workspace source tree, build artifacts를 상위 repo에 추가하지 않는다.
-- local env 파일의 개인 경로를 불필요하게 commit하지 않는다.
+9. workspace 외부 경로 수정은 사용자 승인 없이는 금지다.

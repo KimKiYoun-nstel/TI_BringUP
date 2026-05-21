@@ -532,7 +532,7 @@ TI_Bringup_Repo_Setup_Agent_Guide.md
 향후 repo 내에서 관리할 권장 문서는 다음이다.
 
 ```text
-AI_AGENT_GUIDE.md
+AGENTS.md
 PROJECT_BRIEF.md
 README.md
 docs/sdk/ti-processor-sdk-linux-am64xx-evm-12.00.00.07.04.md
