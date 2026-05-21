@@ -2,7 +2,7 @@
 
 ## 회로도 세부사항 주의
 
-초기 planning note에는 `R342`, `C349`가 언급되어 있었지만, 이후 로컬 schematic 확인에서는 SW1 debounce network가 `R318 4.7K`, `C338 0.1uF`로 보였다. 따라서 정확한 SK-AM64B 설계 자료와 보드 revision으로 교차 검증되기 전까지는 component reference와 값은 board-design-package-specific 정보로 취급해야 한다.
+초기 planning note에는 `R342`, `C349`가 언급되어 있었지만, 이후 로컬 schematic 확인에서는 SW1 debounce network가 `R318 4.7K`, `C338 0.1uF`로 보였다. 따라서 정확한 SK-AM64B 설계 자료와 보드 revision으로 교차 검증되기 전까지는 component reference와 값은 해당 board design package 전용 정보로 취급해야 한다.
 
 ## GPIO Interrupt 소유권
 

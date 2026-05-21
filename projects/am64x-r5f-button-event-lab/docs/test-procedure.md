@@ -1,6 +1,6 @@
 # 테스트 절차
 
-## Smoke Test
+## 기본 동작 확인
 
 `apply` 후 보드가 재부팅된 뒤 다음을 확인한다.
 
@@ -27,7 +27,7 @@ r5ctl button wait 10000
 RX: BUTTON_EVENT source=SW1 gpio=MCU_GPIO0_6 value=0 state=pressed edge=falling count=1 timestamp_us=<t>
 ```
 
-연속 이벤트 확인용:
+연속 이벤트 확인 명령:
 
 ```bash
 r5ctl button monitor

@@ -7,7 +7,7 @@
 ```bash
 ./tools/build/build-am64x-r5f-button-event-lab.sh all
 ./tools/install/deploy-am64x-r5f-button-event-lab-host.sh 192.168.0.110
-# Optional one-step activation from host; this reboots the board.
+# Host에서 한 번에 apply까지 수행하는 선택 경로이며, 보드가 재부팅된다.
 ./tools/install/deploy-am64x-r5f-button-event-lab-host.sh 192.168.0.110 apply
 ```
 

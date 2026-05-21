@@ -1,6 +1,6 @@
 # 완료 메모
 
-이 Phase 2 프로젝트는 Phase 1과 분리된 별도 프로젝트이며 경로는 `projects/am64x-r5f-button-event-lab` 이다.
+이 Phase 2 프로젝트는 Phase 1과 분리된 별도 프로젝트이며 경로는 `projects/am64x-r5f-button-event-lab`이다.
 
 ## 구현 범위
 
