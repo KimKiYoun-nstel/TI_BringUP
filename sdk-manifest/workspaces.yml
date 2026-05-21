@@ -1,0 +1,77 @@
+version: 1
+updated: 2026-05-21
+policy:
+  intent: "Workspace changes are rehearsal assets, not automatic final-product baselines."
+  external_sdk_originals: "read-only"
+  workspace_role: "editable local source tree for analysis, experiments, and exportable patches"
+  main_repo_role: "authoritative owner of manifests, exported patch sets, provenance, and curated notes"
+  default_inclusion_rule: "No workspace change is part of final output unless explicitly exported and selected."
+  forbidden:
+    - "Edit external SDK originals under ~/ti/am64x/... directly"
+    - "Treat out/ artifacts, SD contents, or OSPI contents as source of truth"
+    - "Leave meaningful workspace edits without Main Repo traceability"
+  required_exports:
+    - "patch series under bsp/<component>/patches/"
+    - "provenance record under logs/provenance/"
+    - "research or decision note when the change is experimental or controversial"
+
+workspaces:
+  - name: ti-u-boot-sdk12
+    component: u-boot
+    path: workspace/ti-u-boot-sdk12
+    upstream_reference: ~/ti/am64x/ti-processor-sdk-linux-am64xx-evm-12.00.00.07.04/board-support/ti-u-boot-2026.01+git
+    baseline_tag: ti-sdk-12.00.00.07.04-baseline
+    baseline_commit: 2549829cc194ffd9e38b755d2e10c7fc4cd971eb
+    export_series: bsp/u-boot/patches/series
+    provenance_target: logs/provenance/u-boot/
+    inclusion_mode: selective
+    branch_model:
+      baseline_branch: main
+      topic_branch_required: true
+      topic_branch_prefix_examples:
+        - phase2-
+        - rehearsal-
+        - custom-board-
+      archival_rule: "Selected changes must be exported to Main Repo patches/provenance before branch cleanup."
+    notes:
+      - "Rehearsal changes may remain patch-only and never be selected for final custom-board output."
+
+  - name: ti-linux-kernel-sdk12
+    component: linux
+    path: workspace/ti-linux-kernel-sdk12
+    upstream_reference: ~/ti/am64x/ti-processor-sdk-linux-am64xx-evm-12.00.00.07.04/board-support/ti-linux-kernel-6.18.13+git-ti
+    baseline_tag: ti-sdk-12.00.00.07.04-baseline
+    baseline_commit: c214492085504176b9c252a7175e4e60b4b442af
+    export_series: bsp/linux/patches/series
+    provenance_target: logs/provenance/linux/
+    inclusion_mode: selective
+    branch_model:
+      baseline_branch: main
+      topic_branch_required: true
+      topic_branch_prefix_examples:
+        - phase2-
+        - rehearsal-
+        - custom-board-
+      archival_rule: "Selected changes must be exported to Main Repo patches/provenance before branch cleanup."
+
+  - name: mcu-plus-sdk-am64x-12.00.00
+    component: mcu-plus
+    path: workspace/mcu-plus-sdk-am64x-12.00.00
+    upstream_reference: ~/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27
+    baseline_tag: null
+    baseline_commit: null
+    export_series: bsp/mcu-plus/patches/series
+    provenance_target: logs/provenance/mcu-plus/
+    inclusion_mode: selective
+    status: draft
+    branch_model:
+      baseline_branch: main
+      topic_branch_required: true
+      topic_branch_prefix_examples:
+        - phase2-
+        - rehearsal-
+        - custom-board-
+      archival_rule: "Do not use this until a reproducible local workspace flow exists."
+    notes:
+      - "The external SDK original is currently the source of truth, but direct editing is forbidden."
+      - "If MCU+ SDK changes are needed, a local workspace or reproducible patch-application flow must be introduced first."

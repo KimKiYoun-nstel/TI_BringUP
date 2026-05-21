@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TI_Bringup Workspace Recovery <noreply@example.com>
+Date: Thu, 21 May 2026 13:03:36 +0900
+Subject: [PATCH] sciclient: am64x: route MCU GPIOMUX output to MAIN_0_R5_1
+
+This patch was reconstructed from a direct edit made in the external MCU+ SDK
+original tree. It exists to pull that change back under Main Repo visibility.
+
+Important:
+- This is a contamination-recovery patch, not an automatically selected final
+  product baseline.
+- It should only be applied from a reproducible MCU+ SDK workspace flow.
+- The external SDK original must be restored separately.
+---
+ .../am64x/sciclient_defaultBoardcfg_rm.c      | 2 +-
+ .../am64x/sciclient_defaultBoardcfg_rm_linux.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/source/drivers/sciclient/sciclient_default_boardcfg/am64x/sciclient_defaultBoardcfg_rm.c b/source/drivers/sciclient/sciclient_default_boardcfg/am64x/sciclient_defaultBoardcfg_rm.c
+--- a/source/drivers/sciclient/sciclient_default_boardcfg/am64x/sciclient_defaultBoardcfg_rm.c
++++ b/source/drivers/sciclient/sciclient_default_boardcfg/am64x/sciclient_defaultBoardcfg_rm.c
+@@ -209,7 +209,7 @@
+             .num_resource = 4,
+             .type = TISCI_RESASG_UTYPE (TISCI_DEV_MCU_MCU_GPIOMUX_INTROUTER0, TISCI_RESASG_SUBTYPE_IR_OUTPUT),
+             .start_resource = 0,
+-            .host_id = TISCI_HOST_ID_A53_2,
++            .host_id = TISCI_HOST_ID_MAIN_0_R5_1,
+         },
+         {
+             .num_resource = 4,
+diff --git a/source/drivers/sciclient/sciclient_default_boardcfg/am64x/sciclient_defaultBoardcfg_rm_linux.c b/source/drivers/sciclient/sciclient_default_boardcfg/am64x/sciclient_defaultBoardcfg_rm_linux.c
+--- a/source/drivers/sciclient/sciclient_default_boardcfg/am64x/sciclient_defaultBoardcfg_rm_linux.c
++++ b/source/drivers/sciclient/sciclient_default_boardcfg/am64x/sciclient_defaultBoardcfg_rm_linux.c
+@@ -197,7 +197,7 @@
+             .num_resource = 4,
+             .type = TISCI_RESASG_UTYPE (TISCI_DEV_MCU_MCU_GPIOMUX_INTROUTER0, TISCI_RESASG_SUBTYPE_IR_OUTPUT),
+             .start_resource = 0,
+-            .host_id = TISCI_HOST_ID_A53_2,
++            .host_id = TISCI_HOST_ID_MAIN_0_R5_1,
+         },
+         {
+             .num_resource = 4,
+-- 
+2.43.0

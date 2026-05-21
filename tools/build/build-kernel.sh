@@ -12,6 +12,15 @@ fi
 
 source "$ENV_FILE"
 
+VERIFY_SCRIPT="$BRINGUP_ROOT/tools/prepare/verify-workspace-state.sh"
+
+if [ ! -x "$VERIFY_SCRIPT" ]; then
+    echo "[ERROR] Verification script is missing or not executable: $VERIFY_SCRIPT" >&2
+    exit 1
+fi
+
+"$VERIFY_SCRIPT"
+
 ACTION="${1:-all}"
 
 BUILD_BASE="$BRINGUP_ROOT/out/kernel"

@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TI_Bringup Workspace Recovery <noreply@example.com>
+Date: Thu, 21 May 2026 13:18:14 +0900
+Subject: [PATCH] board: ti: am64x: assign MCU GPIO router to MAIN_0_R5_1
+
+This patch captures a workspace change from
+`workspace/ti-u-boot-sdk12`.
+
+Intent:
+- preserve the Phase2 U-Boot change as a selectable asset in the Main Repo
+- avoid treating the mutable workspace tree as the long-term source of truth
+
+This change is explicitly adopted into the U-Boot replay set through
+`bsp/u-boot/patches/series`, while still remaining a selectable BSP asset
+rather than an automatic final-product baseline.
+---
+ board/ti/am64x/rm-cfg.yaml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/board/ti/am64x/rm-cfg.yaml b/board/ti/am64x/rm-cfg.yaml
+index 1cc4cd34430..1fbf66b690b 100644
+--- a/board/ti/am64x/rm-cfg.yaml
++++ b/board/ti/am64x/rm-cfg.yaml
+@@ -311,7 +311,7 @@ rm-cfg:
+             start_resource: 0
+             num_resource: 4
+             type: 320
+-            host_id: 12
++            host_id: 36
+             reserved: 0
+         -
+             start_resource: 4
+-- 
+2.43.0
