@@ -125,6 +125,16 @@ PIN_MODE(7)
 4. `r5ctl gpio set 1`, `r5ctl gpio set 0`, `r5ctl gpio blink 3` 실행
 5. 실제 전압 변화 또는 LED 점멸 관찰
 
+## 후속 조사 항목
+
+Phase 1의 software path와 SysConfig pinmux 반영은 끝났지만, 다음 항목은 후속 조사 대상으로 남겨 둔다.
+
+1. `TEST_LED2 / MCU_GPIO0_5`가 실제로 어떤 보드 회로와 연결되는지 회로도 기준 확인
+2. R5F debug UART 후보(`ttyS3`, `mcu_uart0`, `mcu_uart1`)의 안전한 사용 가능 여부 확인
+3. User Expansion Header pin별 Linux ownership / pinmux 상태 정리
+4. PRU Header를 이용한 PRU/R5F/A53 연동 실험은 별도 Phase에서 설계
+5. 우측 상단 2-pin header의 reference designator와 회로도상 용도 확인
+
 ## 주의
 
 - lab firmware 적용 후 baseline 서비스가 재부팅 뒤 다시 올라오면 trace에 `ERR UNKNOWN_CMD`가 반복적으로 남을 수 있다.
