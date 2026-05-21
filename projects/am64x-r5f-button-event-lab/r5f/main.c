@@ -1,0 +1,41 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
+
+#include <kernel/dpl/DebugP.h>
+#include "ti_drivers_config.h"
+#include "ti_board_config.h"
+#include "FreeRTOS.h"
+#include "task.h"
+
+#define MAIN_TASK_PRI  (configMAX_PRIORITIES-1)
+#define MAIN_TASK_SIZE (16384U/sizeof(configSTACK_DEPTH_TYPE))
+
+StackType_t gMainTaskStack[MAIN_TASK_SIZE] __attribute__((aligned(32)));
+StaticTask_t gMainTaskObj;
+TaskHandle_t gMainTask;
+
+void am64x_r5f_button_event_lab_main(void *args);
+
+static void freertos_main(void *args)
+{
+    am64x_r5f_button_event_lab_main(args);
+    vTaskDelete(NULL);
+}
+
+int main(void)
+{
+    System_init();
+    Board_init();
+
+    gMainTask = xTaskCreateStatic(freertos_main,
+                                  "freertos_main",
+                                  MAIN_TASK_SIZE,
+                                  NULL,
+                                  MAIN_TASK_PRI,
+                                  gMainTaskStack,
+                                  &gMainTaskObj);
+    configASSERT(gMainTask != NULL);
+
+    vTaskStartScheduler();
+
+    return 0;
+}
