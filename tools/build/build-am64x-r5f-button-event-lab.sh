@@ -20,6 +20,7 @@ fi
 PROJECT_SLUG="am64x-r5f-button-event-lab"
 R5F_PROJECT_ROOT="$BRINGUP_ROOT/projects/$PROJECT_SLUG/r5f"
 A53_PROJECT_ROOT="$BRINGUP_ROOT/projects/$PROJECT_SLUG/a53"
+SHM_ABI_HEADER="$BRINGUP_ROOT/projects/$PROJECT_SLUG/include/r5f_status_shm.h"
 CCS_WORKSPACE="$BRINGUP_ROOT/out/$PROJECT_SLUG/ccs_projects"
 R5F_PROJECT_NAME="am64x_r5f_button_event_lab_r5fss0_0_freertos_ti_arm_clang"
 R5F_RELEASE_DIR="$CCS_WORKSPACE/$R5F_PROJECT_NAME/$PROFILE"
@@ -77,6 +78,9 @@ build_r5f() {
         -application com.ti.ccs.apps.projectCreate \
         -ccs.projectSpec "$R5F_PROJECT_ROOT/ti-arm-clang/example.projectspec" \
         -ccs.overwrite full
+
+    require_file "$SHM_ABI_HEADER"
+    cp "$SHM_ABI_HEADER" "$CCS_WORKSPACE/$R5F_PROJECT_NAME/r5f_status_shm.h"
 
     "$CCS_PATH/eclipse/ccs-server-cli.sh" \
         -workspace "$CCS_WORKSPACE" \

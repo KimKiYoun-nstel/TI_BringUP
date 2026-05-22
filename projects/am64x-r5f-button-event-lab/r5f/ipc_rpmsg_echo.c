@@ -6,6 +6,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if __has_include("r5f_status_shm.h")
+#include "r5f_status_shm.h"
+#else
+#include "../include/r5f_status_shm.h"
+#endif
 #include <kernel/dpl/AddrTranslateP.h>
 #include <kernel/dpl/ClockP.h>
 #include <kernel/dpl/DebugP.h>
@@ -26,7 +31,9 @@ extern void Board_gpioInit(void);
 #define APP_MAX_MSG_SIZE            (496U)
 #define APP_RECV_TASK_PRI           (4U)
 #define APP_EVENT_TASK_PRI          (5U)
+#define APP_SHM_TASK_PRI            (3U)
 #define APP_TASK_STACK_SIZE         (16U * 1024U)
+#define APP_SHM_UPDATE_PERIOD_MS    (100U)
 #define APP_INPUT_GPIO_ID           "mcu_gpio0_6"
 #define APP_INPUT_GPIO_SIGNAL       "MCU_GPIO0_6"
 #define APP_INPUT_GPIO_NAME         "phase2_sw1"
@@ -39,6 +46,12 @@ extern void Board_gpioInit(void);
 #define APP_BUTTON_POLL_US          (5000U)
 #define APP_BUTTON_WAIT_DEFAULT_MS  (5000U)
 #define APP_BUTTON_WAIT_MAX_MS      (60000U)
+#define APP_VTM_BASE_ADDR           (0x00b00000U)
+#define APP_VTM_TMPSENS0_CTRL_OFFSET (0x300U)
+#define APP_VTM_TMPSENS_STAT_OFFSET  (0x8U)
+#define APP_VTM_SENSOR_STRIDE        (0x20U)
+#define APP_VTM_TS_STAT_DTEMP_MASK   (0x3ffU)
+#define APP_VTM_TABLE_SIZE           (1024U)
 
 enum
 {
@@ -75,8 +88,10 @@ typedef struct
 static RPMessage_Object gRecvMsgObject;
 static uint8_t gRecvTaskStack[APP_TASK_STACK_SIZE] __attribute__((aligned(32)));
 static uint8_t gEventTaskStack[APP_TASK_STACK_SIZE] __attribute__((aligned(32)));
+static uint8_t gShmTaskStack[APP_TASK_STACK_SIZE] __attribute__((aligned(32)));
 static TaskP_Object gRecvTask;
 static TaskP_Object gEventTask;
+static TaskP_Object gShmTask;
 static HwiP_Object gButtonHwiObject;
 
 static uint32_t gButtonBaseAddr;
@@ -92,7 +107,114 @@ static uint32_t gOutputConfigured;
 static uint16_t gSubscriberCoreId;
 static uint16_t gSubscriberEndPt;
 static uint32_t gSubscriberActive;
+static volatile uint32_t gRpmsgRxCount;
+static volatile uint32_t gRpmsgTxCount;
+static volatile uint32_t gRpmsgErrorCount;
+static volatile uint32_t gMainLoopCount;
+static uint32_t gShmSeq;
+static uint32_t gShmHeartbeat;
+static uint32_t gShmUpdateCount;
 static app_state_t gState;
+static volatile r5f_status_shm_t *gStatusShm = (volatile r5f_status_shm_t *)(uintptr_t)R5F_STATUS_SHM_BASE;
+static int32_t gVtmDerivedTable[APP_VTM_TABLE_SIZE];
+static uint32_t gVtmTableInitialized;
+
+static inline void app_memory_barrier(void)
+{
+    __asm__ __volatile__("dsb sy" ::: "memory");
+}
+
+static int64_t app_vtm_int_pow(int32_t base, uint32_t exp)
+{
+    int64_t result = 1;
+    uint32_t i;
+
+    for (i = 0U; i < exp; i++) {
+        result *= base;
+    }
+
+    return result;
+}
+
+static int32_t app_vtm_compute_value(int32_t index)
+{
+    static const int64_t golden_factors[] = {
+        -490019999999999936LL,
+        3251200000000000LL,
+        -1705800000000LL,
+        603730000LL,
+        -92627LL,
+    };
+    int64_t value = 0;
+    uint32_t i;
+
+    for (i = 0U; i < (sizeof(golden_factors) / sizeof(golden_factors[0])); i++) {
+        value += golden_factors[i] * app_vtm_int_pow(index, i);
+    }
+
+    return (int32_t)(value / 10000000000000LL);
+}
+
+static void app_vtm_init_table(void)
+{
+    uint32_t i;
+
+    if (gVtmTableInitialized != 0U) {
+        return;
+    }
+
+    for (i = 0U; i < APP_VTM_TABLE_SIZE; i++) {
+        gVtmDerivedTable[i] = app_vtm_compute_value((int32_t)i);
+    }
+
+    gVtmTableInitialized = 1U;
+}
+
+static uint32_t app_vtm_get_best_value(uint32_t s0, uint32_t s1, uint32_t s2)
+{
+    uint32_t d01 = s0 > s1 ? (s0 - s1) : (s1 - s0);
+    uint32_t d02 = s0 > s2 ? (s0 - s2) : (s2 - s0);
+    uint32_t d12 = s1 > s2 ? (s1 - s2) : (s2 - s1);
+
+    if (d01 <= d02 && d01 <= d12) {
+        return (s0 + s1) / 2U;
+    }
+
+    if (d02 <= d01 && d02 <= d12) {
+        return (s0 + s2) / 2U;
+    }
+
+    return (s1 + s2) / 2U;
+}
+
+static uint32_t app_vtm_read_raw_code(uint32_t sensor_id)
+{
+    uint32_t stat_addr = APP_VTM_BASE_ADDR + APP_VTM_TMPSENS0_CTRL_OFFSET +
+                         (sensor_id * APP_VTM_SENSOR_STRIDE) + APP_VTM_TMPSENS_STAT_OFFSET;
+    volatile uint32_t *reg = (volatile uint32_t *)(uintptr_t)AddrTranslateP_getLocalAddr(stat_addr);
+    uint32_t s0 = *reg & APP_VTM_TS_STAT_DTEMP_MASK;
+    uint32_t s1 = *reg & APP_VTM_TS_STAT_DTEMP_MASK;
+    uint32_t s2 = *reg & APP_VTM_TS_STAT_DTEMP_MASK;
+
+    return app_vtm_get_best_value(s0, s1, s2);
+}
+
+static uint32_t app_vtm_read_temperature(uint32_t sensor_id, uint32_t *raw_code, int32_t *milli_celsius)
+{
+    uint32_t raw;
+
+    app_vtm_init_table();
+    raw = app_vtm_read_raw_code(sensor_id);
+    if (raw >= APP_VTM_TABLE_SIZE) {
+        *raw_code = R5F_STATUS_SHM_TEMP_RAW_INVALID;
+        *milli_celsius = R5F_STATUS_SHM_TEMP_MC_INVALID;
+        return R5F_STATUS_SHM_TEMP_ERR_RANGE;
+    }
+
+    *raw_code = raw;
+    *milli_celsius = gVtmDerivedTable[raw];
+    return R5F_STATUS_SHM_TEMP_ERR_NONE;
+}
 
 static const char *app_input_state_name(uint32_t value)
 {
@@ -144,6 +266,27 @@ static void app_set_last_command(uint32_t command_id)
 {
     uintptr_t key = HwiP_disable();
     gState.last_command_id = command_id;
+    HwiP_restore(key);
+}
+
+static void app_count_rpmsg_rx(void)
+{
+    uintptr_t key = HwiP_disable();
+    gRpmsgRxCount++;
+    HwiP_restore(key);
+}
+
+static void app_count_rpmsg_tx(void)
+{
+    uintptr_t key = HwiP_disable();
+    gRpmsgTxCount++;
+    HwiP_restore(key);
+}
+
+static void app_count_rpmsg_error(void)
+{
+    uintptr_t key = HwiP_disable();
+    gRpmsgErrorCount++;
     HwiP_restore(key);
 }
 
@@ -433,8 +576,11 @@ static void app_send_event_to_subscriber(RPMessage_Object *obj, char *event)
                             RPMessage_getLocalEndPt(obj),
                             SystemP_NO_WAIT);
     if (status != SystemP_SUCCESS) {
+        app_count_rpmsg_error();
         app_clear_subscriber(remoteCoreId, remoteEndPt);
         DebugP_log(APP_LOG_PREFIX " event send failed, subscriber cleared\r\n");
+    } else {
+        app_count_rpmsg_tx();
     }
 }
 
@@ -482,6 +628,109 @@ static int32_t app_wait_for_button_event(uint32_t start_count, uint32_t timeout_
     }
 
     return SystemP_TIMEOUT;
+}
+
+static void app_publish_shm_status(void)
+{
+    uint32_t seq;
+    uint32_t uptime_ms;
+    uint32_t heartbeat;
+    uint32_t shm_update_count;
+    uint32_t main_loop_count;
+    uint32_t rpmsg_rx_count;
+    uint32_t rpmsg_tx_count;
+    uint32_t rpmsg_error_count;
+    uint32_t last_command_id;
+    uint32_t last_error;
+    uint32_t output_gpio_state;
+    uint32_t input_gpio_state;
+    uint32_t gpio_event_count;
+    uint32_t last_event_type;
+    uint32_t last_event_gpio_id;
+    uint64_t last_event_timestamp_us;
+    uint32_t soc_temp0_raw;
+    uint32_t soc_temp0_valid;
+    int32_t soc_temp0_milli_celsius;
+    uint32_t soc_temp0_last_error;
+    uint32_t soc_temp1_raw;
+    uint32_t soc_temp1_valid;
+    int32_t soc_temp1_milli_celsius;
+    uint32_t soc_temp1_last_error;
+    uintptr_t key;
+
+    key = HwiP_disable();
+    heartbeat = gShmHeartbeat + 1U;
+    shm_update_count = gShmUpdateCount + 1U;
+    main_loop_count = gMainLoopCount;
+    rpmsg_rx_count = gRpmsgRxCount;
+    rpmsg_tx_count = gRpmsgTxCount;
+    rpmsg_error_count = gRpmsgErrorCount;
+    last_command_id = gState.last_command_id;
+    last_error = gState.last_error;
+    output_gpio_state = gState.output_gpio_state;
+    input_gpio_state = gState.input_gpio_state;
+    gpio_event_count = gState.event_count;
+    last_event_type = gState.last_event_type;
+    last_event_gpio_id = gState.last_event_gpio_id;
+    last_event_timestamp_us = gState.last_event_timestamp_us;
+    HwiP_restore(key);
+
+    uptime_ms = (uint32_t)(ClockP_getTimeUsec() / 1000U);
+    seq = gShmSeq + 1U;
+    if (seq == 0U) {
+        seq = 1U;
+    }
+    gShmSeq = seq;
+    gShmHeartbeat = heartbeat;
+    gShmUpdateCount = shm_update_count;
+
+    soc_temp0_last_error = app_vtm_read_temperature(0U, &soc_temp0_raw, &soc_temp0_milli_celsius);
+    soc_temp0_valid = soc_temp0_last_error == R5F_STATUS_SHM_TEMP_ERR_NONE ?
+                      R5F_STATUS_SHM_TEMP_VALID : R5F_STATUS_SHM_TEMP_INVALID;
+    soc_temp1_last_error = app_vtm_read_temperature(1U, &soc_temp1_raw, &soc_temp1_milli_celsius);
+    soc_temp1_valid = soc_temp1_last_error == R5F_STATUS_SHM_TEMP_ERR_NONE ?
+                      R5F_STATUS_SHM_TEMP_VALID : R5F_STATUS_SHM_TEMP_INVALID;
+
+    gStatusShm->seq_begin = seq;
+    app_memory_barrier();
+
+    gStatusShm->magic = R5F_STATUS_SHM_MAGIC;
+    gStatusShm->version = R5F_STATUS_SHM_VERSION;
+    gStatusShm->size = (uint32_t)sizeof(r5f_status_shm_t);
+    gStatusShm->uptime_ms = uptime_ms;
+    gStatusShm->heartbeat = heartbeat;
+    gStatusShm->shm_update_count = shm_update_count;
+    gStatusShm->main_loop_count = main_loop_count;
+    gStatusShm->core_id = R5F_STATUS_SHM_CORE_MAIN_R5F0_0;
+    gStatusShm->rpmsg_endpoint = R5F_STATUS_SHM_RPMSG_ENDPOINT;
+    gStatusShm->rpmsg_rx_count = rpmsg_rx_count;
+    gStatusShm->rpmsg_tx_count = rpmsg_tx_count;
+    gStatusShm->rpmsg_error_count = rpmsg_error_count;
+    gStatusShm->last_command_id = last_command_id;
+    gStatusShm->last_error = last_error;
+    gStatusShm->output_gpio_id = R5F_STATUS_SHM_GPIO_OUTPUT_ID;
+    gStatusShm->output_gpio_state = output_gpio_state;
+    gStatusShm->input_gpio_id = R5F_STATUS_SHM_GPIO_INPUT_ID;
+    gStatusShm->input_gpio_state = input_gpio_state;
+    gStatusShm->gpio_event_count = gpio_event_count;
+    gStatusShm->last_event_type = last_event_type;
+    gStatusShm->last_event_gpio_id = last_event_gpio_id;
+    gStatusShm->last_event_timestamp_us = last_event_timestamp_us;
+    gStatusShm->last_loop_period_us = 0U;
+    gStatusShm->max_loop_period_us = 0U;
+    gStatusShm->shm_update_period_ms = APP_SHM_UPDATE_PERIOD_MS;
+    gStatusShm->soc_temp0_valid = soc_temp0_valid;
+    gStatusShm->soc_temp0_raw = soc_temp0_raw;
+    gStatusShm->soc_temp0_milli_celsius = soc_temp0_milli_celsius;
+    gStatusShm->soc_temp0_last_error = soc_temp0_last_error;
+    gStatusShm->soc_temp1_valid = soc_temp1_valid;
+    gStatusShm->soc_temp1_raw = soc_temp1_raw;
+    gStatusShm->soc_temp1_milli_celsius = soc_temp1_milli_celsius;
+    gStatusShm->soc_temp1_last_error = soc_temp1_last_error;
+
+    app_memory_barrier();
+    gStatusShm->seq_end = seq;
+    app_memory_barrier();
 }
 
 static void app_dispatch_command(const char *cmd,
@@ -617,6 +866,7 @@ static void app_recv_task_main(void *args)
                                 &remoteCoreEndPt,
                                 SystemP_WAIT_FOREVER);
         DebugP_assert(status == SystemP_SUCCESS);
+        app_count_rpmsg_rx();
 
         recvMsg[recvMsgSize] = '\0';
         app_dispatch_command(recvMsg,
@@ -632,6 +882,17 @@ static void app_recv_task_main(void *args)
                                 RPMessage_getLocalEndPt(obj),
                                 SystemP_WAIT_FOREVER);
         DebugP_assert(status == SystemP_SUCCESS);
+        app_count_rpmsg_tx();
+    }
+}
+
+static void app_shm_task_main(void *args)
+{
+    (void)args;
+
+    while (1) {
+        app_publish_shm_status();
+        ClockP_usleep(APP_SHM_UPDATE_PERIOD_MS * 1000U);
     }
 }
 
@@ -712,6 +973,14 @@ static void app_gpio_init(void)
     gButtonIsrValue = 0U;
     gButtonIsrTimestampUs = 0U;
     gSubscriberActive = 0U;
+    gRpmsgRxCount = 0U;
+    gRpmsgTxCount = 0U;
+    gRpmsgErrorCount = 0U;
+    gMainLoopCount = 0U;
+    gShmSeq = 0U;
+    gShmHeartbeat = 0U;
+    gShmUpdateCount = 0U;
+    gVtmTableInitialized = 0U;
 
     app_state_init();
     app_output_apply(0U);
@@ -786,6 +1055,16 @@ void am64x_r5f_button_event_lab_main(void *args)
     status = TaskP_construct(&gEventTask, &taskParams);
     DebugP_assert(status == SystemP_SUCCESS);
 
+    TaskP_Params_init(&taskParams);
+    taskParams.name = "AM64X_PHASE4_SHM";
+    taskParams.stackSize = APP_TASK_STACK_SIZE;
+    taskParams.stack = gShmTaskStack;
+    taskParams.priority = APP_SHM_TASK_PRI;
+    taskParams.args = NULL;
+    taskParams.taskMain = app_shm_task_main;
+    status = TaskP_construct(&gShmTask, &taskParams);
+    DebugP_assert(status == SystemP_SUCCESS);
+
     DebugP_log(APP_LOG_PREFIX " service=%s endpoint=%u ready output=%s input=%s\r\n",
                APP_SERVICE_NAME,
                APP_SERVICE_ENDPOINT,
@@ -793,6 +1072,7 @@ void am64x_r5f_button_event_lab_main(void *args)
                APP_INPUT_GPIO_SIGNAL);
 
     while (1) {
+        gMainLoopCount++;
         ClockP_sleep(60U);
     }
 }

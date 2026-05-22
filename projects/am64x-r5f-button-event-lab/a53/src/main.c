@@ -3,12 +3,18 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <glob.h>
+#include <inttypes.h>
 #include <limits.h>
+#include <stdint.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/types.h>
 #include <unistd.h>
+
+#include "../../include/r5f_status_shm.h"
 
 #include <rproc_id.h>
 #include <ti_rpmsg_char.h>
@@ -25,6 +31,8 @@
 #define DEBUGFS_PREFIX       "/sys/kernel/debug/remoteproc/"
 #define TRACE_SUFFIX         "/trace0"
 #define TARGET_R5F_NAME      "78000000.r5f"
+#define DEVMEM_PATH          "/dev/mem"
+#define SHM_READ_RETRIES     16U
 
 static void usage(const char *prog)
 {
@@ -40,8 +48,264 @@ static void usage(const char *prog)
             "  %s button status\n"
             "  %s button wait [timeout_ms]\n"
             "  %s button monitor\n"
+            "  %s shm-status\n"
             "  %s trace\n",
-            prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog);
+            prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog);
+}
+
+static const char *event_type_name(uint32_t event_type)
+{
+    switch (event_type) {
+    case 1U:
+        return "rising";
+    case 2U:
+        return "falling";
+    case 3U:
+        return "changed";
+    default:
+        return "none";
+    }
+}
+
+static const char *last_error_name(uint32_t status)
+{
+    switch (status) {
+    case 0U:
+        return "OK";
+    case 1U:
+        return "ERR_UNKNOWN_CMD";
+    case 2U:
+        return "ERR_BAD_ARG";
+    case 3U:
+        return "ERR_BUSY";
+    case 4U:
+        return "ERR_HW_FAIL";
+    case 5U:
+        return "ERR_TIMEOUT";
+    default:
+        return "ERR_UNKNOWN";
+    }
+}
+
+static const char *temperature_error_name(uint32_t error)
+{
+    switch (error) {
+    case R5F_STATUS_SHM_TEMP_ERR_NONE:
+        return "OK";
+    case R5F_STATUS_SHM_TEMP_ERR_UNAVAIL:
+        return "UNAVAILABLE";
+    case R5F_STATUS_SHM_TEMP_ERR_RANGE:
+        return "RANGE";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+typedef struct
+{
+    int found;
+    int temp_millicelsius;
+} hwmon_ref_t;
+
+static int read_first_line(const char *path, char *buf, size_t buf_size)
+{
+    FILE *fp;
+
+    if (buf_size == 0U) {
+        return -1;
+    }
+
+    fp = fopen(path, "r");
+    if (fp == NULL) {
+        return -1;
+    }
+    if (fgets(buf, buf_size, fp) == NULL) {
+        fclose(fp);
+        return -1;
+    }
+    fclose(fp);
+
+    buf[strcspn(buf, "\r\n")] = '\0';
+    return 0;
+}
+
+static hwmon_ref_t print_hwmon_reference(const char *thermal_name)
+{
+    glob_t matches;
+    size_t i;
+    hwmon_ref_t ref = {0, 0};
+
+    if (glob("/sys/class/hwmon/hwmon*", 0, NULL, &matches) != 0) {
+        printf("linux_hwmon name=%s status=not_found\n", thermal_name);
+        return ref;
+    }
+
+    for (i = 0; i < matches.gl_pathc; i++) {
+        char name_path[PATH_MAX];
+        char temp_path[PATH_MAX];
+        char name[64];
+        char temp[64];
+
+        if (snprintf(name_path, sizeof(name_path), "%s/name", matches.gl_pathv[i]) >= (int)sizeof(name_path)) {
+            continue;
+        }
+        if (read_first_line(name_path, name, sizeof(name)) != 0 || strcmp(name, thermal_name) != 0) {
+            continue;
+        }
+
+        ref.found = 1;
+        if (snprintf(temp_path, sizeof(temp_path), "%s/temp1_input", matches.gl_pathv[i]) >= (int)sizeof(temp_path) ||
+            read_first_line(temp_path, temp, sizeof(temp)) != 0) {
+            printf("linux_hwmon name=%s path=%s status=temp_unavailable\n", thermal_name, matches.gl_pathv[i]);
+        } else {
+            ref.temp_millicelsius = atoi(temp);
+            printf("linux_hwmon name=%s path=%s temp1_input_millicelsius=%s\n",
+                   thermal_name,
+                   matches.gl_pathv[i],
+                   temp);
+        }
+        break;
+    }
+
+    if (ref.found == 0) {
+        printf("linux_hwmon name=%s status=not_found\n", thermal_name);
+    }
+
+    globfree(&matches);
+    return ref;
+}
+
+static void print_temperature_field(const char *name,
+                                    uint32_t valid,
+                                    uint32_t raw,
+                                    int32_t milli_celsius,
+                                    uint32_t last_error)
+{
+    if (valid == R5F_STATUS_SHM_TEMP_VALID) {
+        printf("%s_valid=1\n", name);
+        printf("%s_raw=%" PRIu32 "\n", name, raw);
+        printf("%s_millicelsius=%" PRId32 "\n", name, milli_celsius);
+    } else {
+        printf("%s_valid=0\n", name);
+        printf("%s_raw=unavailable\n", name);
+        printf("%s_millicelsius=unavailable\n", name);
+    }
+    printf("%s_last_error=%s\n", name, temperature_error_name(last_error));
+}
+
+static int read_shm_snapshot(r5f_status_shm_t *snapshot)
+{
+    long page_size = sysconf(_SC_PAGESIZE);
+    off_t page_base;
+    off_t page_offset;
+    size_t map_size;
+    int fd;
+    void *mapping;
+    volatile const r5f_status_shm_t *shm;
+    unsigned int attempt;
+
+    if (page_size <= 0) {
+        fprintf(stderr, "failed to determine page size\n");
+        return -1;
+    }
+
+    page_base = (off_t)(R5F_STATUS_SHM_BASE & ~((uint64_t)page_size - 1ULL));
+    page_offset = (off_t)(R5F_STATUS_SHM_BASE - (uint64_t)page_base);
+    map_size = (size_t)page_offset + sizeof(*snapshot);
+
+    fd = open(DEVMEM_PATH, O_RDONLY | O_SYNC);
+    if (fd < 0) {
+        perror(DEVMEM_PATH);
+        return -1;
+    }
+
+    mapping = mmap(NULL, map_size, PROT_READ, MAP_SHARED, fd, page_base);
+    if (mapping == MAP_FAILED) {
+        perror("mmap");
+        close(fd);
+        return -1;
+    }
+
+    shm = (volatile const r5f_status_shm_t *)((const char *)mapping + page_offset);
+    for (attempt = 0U; attempt < SHM_READ_RETRIES; attempt++) {
+        uint32_t seq_begin = shm->seq_begin;
+        uint32_t seq_end;
+
+        *snapshot = *shm;
+        seq_end = shm->seq_end;
+        if (seq_begin == snapshot->seq_begin &&
+            seq_end == snapshot->seq_end &&
+            snapshot->seq_begin == snapshot->seq_end &&
+            snapshot->magic == R5F_STATUS_SHM_MAGIC &&
+            snapshot->version == R5F_STATUS_SHM_VERSION &&
+            snapshot->size == sizeof(*snapshot)) {
+            munmap(mapping, map_size);
+            close(fd);
+            return 0;
+        }
+
+        usleep(1000U);
+    }
+
+    fprintf(stderr, "failed to read a consistent SHM snapshot at 0x%" PRIx64 "\n", (uint64_t)R5F_STATUS_SHM_BASE);
+    munmap(mapping, map_size);
+    close(fd);
+    return -1;
+}
+
+static int show_shm_status(void)
+{
+    r5f_status_shm_t snapshot;
+    hwmon_ref_t main0_ref;
+    hwmon_ref_t main1_ref;
+
+    if (read_shm_snapshot(&snapshot) != 0) {
+        return 1;
+    }
+
+    printf("SHM status base=0x%" PRIx64 " size=0x%" PRIx64 "\n",
+           (uint64_t)R5F_STATUS_SHM_BASE,
+           (uint64_t)R5F_STATUS_SHM_SIZE);
+    printf("magic=0x%08" PRIx32 "\n", snapshot.magic);
+    printf("version=0x%08" PRIx32 "\n", snapshot.version);
+    printf("abi_size=%" PRIu32 "\n", snapshot.size);
+    printf("seq=%" PRIu32 "\n", snapshot.seq_end);
+    printf("uptime_ms=%" PRIu32 "\n", snapshot.uptime_ms);
+    printf("heartbeat=%" PRIu32 "\n", snapshot.heartbeat);
+    printf("shm_update_count=%" PRIu32 "\n", snapshot.shm_update_count);
+    printf("main_loop_count=%" PRIu32 "\n", snapshot.main_loop_count);
+    printf("core=0x%08" PRIx32 "\n", snapshot.core_id);
+    printf("rpmsg_endpoint=%" PRIu32 "\n", snapshot.rpmsg_endpoint);
+    printf("rpmsg_rx_count=%" PRIu32 "\n", snapshot.rpmsg_rx_count);
+    printf("rpmsg_tx_count=%" PRIu32 "\n", snapshot.rpmsg_tx_count);
+    printf("rpmsg_error_count=%" PRIu32 "\n", snapshot.rpmsg_error_count);
+    printf("last_command_id=0x%04" PRIx32 "\n", snapshot.last_command_id);
+    printf("last_error=%s\n", last_error_name(snapshot.last_error));
+    printf("output_gpio_id=mcu_gpio0_8\n");
+    printf("output_state=%" PRIu32 "\n", snapshot.output_gpio_state);
+    printf("input_gpio_id=mcu_gpio0_6\n");
+    printf("input_state=%" PRIu32 "\n", snapshot.input_gpio_state);
+    printf("event_count=%" PRIu32 "\n", snapshot.gpio_event_count);
+    printf("last_event_type=%s\n", event_type_name(snapshot.last_event_type));
+    printf("last_event_gpio_id=%" PRIu32 "\n", snapshot.last_event_gpio_id);
+    printf("last_event_timestamp_us=%" PRIu64 "\n", snapshot.last_event_timestamp_us);
+    printf("shm_update_period_ms=%" PRIu32 "\n", snapshot.shm_update_period_ms);
+    print_temperature_field("soc_temp0", snapshot.soc_temp0_valid, snapshot.soc_temp0_raw,
+                            snapshot.soc_temp0_milli_celsius, snapshot.soc_temp0_last_error);
+    print_temperature_field("soc_temp1", snapshot.soc_temp1_valid, snapshot.soc_temp1_raw,
+                            snapshot.soc_temp1_milli_celsius, snapshot.soc_temp1_last_error);
+    main0_ref = print_hwmon_reference("main0_thermal");
+    main1_ref = print_hwmon_reference("main1_thermal");
+    if (snapshot.soc_temp0_valid == R5F_STATUS_SHM_TEMP_VALID && main0_ref.found != 0) {
+        printf("soc_temp0_delta_millicelsius=%d\n",
+               snapshot.soc_temp0_milli_celsius - main0_ref.temp_millicelsius);
+    }
+    if (snapshot.soc_temp1_valid == R5F_STATUS_SHM_TEMP_VALID && main1_ref.found != 0) {
+        printf("soc_temp1_delta_millicelsius=%d\n",
+               snapshot.soc_temp1_milli_celsius - main1_ref.temp_millicelsius);
+    }
+
+    return 0;
 }
 
 static int parse_timeout_ms(const char *text, long *timeout_ms)
@@ -436,6 +700,10 @@ int main(int argc, char **argv)
 
     if (argc == 2 && strcmp(argv[1], "trace") == 0) {
         return show_trace();
+    }
+
+    if (argc == 2 && strcmp(argv[1], "shm-status") == 0) {
+        return show_shm_status();
     }
 
     if (argc == 3 && strcmp(argv[1], "button") == 0 && strcmp(argv[2], "monitor") == 0) {

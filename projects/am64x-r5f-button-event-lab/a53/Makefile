@@ -18,7 +18,7 @@ SRC := src/main.c
 BUILD_DIR ?= $(BRINGUP_ROOT)/out/am64x-r5f-button-event-lab/a53
 BIN := $(BUILD_DIR)/r5ctl
 
-CFLAGS += -O2 -g -Wall -Wextra -I$(SYSROOT_INCLUDE)
+CFLAGS += -O2 -g -Wall -Wextra -I$(SYSROOT_INCLUDE) -I../include
 LDFLAGS += -L$(SYSROOT_LIB)
 LDLIBS += -lti_rpmsg_char
 

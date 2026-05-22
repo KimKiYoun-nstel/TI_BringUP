@@ -44,6 +44,13 @@ require_file "$R5F_FW_LOCAL"
 require_file "$A53_BIN_LOCAL"
 require_file "$BOARD_SCRIPT_LOCAL"
 
+cat >&2 <<'EOF'
+[WARN] Phase 4 SHM slice requires a booted DTB that reserves
+       r5f-status-shm@a5800000 before applying the new firmware.
+       Deploy the matching DTB first, e.g.:
+       ./tools/install/install-kernel-to-sd.sh <board-ip> dtb-only --reboot
+EOF
+
 ssh root@"$BOARD_IP" "mkdir -p '$BOARD_FW_DIR' /usr/local/bin /usr/local/sbin"
 
 scp "$R5F_FW_LOCAL" root@"$BOARD_IP":"$BOARD_FW_PATH"
