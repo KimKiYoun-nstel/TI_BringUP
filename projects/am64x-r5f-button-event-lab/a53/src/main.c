@@ -32,12 +32,16 @@ static void usage(const char *prog)
             "Usage:\n"
             "  %s ping\n"
             "  %s status\n"
+            "  %s gpio list\n"
+            "  %s gpio get <id>\n"
+            "  %s gpio set <id> <0|1>\n"
+            "  %s event get\n"
+            "  %s event monitor\n"
             "  %s button status\n"
             "  %s button wait [timeout_ms]\n"
             "  %s button monitor\n"
-            "  %s event monitor\n"
             "  %s trace\n",
-            prog, prog, prog, prog, prog, prog, prog);
+            prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog);
 }
 
 static int parse_timeout_ms(const char *text, long *timeout_ms)
@@ -66,6 +70,23 @@ static int build_command(int argc, char **argv, char *tx, size_t tx_size)
         written = snprintf(tx, tx_size, "PING");
     } else if (strcmp(argv[1], "status") == 0 && argc == 2) {
         written = snprintf(tx, tx_size, "STATUS");
+    } else if (strcmp(argv[1], "gpio") == 0 && argc >= 3) {
+        if (strcmp(argv[2], "list") == 0 && argc == 3) {
+            written = snprintf(tx, tx_size, "GPIO_LIST");
+        } else if (strcmp(argv[2], "get") == 0 && argc == 4) {
+            written = snprintf(tx, tx_size, "GPIO_GET %s", argv[3]);
+        } else if (strcmp(argv[2], "set") == 0 && argc == 5 &&
+                   (strcmp(argv[4], "0") == 0 || strcmp(argv[4], "1") == 0)) {
+            written = snprintf(tx, tx_size, "GPIO_SET %s %s", argv[3], argv[4]);
+        } else {
+            return -1;
+        }
+    } else if (strcmp(argv[1], "event") == 0 && argc >= 3) {
+        if (strcmp(argv[2], "get") == 0 && argc == 3) {
+            written = snprintf(tx, tx_size, "EVENT_GET");
+        } else {
+            return -1;
+        }
     } else if (strcmp(argv[1], "button") == 0 && argc >= 3) {
         if (strcmp(argv[2], "status") == 0 && argc == 3) {
             written = snprintf(tx, tx_size, "BUTTON_STATUS");
@@ -313,6 +334,11 @@ static int write_payload(rpmsg_char_dev_t *dev, const char *payload)
     return 0;
 }
 
+static int is_event_message(const char *rx)
+{
+    return strncmp(rx, "GPIO_EVENT", 10U) == 0 || strncmp(rx, "BUTTON_EVENT", 12U) == 0;
+}
+
 static int send_command(const char *payload)
 {
     rpmsg_char_dev_t *dev;
@@ -345,7 +371,7 @@ static int send_command(const char *payload)
     printf("TX: %s\n", payload);
     printf("RX: %s\n", rx);
 
-    if (strncmp(rx, "OK", 2U) != 0 && strncmp(rx, "BUTTON_EVENT", 12U) != 0) {
+    if (strncmp(rx, "OK", 2U) != 0 && !is_event_message(rx)) {
         rc = 2;
     }
 
@@ -382,13 +408,13 @@ static int monitor_events(const char *payload)
         goto out;
     }
 
-    printf("# monitoring BUTTON_EVENT lines; press Ctrl-C to stop\n");
+    printf("# monitoring GPIO_EVENT lines; press Ctrl-C to stop\n");
     while (1) {
         if (poll_read_response(dev, rx, sizeof(rx), -1) != 0) {
             rc = 1;
             goto out;
         }
-        if (strncmp(rx, "BUTTON_EVENT", 12U) == 0) {
+        if (is_event_message(rx)) {
             seq++;
             printf("[%03lu] %s\n", seq, rx);
             fflush(stdout);

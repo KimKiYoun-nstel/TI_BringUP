@@ -11,6 +11,7 @@
 const ipc             = scripting.addModule("/drivers/ipc/ipc");
 const gpio            = scripting.addModule("/drivers/gpio/gpio", {}, false);
 const gpio1           = gpio.addInstance();
+const gpio2           = gpio.addInstance();
 const debug_log       = scripting.addModule("/kernel/dpl/debug_log");
 const dpl_cfg = scripting.addModule("/kernel/dpl/dpl_cfg");
 const mpu_armv7       = scripting.addModule("/kernel/dpl/mpu_armv7", {}, false);
@@ -55,6 +56,12 @@ gpio1.enableIntr               = true;
 gpio1.useMcuDomainPeripherals  = true;
 gpio1.MCU_GPIO.$assign         = "MCU_GPIO0";
 gpio1.MCU_GPIO.gpioPin.$assign = "MCU_SPI1_CS1";
+
+gpio2.$name                    = "GPIO_LAB_OUT";
+gpio2.pinDir                   = "OUTPUT";
+gpio2.useMcuDomainPeripherals  = true;
+gpio2.MCU_GPIO.$assign         = "MCU_GPIO0";
+gpio2.MCU_GPIO.gpioPin.$assign = "MCU_SPI1_D0";
 
 debug_log.enableCssLog = false;
 
