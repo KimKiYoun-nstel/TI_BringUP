@@ -11,12 +11,35 @@
 - host build/deploy script와 보드 reboot 기반 apply/restore/test script 추가
 - protocol, board apply, tests, resource ownership, issues, completion 상태를 다루는 Phase 2 문서 추가
 
+## Phase 4 완료 메모
+
+이 프로젝트는 이후 Phase 3 상태 모델 baseline을 넘어, Phase 4 SHM + VTM telemetry baseline까지 확장되었다.
+
+live-board에서 최종 확인한 범위:
+
+1. SK-AM64B reserved-memory `r5f-status-shm@a5800000` 반영
+2. R5F -> A53 단방향 SHM status block 동작
+3. `r5ctl shm-status` snapshot read
+4. RPMsg/GPIO state가 SHM에 반영됨
+5. R5F VTM sensor0/sensor1 raw read 및 milli-Celsius 변환
+6. Linux `main0_thermal` / `main1_thermal`와 delta 비교
+
+실보드 상세 로그:
+
+- `docs/bringup-logs/2026-05-22_SK-AM64B_phase4_shm_vtm_live_validation.md`
+
 ## 완료 판정 관련 메모
 
 live-board 완료 판정에는 실제 부팅된 이미지 기준으로 다음 증적이 필요하다.
 
 - SW1을 눌렀다 떼는 동안의 `r5ctl button monitor`
 - GPIO / pinctrl ownership 확인 증적
+
+Phase 4 기준으로는 다음 증적도 추가로 필요했고, 이번에 확보했다.
+
+- `r5ctl shm-status`
+- `/proc/iomem` reserved-memory 증적
+- VTM raw/MMIO와 SHM raw 대응성
 
 ## 관련 상위 문서
 

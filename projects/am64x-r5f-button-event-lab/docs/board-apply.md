@@ -5,11 +5,18 @@
 ## Host 배포
 
 ```bash
+./tools/install/install-kernel-to-sd.sh 192.168.0.110 dtb-only --reboot
 ./tools/build/build-am64x-r5f-button-event-lab.sh all
 ./tools/install/deploy-am64x-r5f-button-event-lab-host.sh 192.168.0.110
 # Host에서 한 번에 apply까지 수행하는 선택 경로이며, 보드가 재부팅된다.
 ./tools/install/deploy-am64x-r5f-button-event-lab-host.sh 192.168.0.110 apply
 ```
+
+Phase 4 SHM/VTM baseline에서는 **반드시 DTB deploy/reboot를 먼저 수행해야 한다.**
+`deploy-am64x-r5f-button-event-lab-host.sh`는 firmware, `r5ctl`, manage script만 복사하며 DTB는 배포하지 않는다.
+즉 old DTB 상태에서 `apply`만 수행하면 `0xa5800000`가 Linux 일반 RAM일 수 있으므로 사용하면 안 된다.
+
+전체 요약은 `docs/phase4-shm-vtm-summary.md`를 참고한다.
 
 보드에서 기대하는 경로:
 

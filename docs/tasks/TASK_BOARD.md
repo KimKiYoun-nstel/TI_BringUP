@@ -37,3 +37,5 @@
 - [x] U-Boot TFTP recovery 실제 boot 검증
 - [x] AM64x remoteproc empty sysfs 현상 live board 재검증 및 정상 boot 상태 확인
 - [x] rpmsg_json.service startup ordering race 완화책 적용 및 reboot 검증
+- [x] SK-AM64B Phase 4 SHM status block live board 검증
+- [x] SK-AM64B Phase 4 VTM temperature telemetry live board 검증

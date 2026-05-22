@@ -1,9 +1,11 @@
 # 프로토콜
 
 현재 프로젝트 프로토콜은 RPMsg `rpmsg_chrdev` endpoint `14`를 통한 텍스트 기반 프로토콜이다.
+Phase 4 2차 slice에서도 이 RPMsg 프로토콜 자체는 변경하지 않고, 별도 reserved-memory SHM status block을 A53이 `/dev/mem`으로 읽는 경로를 유지한다.
+추가로 R5F는 SoC internal VTM sensor 0/1의 raw code와 milli-Celsius 값을 SHM에 기록하고, A53 `r5ctl shm-status`는 Linux hwmon 값과 delta를 같이 출력한다.
 
 이 문서는 원래 Phase 2 button-event 실험용 규약을 정리했지만,
-현재 baseline은 여기에 **Phase 3 1차 slice**를 반영한 상태다.
+현재 baseline은 여기에 **Phase 3 command/event 모델 + Phase 4 SHM/VTM telemetry**까지 반영한 상태다.
 
 즉 현재는 다음 두 요구를 함께 만족한다.
 
@@ -21,6 +23,8 @@
 | `r5ctl gpio set <id> <0|1>` | `GPIO_SET <id> <0|1>` | `OK GPIO_SET ...` |
 | `r5ctl event get` | `EVENT_GET` | `GPIO_EVENT ...` 또는 `OK EVENT_GET event=none ...` |
 | `r5ctl event monitor` | `EVENT_MONITOR` | subscribe ack 후 이벤트 |
+
+`r5ctl shm-status`는 RPMsg command를 보내지 않는다. SK-AM64B 전용 reserved-memory `r5f-status-shm@a5800000`의 status block을 읽고 `seq_begin == seq_end` 조건으로 snapshot 일관성을 확인한 뒤 주요 runtime/GPIO/event metadata와 Linux `main0_thermal`, `main1_thermal` hwmon 기준값을 출력한다.
 
 기존 Phase 2 회귀 확인을 위해 다음 command도 유지한다.
 
@@ -97,3 +101,20 @@ ISR은 bank status clear, pin sample, timestamp capture, pending sequence 증가
 
 현재 transport는 single endpoint 구조를 유지한다.
 따라서 long-running command나 timeout 이후 stale reply 가능성은 여전히 protocol 상 주의사항으로 남아 있다.
+
+## Phase 4 SHM 상태 블록
+
+이번 slice의 SHM ABI는 `projects/am64x-r5f-button-event-lab/include/r5f_status_shm.h`에 둔다.
+
+```text
+base = 0xa5800000
+size = 0x00001000
+magic = 0x52354653
+version = 0x00010000
+writer = R5F firmware
+reader = A53 r5ctl shm-status
+```
+
+R5F는 `seq_begin`을 먼저 갱신하고 status field를 기록한 뒤 `seq_end`를 같은 값으로 맞춘다. A53은 retry하면서 `magic`, `version`, `size`, `seq_begin`, `seq_end`를 검증한다.
+
+온도 관련 `soc_temp0/*`, `soc_temp1/*` 필드는 현재 R5F가 실제로 채운다. R5F는 VTM sensor index `0/1`의 raw code를 읽고 Linux `k3_j72xx_bandgap` driver와 같은 lookup 방식으로 milli-Celsius를 계산해 SHM에 기록한다. A53은 비교 기준으로 Linux hwmon의 `main0_thermal`, `main1_thermal` 값을 함께 출력한다.
