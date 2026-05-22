@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sisyphus <noreply@example.com>
+Date: Fri, 22 May 2026 13:55:00 +0900
+Subject: [PATCH] arm64: dts: ti: k3-am642-sk: add r5f status shm
+
+Add a board-specific reserved-memory node for the Phase 4 R5F -> A53
+status SHM slice on SK-AM64B.
+---
+ arch/arm64/boot/dts/ti/k3-am642-sk.dts | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/ti/k3-am642-sk.dts b/arch/arm64/boot/dts/ti/k3-am642-sk.dts
+index 4a8b7ccac..1e86b4d61 100644
+--- a/arch/arm64/boot/dts/ti/k3-am642-sk.dts
++++ b/arch/arm64/boot/dts/ti/k3-am642-sk.dts
+@@ -64,6 +64,13 @@ main_r5fss0_core0_memory_region: memory@a0100000 {
+			reg = <0x00 0xa0100000 0x00 0xf00000>;
+			no-map;
+		};
++
++		/* SK-AM64B Phase 4 R5F -> A53 status block after rtos_ipc@a5000000/8M. */
++		r5f_status_shm: r5f-status-shm@a5800000 {
++			compatible = "shared-dma-pool";
++			reg = <0x00 0xa5800000 0x00 0x00001000>;
++			no-map;
++		};
+ 	};
+ 
+ 	vusb_main: regulator-0 {
+-- 
+2.43.0

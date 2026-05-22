@@ -4,3 +4,5 @@
 # - Keep newest patches at the end.
 # - Only list patches that are approved for replay into a fresh workspace.
 # - Experimental changes that should not be replayed yet must stay out of this series.
+
+0001-arm64-dts-ti-k3-am642-sk-add-r5f-status-shm.patch
