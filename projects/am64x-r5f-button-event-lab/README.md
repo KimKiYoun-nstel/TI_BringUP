@@ -1,11 +1,14 @@
 # AM64x R5F Button Event Lab
 
-이 프로젝트는 SK-AM64B button-event bring-up을 위한 Phase 2 실험 프로젝트다. Phase 1 프로젝트 구조를 참고해 별도 프로젝트로 분리했으며, `projects/am64x-r5f-hw-control-lab`은 reference-only로 유지하고 이번 구현에는 직접 포함하지 않는다.
+이 프로젝트는 SK-AM64B button-event bring-up을 위해 시작한 Phase 2 실험 프로젝트이며,
+현재는 이를 Phase 3 상태 모델 / command protocol baseline으로 확장한 상태다.
+`projects/am64x-r5f-hw-control-lab`은 Phase 1 output command 구현을 참고하는 reference-only 자산으로 유지한다.
 
-Phase 2는 Phase 1의 반대 방향 경로를 검증한다.
+현재 baseline은 다음 두 경로를 함께 다룬다.
 
 ```text
 SK-AM64B SW1 -> MCU_GPIO0_6 -> R5F GPIO interrupt -> RPMsg text event -> A53 r5ctl
+A53 r5ctl -> RPMsg text command -> R5F -> MCU_GPIO0_8 output control
 ```
 
 ## 주요 속성
@@ -15,6 +18,7 @@ SK-AM64B SW1 -> MCU_GPIO0_6 -> R5F GPIO interrupt -> RPMsg text event -> A53 r5c
 - RPMsg endpoint: `14`
 - A53 binary: `r5ctl`
 - Button input: `SW1` on `MCU_GPIO0_6`
+- Output GPIO: `MCU_GPIO0_8`
 - Active-low mapping: raw `0`은 pressed/falling, raw `1`은 released/rising
 - Protocol: text only
 
@@ -53,8 +57,13 @@ deploy 단계는 firmware, `r5ctl`, board manage script를 복사한다. 기본 
 ```bash
 /usr/local/sbin/am64x-r5f-button-event-lab-manage.sh apply
 /usr/local/sbin/am64x-r5f-button-event-lab-manage.sh test ping
+/usr/local/sbin/am64x-r5f-button-event-lab-manage.sh test status
+/usr/local/sbin/am64x-r5f-button-event-lab-manage.sh test gpio list
+/usr/local/sbin/am64x-r5f-button-event-lab-manage.sh test gpio get mcu_gpio0_8
+/usr/local/sbin/am64x-r5f-button-event-lab-manage.sh test gpio set mcu_gpio0_8 1
 /usr/local/sbin/am64x-r5f-button-event-lab-manage.sh test button status
 /usr/local/sbin/am64x-r5f-button-event-lab-manage.sh test button wait 5000
+/usr/local/bin/r5ctl event monitor
 /usr/local/bin/r5ctl button monitor
 /usr/local/sbin/am64x-r5f-button-event-lab-manage.sh restore
 ```
