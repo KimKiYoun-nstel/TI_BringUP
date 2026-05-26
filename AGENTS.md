@@ -48,6 +48,8 @@ logs/runtime_log
 
 `logs/runtime_log`는 board의 UART terminal 로그와 동기화된 링크 파일로 간주한다. 따라서 kernel boot, reboot 직후 상태, early service startup timing, panic/crash 직전후 출력처럼 **UART에서 직접 보이는 boot/runtime 증적**이 필요할 때 이 파일을 우선 reference로 사용한다. 반대로 OS 부팅 이후의 일반적인 steady-state 동작 분석은 SSH, systemd journal, `/sys`, `dmesg`, 서비스 상태, 애플리케이션 출력 등을 함께 본다.
 
+reboot 이후 UART 출력 감시, autoboot 중단, U-Boot prompt 진입, boot command 검증, Linux prompt 확인처럼 **UART 상호작용 자체를 재현하거나 자동화**해야 하는 작업이라면 host 측 helper인 `tools/uart/uart_agent.py` 또는 `tools/uart/uart_expect.py`를 우선 검토한다. 이 helper는 `pyserial` 기반이며, 사람이 serial terminal에서 직접 입력하는 절차를 재현하기 위한 도구다.
+
 ## Repository의 현재 성격
 
 초기 repo는 문서 중심 지식 저장소였지만, 현재는 실제 bring-up 개발 환경을 포함한다.

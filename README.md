@@ -61,11 +61,30 @@ TI_Bringup/
     prepare/             # workspace creation and patch application
     build/               # build helper scripts
     install/             # install/deploy helper skeletons
+    uart/                # host-side UART automation helpers for reboot/U-Boot/Linux flows
   board/                 # board-specific working notes
   logs/                  # curated boot/U-Boot/kernel logs
   docs/                  # long-term knowledge base
   workspace/             # local only, ignored by parent Git
 ```
+
+## UART 활용 Agent
+
+이 저장소는 bring-up 과정에서 UART를 1차 증적 채널로 사용한다. 따라서 reboot 직후 boot log 관찰, autoboot 중단, U-Boot prompt 진입, boot command 검증, Linux login prompt 확인처럼 UART에서 직접 확인되는 흐름을 자동화할 수 있어야 한다.
+
+`tools/uart/` 아래에는 host 측에서 실행하는 Python 기반 UART automation helper를 둔다.
+
+- `tools/uart/uart_expect.py`: low-level expect/send helper
+- `tools/uart/uart_agent.py`: reboot/U-Boot/Linux 단계 전환을 포함한 plan runner
+- `tools/uart/uart-agent-example.json`: U-Boot break-in과 boot 진행 예시 시나리오
+
+이 helper들은 `pyserial`을 사용해 `/dev/ttyUSB*` 포트를 직접 감시하고 입력을 전송한다. 즉, 사용자가 serial terminal에서 로그를 보면서 직접 키를 눌러 U-Boot에 진입하고 명령을 치는 흐름을 재현하는 용도이다.
+
+원칙:
+
+- UART helper는 `logs/runtime_log`와 같은 UART 증적 수집 흐름을 보조하는 도구다.
+- helper가 자동화를 수행하더라도 최종 판단은 boot/U-Boot/kernel/runtime 로그를 직접 확인해 내려야 한다.
+- 보드별 bring-up 절차가 고정되면 `tools/uart/*.json` plan 또는 board 문서에서 재사용 가능한 시나리오로 관리할 수 있다.
 
 ## 빠른 시작
 
