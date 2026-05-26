@@ -14,6 +14,10 @@ tools/
   prepare/  workspace 준비 및 patch 적용
   build/    artifact build 스크립트
   install/  보드 반영(deploy/install) 스크립트
+  uart/
+    uart_agent.py          uart_expect.py wrapper
+    uart-agent-example.json  reboot/U-Boot automation example
+    uart_expect.py         UART expect/send 자동화 helper
 ```
 
 ## 기본 사용 순서
@@ -110,6 +114,115 @@ kernel modules:
 ./tools/install/install-kernel-modules-to-sd.sh 192.168.0.110 promote-golden
 ./tools/install/install-kernel-modules-to-sd.sh 192.168.0.110 restore-golden
 ```
+
+## UART 자동화 helper
+
+UART 로그 감시, reboot 이후 boot 출력 추적, U-Boot 진입, 명령 전송, Linux shell prompt 확인 같은 반복 작업에는 `tools/uart/uart_expect.py`를 사용한다.
+
+사전 준비:
+
+```bash
+python3 -m pip install pyserial
+```
+
+기본 예시:
+
+```bash
+./tools/uart/uart_expect.py --port /dev/ttyUSB1 \
+  --step 'expect:=> ' \
+  --step 'sendline:version' \
+  --step 'expect:U-Boot'
+```
+
+부팅 로그를 파일로 남기면서 Linux prompt까지 대기하는 예시:
+
+```bash
+./tools/uart/uart_expect.py --port /dev/ttyUSB1 \
+  --baud 115200 \
+  --append-log \
+  --log logs/runtime_log \
+  --step 'expect:login:' \
+  --step 'sendline:root' \
+  --step 'expect:root@'
+```
+
+지원 step 형식:
+
+- `expect:<text>`: 지정 문자열이 UART 출력에 나타날 때까지 대기
+- `send:<text>`: 줄바꿈 없이 raw text 전송
+- `sendline:<text>`: `\n`을 붙여 전송
+- `sleep:<seconds>`: 다음 step 전 대기
+
+`\n`, `\r` 같은 escape sequence를 step 문자열 안에서 사용할 수 있다. 기대 문자열을 찾지 못하면 non-zero exit로 종료하므로 bring-up 자동화 script에서 후속 판단에 바로 사용할 수 있다.
+
+reboot 이후 출력 내용에 따라 다음 동작이 달라지는 경우에는 `--plan` JSON 시나리오를 사용한다.
+
+예시:
+
+```json
+{
+  "steps": [
+    {
+      "action": "expect_any",
+      "timeout": 20,
+      "patterns": [
+        {"name": "autoboot", "text": "Hit any key to stop autoboot"},
+        {"name": "uboot", "text": "=> "}
+      ]
+    },
+    {
+      "action": "send",
+      "text": "\\n",
+      "when_match": "autoboot"
+    },
+    {
+      "action": "expect",
+      "text": "=> ",
+      "timeout": 3,
+      "when_match": "autoboot"
+    },
+    {
+      "action": "command",
+      "text": "printenv bootcmd",
+      "expect": "=> ",
+      "timeout": 3,
+      "when_match": ["autoboot", "uboot"]
+    },
+    {
+      "action": "command",
+      "text": "boot",
+      "expect": "login:",
+      "timeout": 60
+    }
+  ]
+}
+```
+
+실행 예시:
+
+```bash
+./tools/uart/uart_agent.py --port /dev/ttyUSB1 \
+  --baud 115200 \
+  --append-log \
+  --log logs/runtime_log \
+  --plan tools/uart/uart-agent-example.json
+```
+
+`tools/uart/uart_agent.py`는 `tools/uart/uart_expect.py`의 wrapper라서 둘 중 어느 이름으로 실행해도 된다. `uart_agent.py`는 reboot/U-Boot/Linux 단계 전환을 포함한 “agent” 용도로, `uart_expect.py`는 low-level helper 용도로 생각하면 된다.
+
+지원 plan action:
+
+- `expect`: 지정 문자열이 나타날 때까지 대기
+- `expect_any`: 여러 문자열 중 먼저 잡히는 항목을 선택하고 `when_match` 조건 분기에 사용
+- `send`: raw text 전송
+- `sendline`: line ending을 붙여 전송
+- `command`: 명령 전송 후 `expect` 또는 `patterns`로 후속 출력 확인
+- `sleep`: 지정 시간 대기
+- `uboot_break`: `Hit any key to stop autoboot` 또는 `=> ` prompt를 감시하고 필요하면 break 입력을 전송해 U-Boot prompt로 진입
+
+`when_match`, `unless_match`는 가장 최근 `expect_any` 또는 `uboot_break`가 결정한 match name을 기준으로 step 실행 여부를 나눈다. 즉, 사람이 UART terminal을 보면서 “이 문구가 나오면 U-Boot로 들어가고, 아니면 이미 prompt에 있으니 다음 명령으로 간다” 같은 흐름을 그대로 자동화할 수 있다.
+
+`--log`는 기본적으로 파일을 새로 쓴다. 기존 `logs/runtime_log`에 이어서 누적하려면 `--append-log`를 함께 사용한다.
 
 ## Option A 기준 동작 원칙
 

@@ -1,0 +1,25 @@
+{
+  "steps": [
+    {
+      "action": "uboot_break",
+      "timeout": 20,
+      "trigger": "Hit any key to stop autoboot",
+      "prompt": "=> ",
+      "send": "\n"
+    },
+    {
+      "action": "command",
+      "text": "printenv bootcmd",
+      "expect": "=> ",
+      "timeout": 3,
+      "when_match": "uboot_prompt"
+    },
+    {
+      "action": "command",
+      "text": "boot",
+      "expect": "login:",
+      "timeout": 60,
+      "when_match": "uboot_prompt"
+    }
+  ]
+}
