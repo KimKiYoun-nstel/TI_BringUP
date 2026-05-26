@@ -24,6 +24,7 @@ DEFAULT_WRITE_TIMEOUT = 5.0
 DEFAULT_LINE_ENDING = "\n"
 DEFAULT_UBOOT_BREAK_TEXT = "Hit any key to stop autoboot"
 DEFAULT_UBOOT_PROMPT = "=> "
+DEFAULT_RUNTIME_LOG_PATH = Path(__file__).resolve().parents[2] / "logs" / "runtime_log"
 BUFFER_TRIM_THRESHOLD = 1024 * 1024
 BUFFER_TRIM_KEEP_TAIL = 4096
 
@@ -126,6 +127,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--append-log",
         action="store_true",
         help="Append to the log file instead of overwriting it",
+    )
+    parser.add_argument(
+        "--tee-runtime-log",
+        action="store_true",
+        help="Mirror UART output to logs/runtime_log while also keeping normal stdout output",
+    )
+    parser.add_argument(
+        "--runtime-log-path",
+        default=str(DEFAULT_RUNTIME_LOG_PATH),
+        help="Runtime UART tee target path. Default: repo logs/runtime_log",
     )
     parser.add_argument(
         "--quiet",
@@ -274,6 +285,10 @@ class UartExpectSession:
         self.last_match_name: str | None = None
         self.last_decision_name: str | None = None
         self.log_file = self._open_log_file(args.log, args.append_log)
+        self.runtime_log_file = self._open_log_file(
+            args.runtime_log_path,
+            True,
+        ) if args.tee_runtime_log else None
         self.line_ending = decode_line_ending(args.line_ending)
 
     def _open_log_file(self, log_path: str | None, append: bool) -> TextIO | None:
@@ -291,6 +306,8 @@ class UartExpectSession:
         finally:
             if self.log_file is not None:
                 self.log_file.close()
+            if self.runtime_log_file is not None:
+                self.runtime_log_file.close()
 
     def run(self) -> None:
         if self.args.settle > 0:
@@ -512,6 +529,9 @@ class UartExpectSession:
         if self.log_file is not None:
             self.log_file.write(decoded)
             self.log_file.flush()
+        if self.runtime_log_file is not None:
+            self.runtime_log_file.write(decoded)
+            self.runtime_log_file.flush()
 
         if not self.args.quiet:
             sys.stdout.write(decoded)
