@@ -4,14 +4,15 @@
     "uart": {
       "type": "local",
       "command": [
-        "python3",
-        "./tools/uart/uart-mcp-server.py",
+        "/usr/bin/python3",
+        "/home/nstel/ti/TI_Bringup/tools/uart/uart-mcp-server.py",
         "--socket",
-        "./logs/uartd.sock"
+        "/home/nstel/ti/TI_Bringup/logs/uartd.sock"
       ],
       "enabled": true,
       "environment": {
-        "UARTD_SOCKET": "./logs/uartd.sock",
+        "PYTHONUNBUFFERED": "1",
+        "UARTD_SOCKET": "/home/nstel/ti/TI_Bringup/logs/uartd.sock",
         "UART_MCP_DEFAULT_NEWLINE": "crlf",
         "UART_MCP_DEFAULT_TIMEOUT": "10"
       }
