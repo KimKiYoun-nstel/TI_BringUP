@@ -265,30 +265,21 @@ def handle_tool_call(client: UartdClient, name: str, arguments: dict[str, Any], 
 
 
 def read_message(stdin) -> dict[str, Any] | None:
-    headers: dict[str, str] = {}
     while True:
         line = stdin.buffer.readline()
         if not line:
             return None
-        if line in {b"\r\n", b"\n"}:
-            break
-        decoded = line.decode("utf-8").strip()
-        if ":" not in decoded:
-            continue
-        name, value = decoded.split(":", 1)
-        headers[name.strip().lower()] = value.strip()
 
-    content_length = int(headers.get("content-length", "0"))
-    if content_length <= 0:
-        return None
-    body = stdin.buffer.read(content_length)
-    return json.loads(body.decode("utf-8"))
+        line = line.strip()
+        if not line:
+            continue
+
+        return json.loads(line.decode("utf-8"))
 
 
 def write_message(stdout, payload: dict[str, Any]) -> None:
-    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    stdout.buffer.write(f"Content-Length: {len(body)}\r\n\r\n".encode("utf-8"))
-    stdout.buffer.write(body)
+    body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    stdout.buffer.write(body + b"\n")
     stdout.buffer.flush()
 
 
@@ -314,11 +305,12 @@ def serve(args: argparse.Namespace) -> int:
 
         try:
             if method == "initialize":
+                requested_version = params.get("protocolVersion", PROTOCOL_VERSION)
                 response = make_success_response(
                     message_id,
                     {
-                        "protocolVersion": PROTOCOL_VERSION,
-                        "capabilities": {"tools": {}},
+                        "protocolVersion": requested_version,
+                        "capabilities": {"tools": {"listChanged": False}},
                         "serverInfo": {"name": "uart", "version": "0.1.0"},
                     },
                 )

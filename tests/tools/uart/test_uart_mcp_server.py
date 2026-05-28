@@ -107,26 +107,20 @@ class UartMcpServerTests(unittest.TestCase):
                 harness.close()
 
     def _send_mcp(self, proc: subprocess.Popen, payload: dict) -> None:
-        body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
         assert proc.stdin is not None
-        proc.stdin.write(f'Content-Length: {len(body)}\r\n\r\n'.encode('utf-8'))
-        proc.stdin.write(body)
+        proc.stdin.write((json.dumps(payload, ensure_ascii=False) + '\n').encode('utf-8'))
         proc.stdin.flush()
 
     def _recv_mcp(self, proc: subprocess.Popen) -> dict:
         assert proc.stdout is not None
-        headers = {}
         while True:
             line = proc.stdout.readline()
             if not line:
                 raise AssertionError('MCP server closed stdout unexpectedly')
-            if line in {b'\r\n', b'\n'}:
-                break
-            name, value = line.decode('utf-8').split(':', 1)
-            headers[name.strip().lower()] = value.strip()
-        length = int(headers['content-length'])
-        body = proc.stdout.read(length)
-        return json.loads(body.decode('utf-8'))
+            line = line.strip()
+            if not line:
+                continue
+            return json.loads(line.decode('utf-8'))
 
 
 if __name__ == '__main__':
