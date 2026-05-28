@@ -40,17 +40,72 @@ docs/decisions/DECISION_LOG.md
 docs/common/ISSUE_RESOLUTION_WORKFLOW.md
 ```
 
-보드의 reboot 전후 동작, early boot 흐름, UART에서 직접 보이는 runtime 증적을 판단해야 하는 작업이라면 다음 로그도 우선 확인한다.
+보드의 reboot 전후 동작, early boot 흐름, UART에서 직접 보이는 runtime 증적을 판단해야 하는 작업이라면 다음 로그를 우선 확인한다.
 
 ```text
 logs/runtime_log
 ```
 
-`logs/runtime_log`는 board의 UART terminal 로그와 동기화된 링크 파일로 간주한다. 따라서 kernel boot, reboot 직후 상태, early service startup timing, panic/crash 직전후 출력처럼 **UART에서 직접 보이는 boot/runtime 증적**이 필요할 때 이 파일을 우선 reference로 사용한다. 반대로 OS 부팅 이후의 일반적인 steady-state 동작 분석은 SSH, systemd journal, `/sys`, `dmesg`, 서비스 상태, 애플리케이션 출력 등을 함께 본다.
+`logs/runtime_log`는 board의 UART terminal 로그와 동기화된 링크 파일로 간주한다. 따라서 kernel boot, reboot 직후 상태, early service startup timing, panic/crash 직전후 출력처럼 **UART에서 직접 보이는 boot/runtime 증적**이 필요할 때 이 파일을 우선 reference로 사용한다. UART 관련 판단의 기준 로그는 항상 `logs/runtime_log`다. 반대로 OS 부팅 이후의 일반적인 steady-state 동작 분석은 SSH, systemd journal, `/sys`, `dmesg`, 서비스 상태, 애플리케이션 출력 등을 함께 본다.
 
-reboot 이후 UART 출력 감시, autoboot 중단, U-Boot prompt 진입, boot command 검증, Linux prompt 확인처럼 **UART 상호작용 자체를 재현하거나 자동화**해야 하는 작업이라면 `tools/uart/uartd.py` + `tools/uart/uartctl.py` 조합을 우선 검토한다. `uartd.py`는 UART를 계속 열고 모든 출력을 `logs/runtime_log`에 남기며, `uartctl.py`는 local Unix socket을 통해 `status`, `send`, `expect`, `tail`, `stop` 같은 제어를 제공한다.
+reboot 이후 UART 출력 감시, autoboot 중단, U-Boot prompt 진입, boot command 검증, Linux prompt 확인처럼 **UART 상호작용 자체를 재현하거나 자동화**해야 하는 작업은 daemon 기준 구조를 사용한다.
+
+- `tools/uart/uartd.py`: UART port owner daemon
+- `tools/uart/uartctl.py`: 사람 또는 로컬 script가 직접 사용하는 CLI
+- `tools/uart/uart-mcp-server.py`: Agent가 사용하는 MCP adapter
 
 구조와 사용 절차의 상세 설명은 `docs/common/UART_DAEMON_AGENT_WORKFLOW.md`를 우선 참고한다.
+
+## UART 사용 원칙
+
+이 프로젝트에서 UART 사용 원칙은 다음과 같다.
+
+1. UART 로그의 기준은 항상 `logs/runtime_log`다.
+2. UART를 통한 boot log 확인과 입출력 상호작용은 기본적으로 `uart` MCP 서버를 사용한다.
+3. MCP server 제공 tool의 기능 제약 때문에 작업을 계속 진행할 수 없을 때만 `uartctl.py`를 직접 사용한다.
+4. UART port는 오직 `uartd.py`만 직접 연다. Agent와 사용자는 모두 `uartd`를 통해 같은 세션을 공유한다.
+
+## UART MCP 사용 지침
+
+이 프로젝트에서는 실제 보드 UART 콘솔이 `uart` MCP 서버를 통해 제공될 수 있다.
+
+다음 작업에는 UART MCP tool을 우선 사용한다.
+
+- 보드 부팅 로그 확인
+- U-Boot prompt 확인 및 명령 실행
+- Linux login / shell 상태 확인
+- 커널 로그, rootfs, network 상태 확인
+- 실제 보드 serial console에서 명령 실행이 필요한 경우
+
+사용 기준:
+
+1. 현재 콘솔 상태가 불명확하면 먼저 `uart_tail`을 사용한다.
+2. U-Boot prompt는 `=> `, Linux root shell prompt는 `# `, login prompt는 `login:`을 기준으로 판단한다.
+3. 일반 명령은 `uart_command`를 사용한다.
+4. 입력만 필요하면 `uart_sendline`을 사용한다.
+5. 출력만 기다릴 때는 `uart_expect`를 사용한다.
+6. timeout이 발생하면 같은 명령을 반복하지 말고 `uart_tail`로 최근 출력을 다시 확인한다.
+7. 사람이 `uartctl attach`를 보고 있어도 MCP write는 허용된다. 다만 동시 입력 충돌은 사용자가 판단한다.
+
+## UART CLI fallback 지침
+
+다음 상황에서는 MCP 대신 `uartctl.py`를 직접 사용할 수 있다.
+
+- MCP tool에 아직 없는 기능이 필요한 경우
+- raw interactive console이 필요한 경우
+- read-only live console을 사람이 직접 보고 싶은 경우
+- MCP adapter 또는 opencode MCP 연결 상태를 분리해서 진단해야 하는 경우
+
+대표 명령:
+
+- `./tools/uart/uartctl.py status`
+- `./tools/uart/uartctl.py tail`
+- `./tools/uart/uartctl.py watch`
+- `./tools/uart/uartctl.py attach`
+- `./tools/uart/uartctl.py send ...`
+- `./tools/uart/uartctl.py command ... --expect ...`
+
+다만 CLI fallback을 사용하더라도 판단 기준 로그는 여전히 `logs/runtime_log`다.
 
 ## Repository의 현재 성격
 

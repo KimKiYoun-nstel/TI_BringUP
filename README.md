@@ -76,8 +76,11 @@ TI_Bringup/
 
 - `tools/uart/uartd.py`: UART port owner daemon
 - `tools/uart/uartctl.py`: daemon client CLI
+- `tools/uart/uart-mcp-server.py`: MCP stdio adapter for agents
 
 이 helper들은 `pyserial`을 사용해 `/dev/ttyUSB*` 포트를 직접 감시하고 입력을 전송한다. 기본 모델은 `uartd.py`가 UART port를 계속 점유하고, `uartctl.py`가 Unix domain socket을 통해 daemon에 접속해 제어하는 구조다. 이 방식은 사람이 `tail`로 출력을 보면서 다른 Agent가 `send`/`expect`를 수행하는 workflow에 적합하다.
+
+Agent 연동은 `uart-mcp-server.py`를 통해 수행한다. 이 adapter는 UART를 직접 열지 않고 `uartd.sock` JSON API만 호출하며, 프로젝트 루트의 `opencode.jsonc`에서 local MCP 서버로 등록할 수 있다.
 
 원칙:
 
