@@ -12,7 +12,7 @@ import subprocess
 import sys
 import time
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +44,9 @@ class ClientState:
     recv_buffer: str = ""
     monitor: bool = False
     monitor_from: int = 0
+    attached: bool = False
+    attach_mode: str = "none"
+    client_id: int = 0
 
 
 @dataclass
@@ -52,6 +55,14 @@ class ExpectWaiter:
     pattern: str
     deadline: float
     start_offset: int
+    payload: dict[str, Any] | None = None
+    include_output: bool = False
+
+
+@dataclass
+class SearchMatch:
+    start_offset: int
+    end_offset: int
 
 
 @dataclass
@@ -83,6 +94,9 @@ class UartDaemon:
         self.waiters: list[ExpectWaiter] = []
         self.buffer = ""
         self.offset = 0
+        self.next_client_id = 1
+        self.last_write_source: str | None = None
+        self.last_write_at: float | None = None
         self.running = True
         self.runtime_log_handle = self._open_append_file(config.runtime_log)
         self.daemon_log_handle = self._open_append_file(config.daemon_log)
@@ -157,7 +171,9 @@ class UartDaemon:
         assert self.server is not None
         client_sock, _ = self.server.accept()
         client_sock.setblocking(False)
-        self.clients[client_sock] = ClientState(sock=client_sock)
+        client_id = self.next_client_id
+        self.next_client_id += 1
+        self.clients[client_sock] = ClientState(sock=client_sock, client_id=client_id)
         self.selector.register(client_sock, selectors.EVENT_READ, self._read_client)
 
     def _read_client(self, client_sock: socket.socket) -> None:
@@ -170,6 +186,10 @@ class UartDaemon:
 
         if not data:
             self._drop_client(client_sock)
+            return
+
+        if state.attached:
+            self._handle_attached_input(state, data)
             return
 
         state.recv_buffer += data.decode("utf-8", errors="replace")
@@ -186,8 +206,18 @@ class UartDaemon:
             self._send_json(client_sock, {"ok": False, "error": f"invalid-json: {exc}"})
             return
 
+        try:
+            self._handle_command_inner(client_sock, request)
+        except UartDaemonError as exc:
+            self._send_json(client_sock, {"ok": False, "error": str(exc)})
+
+    def _handle_command_inner(self, client_sock: socket.socket, request: dict[str, Any]) -> None:
         action = request.get("action")
+
         if action == "status":
+            last_write_iso = None
+            if self.last_write_at is not None:
+                last_write_iso = time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(self.last_write_at))
             self._send_json(
                 client_sock,
                 {
@@ -198,19 +228,40 @@ class UartDaemon:
                     "socket": str(self.config.socket_path),
                     "runtime_log": str(self.config.runtime_log),
                     "clients": len(self.clients),
+                    "attached_clients": self._count_attached_clients(),
+                    "attach_clients": self._count_attached_clients(),
+                    "rw_attach_clients": self._count_attach_mode("rw"),
+                    "ro_attach_clients": self._count_attach_mode("ro"),
+                    "monitor_clients": self._count_monitor_clients(),
+                    "shared_write": True,
+                    "last_write_source": self.last_write_source,
+                    "last_writer": self.last_write_source,
+                    "last_write_at": self.last_write_at,
+                    "last_write_at_iso": last_write_iso,
+                    "offset": self.offset,
+                    "buffer_start_offset": self._buffer_start_offset(),
+                    "buffer_length": len(self.buffer),
                 },
             )
             return
 
         if action == "send":
             text = request.get("text", "")
-            append_newline = bool(request.get("newline", False))
+            newline = self._resolve_newline(request.get("newline", False))
             if not isinstance(text, str):
                 self._send_json(client_sock, {"ok": False, "error": "text must be string"})
                 return
-            payload = text + ("\n" if append_newline else "")
-            self._write_serial(payload)
-            self._send_json(client_sock, {"ok": True, "sent": payload})
+            payload = text + newline
+            self._write_serial(payload, source="json-api:send")
+            self._send_json(
+                client_sock,
+                {
+                    "ok": True,
+                    "sent": payload,
+                    "shared_write": True,
+                    "active_attach_clients": self._count_attached_clients(),
+                },
+            )
             return
 
         if action == "expect":
@@ -223,19 +274,89 @@ class UartDaemon:
                 self._send_json(client_sock, {"ok": False, "error": "timeout must be non-negative number"})
                 return
 
-            default_offset = self._buffer_start_offset()
-            matched = self._search_since(pattern, int(request.get("from_offset", default_offset)))
-            if matched:
-                self._send_json(client_sock, {"ok": True, "matched": pattern, "offset": self.offset})
+            start_offset = self._resolve_start_offset(request)
+            matched = self._search_since(pattern, start_offset)
+            if matched is not None:
+                self._send_json(
+                    client_sock,
+                    {
+                        "ok": True,
+                        "matched": pattern,
+                        "pattern": pattern,
+                        "output": self._text_since_offset(start_offset),
+                        "offset": self.offset,
+                        "start_offset": start_offset,
+                        "end_offset": self.offset,
+                        "match_start_offset": matched.start_offset,
+                        "match_end_offset": matched.end_offset,
+                    },
+                )
                 return
 
-            waiter = ExpectWaiter(
-                client=client_sock,
-                pattern=pattern,
-                deadline=time.monotonic() + float(timeout),
-                start_offset=int(request.get("from_offset", default_offset)),
+            self.waiters.append(
+                ExpectWaiter(
+                    client=client_sock,
+                    pattern=pattern,
+                    deadline=time.monotonic() + float(timeout),
+                    start_offset=start_offset,
+                    include_output=True,
+                )
             )
-            self.waiters.append(waiter)
+            return
+
+        if action == "send_expect":
+            text = request.get("text", "")
+            pattern = request.get("expect")
+            timeout = request.get("timeout", 30)
+            if not isinstance(text, str):
+                self._send_json(client_sock, {"ok": False, "error": "text must be string"})
+                return
+            if not isinstance(pattern, str) or pattern == "":
+                self._send_json(client_sock, {"ok": False, "error": "expect must be non-empty string"})
+                return
+            if not isinstance(timeout, (int, float)) or timeout < 0:
+                self._send_json(client_sock, {"ok": False, "error": "timeout must be non-negative number"})
+                return
+
+            start_offset = self._resolve_start_offset(request, default_mode="now")
+            payload = text + self._resolve_newline(request.get("newline", True))
+            self._write_serial(payload, source="json-api:send_expect")
+            matched = self._search_since(pattern, start_offset)
+            if matched is not None:
+                self._send_json(
+                    client_sock,
+                    {
+                        "ok": True,
+                        "sent": payload,
+                        "matched": pattern,
+                        "expect": pattern,
+                        "output": self._text_since_offset(start_offset),
+                        "shared_write": True,
+                        "active_attach_clients": self._count_attached_clients(),
+                        "offset": self.offset,
+                        "start_offset": start_offset,
+                        "end_offset": self.offset,
+                        "match_start_offset": matched.start_offset,
+                        "match_end_offset": matched.end_offset,
+                    },
+                )
+                return
+
+            self.waiters.append(
+                ExpectWaiter(
+                    client=client_sock,
+                    pattern=pattern,
+                    deadline=time.monotonic() + float(timeout),
+                    start_offset=start_offset,
+                    payload={
+                        "sent": payload,
+                        "expect": pattern,
+                        "shared_write": True,
+                        "active_attach_clients": self._count_attached_clients(),
+                    },
+                    include_output=True,
+                )
+            )
             return
 
         if action == "tail":
@@ -246,12 +367,74 @@ class UartDaemon:
             self._send_json(client_sock, {"ok": True, "stream": True, "backlog": backlog})
             return
 
+        if action == "tail_once":
+            lines = request.get("lines", 200)
+            resolved_lines = int(lines) if isinstance(lines, int) else 200
+            self._send_json(
+                client_sock,
+                {
+                    "ok": True,
+                    "lines": resolved_lines,
+                    "offset": self.offset,
+                    "text": self._tail_lines(resolved_lines),
+                },
+            )
+            return
+
+        if action == "attach":
+            self._handle_attach(client_sock, request)
+            return
+
         if action == "stop":
             self._send_json(client_sock, {"ok": True, "stopping": True})
             self.running = False
             return
 
         self._send_json(client_sock, {"ok": False, "error": f"unknown action: {action}"})
+
+    def _handle_attach(self, client_sock: socket.socket, request: dict[str, Any]) -> None:
+        state = self.clients[client_sock]
+        mode = request.get("mode", "rw")
+        if mode not in {"ro", "rw"}:
+            self._send_json(client_sock, {"ok": False, "error": "mode must be ro or rw"})
+            return
+
+        default_backlog = 0 if mode == "rw" else 100
+        backlog_lines = request.get("backlog_lines", default_backlog)
+        if not isinstance(backlog_lines, int) or backlog_lines < 0:
+            self._send_json(client_sock, {"ok": False, "error": "backlog_lines must be a non-negative integer"})
+            return
+
+        state.monitor = False
+        state.attached = True
+        state.attach_mode = mode
+        state.recv_buffer = ""
+
+        self._send_json(
+            client_sock,
+            {
+                "ok": True,
+                "attached": True,
+                "mode": mode,
+                "raw": True,
+                "shared_write": True,
+                "client_id": state.client_id,
+                "active_attach_clients": self._count_attached_clients(),
+            },
+        )
+
+        if backlog_lines > 0:
+            backlog = self._tail_lines(backlog_lines)
+            if backlog:
+                try:
+                    client_sock.sendall(backlog.encode(self.config.encoding, errors="replace"))
+                except OSError:
+                    self._drop_client(client_sock)
+
+    def _handle_attached_input(self, state: ClientState, data: bytes) -> None:
+        if state.attach_mode == "ro":
+            return
+        self._write_serial_bytes(data, source=f"attach:{state.client_id}")
 
     def _read_serial(self) -> None:
         assert self.serial_port is not None
@@ -275,38 +458,98 @@ class UartDaemon:
         self.offset += len(decoded)
 
         for state in list(self.clients.values()):
-            if state.monitor:
+            if state.attached:
+                try:
+                    state.sock.sendall(chunk)
+                except OSError:
+                    self._drop_client(state.sock)
+            elif state.monitor:
                 self._send_json(state.sock, {"type": "data", "data": decoded})
 
-    def _write_serial(self, payload: str) -> None:
+    def _write_serial_bytes(self, payload: bytes, source: str) -> None:
         assert self.serial_port is not None
         try:
-            self.serial_port.write(payload.encode(self.config.encoding))
+            self.serial_port.write(payload)
             self.serial_port.flush()
+            self.last_write_source = source
+            self.last_write_at = time.time()
         except Exception as exc:
             raise UartDaemonError(f"Failed to write to serial port: {exc}") from exc
+
+    def _write_serial(self, payload: str, source: str) -> None:
+        self._write_serial_bytes(payload.encode(self.config.encoding), source=source)
 
     def _check_waiters(self) -> None:
         now = time.monotonic()
         remaining: list[ExpectWaiter] = []
         for waiter in self.waiters:
-            if self._search_since(waiter.pattern, waiter.start_offset):
-                self._send_json(waiter.client, {"ok": True, "matched": waiter.pattern, "offset": self.offset})
+            matched = self._search_since(waiter.pattern, waiter.start_offset)
+            if matched is not None:
+                response = {
+                    "ok": True,
+                    "matched": waiter.pattern,
+                    "pattern": waiter.pattern,
+                    "offset": self.offset,
+                    "start_offset": waiter.start_offset,
+                    "end_offset": self.offset,
+                    "match_start_offset": matched.start_offset,
+                    "match_end_offset": matched.end_offset,
+                }
+                if waiter.include_output:
+                    response["output"] = self._text_since_offset(waiter.start_offset)
+                if waiter.payload:
+                    response.update(waiter.payload)
+                self._send_json(waiter.client, response)
                 continue
             if now >= waiter.deadline:
-                self._send_json(waiter.client, {"ok": False, "error": f"timeout waiting for {waiter.pattern!r}"})
+                response = {
+                    "ok": False,
+                    "error": f"timeout waiting for {waiter.pattern!r}",
+                    "pattern": waiter.pattern,
+                    "start_offset": waiter.start_offset,
+                    "offset": self.offset,
+                    "tail": self._tail_lines(100),
+                }
+                if waiter.include_output:
+                    response["output_since_start"] = self._text_since_offset(waiter.start_offset)
+                if waiter.payload:
+                    response.update(waiter.payload)
+                self._send_json(waiter.client, response)
                 continue
             remaining.append(waiter)
         self.waiters = remaining
 
-    def _search_since(self, pattern: str, start_offset: int) -> bool:
+    def _search_since(self, pattern: str, start_offset: int) -> SearchMatch | None:
         oldest_offset = self._buffer_start_offset()
         effective_offset = max(start_offset, oldest_offset)
         if effective_offset >= self.offset:
-            return False
+            return None
 
         available_start = max(0, len(self.buffer) - (self.offset - effective_offset))
-        return pattern in self.buffer[available_start:]
+        relative_index = self.buffer[available_start:].find(pattern)
+        if relative_index < 0:
+            return None
+
+        match_start = effective_offset + relative_index
+        return SearchMatch(start_offset=match_start, end_offset=match_start + len(pattern))
+
+    def _resolve_start_offset(self, request: dict[str, Any], default_mode: str = "buffer") -> int:
+        raw_offset = request.get("from_offset")
+        if raw_offset is not None:
+            if not isinstance(raw_offset, int) or raw_offset < 0:
+                raise UartDaemonError("from_offset must be a non-negative integer")
+            return raw_offset
+
+        from_mode = request.get("from", default_mode)
+        if not isinstance(from_mode, str):
+            raise UartDaemonError("from must be a string")
+
+        normalized = from_mode.strip().lower()
+        if normalized in {"buffer", "backlog"}:
+            return self._buffer_start_offset()
+        if normalized in {"now", "end", "fresh"}:
+            return self.offset
+        raise UartDaemonError(f"unsupported expect origin: {from_mode}")
 
     def _buffer_start_offset(self) -> int:
         return max(0, self.offset - len(self.buffer))
@@ -320,6 +563,40 @@ class UartDaemon:
         selected = deque(text.splitlines(), maxlen=lines)
         return "\n".join(selected) + ("\n" if selected else "")
 
+    def _text_since_offset(self, start_offset: int) -> str:
+        oldest_offset = self._buffer_start_offset()
+        effective_offset = max(start_offset, oldest_offset)
+        if effective_offset >= self.offset:
+            return ""
+        available_start = max(0, len(self.buffer) - (self.offset - effective_offset))
+        return self.buffer[available_start:]
+
+    def _count_attached_clients(self) -> int:
+        return sum(1 for state in self.clients.values() if state.attached)
+
+    def _count_attach_mode(self, mode: str) -> int:
+        return sum(1 for state in self.clients.values() if state.attached and state.attach_mode == mode)
+
+    def _count_monitor_clients(self) -> int:
+        return sum(1 for state in self.clients.values() if state.monitor)
+
+    def _resolve_newline(self, value: Any) -> str:
+        if value is True:
+            return "\n"
+        if value in {False, None}:
+            return ""
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized == "lf":
+                return "\n"
+            if normalized == "crlf":
+                return "\r\n"
+            if normalized == "cr":
+                return "\r"
+            if normalized == "none":
+                return ""
+        raise UartDaemonError("unsupported newline")
+
     def _send_json(self, client_sock: socket.socket, payload: dict[str, Any]) -> None:
         try:
             client_sock.sendall((json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8"))
@@ -327,17 +604,18 @@ class UartDaemon:
             self._drop_client(client_sock)
 
     def _drop_client(self, client_sock: socket.socket) -> None:
-        if client_sock in self.clients:
-            self.waiters = [item for item in self.waiters if item.client is not client_sock]
-            try:
-                self.selector.unregister(client_sock)
-            except Exception:
-                pass
-            try:
-                client_sock.close()
-            except Exception:
-                pass
-            del self.clients[client_sock]
+        if client_sock not in self.clients:
+            return
+        self.waiters = [item for item in self.waiters if item.client is not client_sock]
+        try:
+            self.selector.unregister(client_sock)
+        except Exception:
+            pass
+        try:
+            client_sock.close()
+        except Exception:
+            pass
+        del self.clients[client_sock]
 
     def cleanup(self) -> None:
         for client in list(self.clients):
@@ -462,7 +740,6 @@ def start_daemon(args: argparse.Namespace) -> int:
             print(f"uartd started pid={status.get('pid')} socket={status.get('socket')}")
             return 0
         time.sleep(0.1)
-
     raise UartDaemonError("uartd did not become ready in time")
 
 

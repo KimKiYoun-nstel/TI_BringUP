@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import select
 import socket
 import sys
+import termios
+import tty
 from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SOCKET_PATH = REPO_ROOT / "logs" / "uartd.sock"
+ATTACH_ESCAPE = 0x1D
 
 
 class UartCtlError(Exception):
@@ -31,6 +36,22 @@ def build_parser() -> argparse.ArgumentParser:
     expect_parser = subparsers.add_parser("expect")
     expect_parser.add_argument("pattern")
     expect_parser.add_argument("--timeout", type=float, default=30.0)
+    expect_parser.add_argument("--fresh", action="store_true", help="Match only new UART output after this request")
+    expect_parser.add_argument("--from-offset", type=int, default=None, help="Match only output at or after this daemon offset")
+
+    command_parser = subparsers.add_parser("command")
+    command_parser.add_argument("text")
+    command_parser.add_argument("--expect", required=True, help="Pattern to wait for after sending the command")
+    command_parser.add_argument("--timeout", type=float, default=30.0)
+    command_parser.add_argument("--fresh", action="store_true", help="Wait only for new output after command send")
+    command_parser.add_argument("--from-offset", type=int, default=None, help="Override match start offset")
+    command_parser.add_argument("--no-newline", action="store_true", help="Do not append newline when sending")
+
+    attach_parser = subparsers.add_parser("attach")
+    attach_parser.add_argument("--backlog-lines", type=int, default=0)
+
+    watch_parser = subparsers.add_parser("watch")
+    watch_parser.add_argument("--backlog-lines", type=int, default=100)
 
     tail_parser = subparsers.add_parser("tail")
     tail_parser.add_argument("--lines", type=int, default=200)
@@ -76,11 +97,44 @@ def run_send(socket_path: Path, text: str, newline: bool) -> int:
     return 0
 
 
-def run_expect(socket_path: Path, pattern: str, timeout: float) -> int:
-    with send_request(socket_path, {"action": "expect", "pattern": pattern, "timeout": timeout}) as sock:
+def run_expect(socket_path: Path, pattern: str, timeout: float, fresh: bool, from_offset: int | None) -> int:
+    payload: dict[str, object] = {"action": "expect", "pattern": pattern, "timeout": timeout}
+    if fresh:
+        payload["from"] = "fresh"
+    if from_offset is not None:
+        payload["from_offset"] = from_offset
+    with send_request(socket_path, payload) as sock:
         response = recv_json_line(sock)
     if not response.get("ok"):
         raise UartCtlError(response.get("error", "expect failed"))
+    print(json.dumps(response, ensure_ascii=False))
+    return 0
+
+
+def run_command(
+    socket_path: Path,
+    text: str,
+    expect: str,
+    timeout: float,
+    fresh: bool,
+    from_offset: int | None,
+    newline: bool,
+) -> int:
+    payload: dict[str, object] = {
+        "action": "send_expect",
+        "text": text,
+        "expect": expect,
+        "timeout": timeout,
+        "newline": newline,
+    }
+    if fresh:
+        payload["from"] = "fresh"
+    if from_offset is not None:
+        payload["from_offset"] = from_offset
+    with send_request(socket_path, payload) as sock:
+        response = recv_json_line(sock)
+    if not response.get("ok"):
+        raise UartCtlError(response.get("error", "command failed"))
     print(json.dumps(response, ensure_ascii=False))
     return 0
 
@@ -99,6 +153,81 @@ def run_tail(socket_path: Path, lines: int) -> int:
             if event.get("type") == "data":
                 sys.stdout.write(event.get("data", ""))
                 sys.stdout.flush()
+
+
+def run_attach(socket_path: Path, mode: str, backlog_lines: int) -> int:
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        sock.connect(str(socket_path))
+        payload = {"action": "attach", "mode": mode, "backlog_lines": backlog_lines}
+        sock.sendall((json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8"))
+        response = recv_json_line(sock)
+        if not response.get("ok"):
+            raise UartCtlError(response.get("error", "attach failed"))
+
+        if mode == "ro":
+            return _watch_stream(sock)
+        return _attach_stream(sock)
+    finally:
+        sock.close()
+
+
+def _watch_stream(sock: socket.socket) -> int:
+    while True:
+        data = sock.recv(4096)
+        if not data:
+            return 0
+        os.write(sys.stdout.fileno(), data)
+
+
+def _attach_stream(sock: socket.socket) -> int:
+    stdin_fd = sys.stdin.fileno()
+    stdout_fd = sys.stdout.fileno()
+    old_attrs = termios.tcgetattr(stdin_fd)
+    escaped = False
+
+    try:
+        tty.setraw(stdin_fd)
+        sys.stderr.write("[uartctl] attached mode=rw, shared_write=true. detach: Ctrl-] then q\n")
+        sys.stderr.flush()
+
+        while True:
+            readable, _, _ = select.select([sock, stdin_fd], [], [])
+
+            if sock in readable:
+                data = sock.recv(4096)
+                if not data:
+                    return 0
+                os.write(stdout_fd, data)
+
+            if stdin_fd in readable:
+                data = os.read(stdin_fd, 4096)
+                if not data:
+                    return 0
+
+                output = bytearray()
+                for value in data:
+                    if escaped:
+                        if value == ord("q"):
+                            return 0
+                        if value == ATTACH_ESCAPE:
+                            output.append(ATTACH_ESCAPE)
+                        else:
+                            output.append(ATTACH_ESCAPE)
+                            output.append(value)
+                        escaped = False
+                        continue
+
+                    if value == ATTACH_ESCAPE:
+                        escaped = True
+                        continue
+
+                    output.append(value)
+
+                if output:
+                    sock.sendall(bytes(output))
+    finally:
+        termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_attrs)
 
 
 def run_stop(socket_path: Path) -> int:
@@ -120,7 +249,21 @@ def main() -> int:
         if args.command == "send":
             return run_send(socket_path, args.text, args.newline)
         if args.command == "expect":
-            return run_expect(socket_path, args.pattern, args.timeout)
+            return run_expect(socket_path, args.pattern, args.timeout, args.fresh, args.from_offset)
+        if args.command == "command":
+            return run_command(
+                socket_path,
+                args.text,
+                args.expect,
+                args.timeout,
+                args.fresh,
+                args.from_offset,
+                not args.no_newline,
+            )
+        if args.command == "attach":
+            return run_attach(socket_path, mode="rw", backlog_lines=args.backlog_lines)
+        if args.command == "watch":
+            return run_attach(socket_path, mode="ro", backlog_lines=args.backlog_lines)
         if args.command == "tail":
             return run_tail(socket_path, args.lines)
         if args.command == "stop":
