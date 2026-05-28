@@ -60,3 +60,8 @@ Thumbs.db
 # Local TFTP root payloads are operator-managed artifacts, not git-tracked outputs.
 /tftp/*
 !/tftp/README.md
+
+.sisyphus/run-continuation
+logs/uartd.*
+tools/uart/__pycache__
+tests/tools/uart/__pycache__
