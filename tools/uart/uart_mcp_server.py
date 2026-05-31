@@ -130,6 +130,26 @@ def tool_definitions() -> list[dict[str, Any]]:
                 "required": ["line", "expect"],
             },
         },
+        {
+            "name": "uart_reboot_to_uboot",
+            "description": "From a Linux shell or login prompt, reboot the board and stop at the U-Boot prompt using a single managed flow over uartd.sock. Use this when you need reliable self-reboot to U-Boot entry without manually chaining separate send/expect steps.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "login_user": {"type": "string", "default": "root"},
+                    "shell_prompt": {"type": "string", "default": "# "},
+                    "login_prompt": {"type": "string", "default": "login:"},
+                    "password_prompt": {"type": "string", "default": "Password:"},
+                    "reboot_command": {"type": "string", "default": "reboot"},
+                    "autoboot_prompt": {"type": "string", "default": "Hit any key to stop autoboot"},
+                    "uboot_prompt": {"type": "string", "default": "=> "},
+                    "shell_timeout": {"type": "number", "default": 10},
+                    "reboot_timeout": {"type": "number", "default": 60},
+                    "uboot_timeout": {"type": "number", "default": 5},
+                    "newline": {"type": "string", "enum": ["lf", "crlf", "cr", "none"], "default": DEFAULT_NEWLINE}
+                }
+            },
+        },
     ]
 
 
@@ -216,6 +236,16 @@ def normalize_command(data: dict[str, Any], elapsed_ms: int) -> dict[str, Any]:
     }
 
 
+def normalize_reboot_flow(data: dict[str, Any], elapsed_ms: int) -> dict[str, Any]:
+    return {
+        "ok": data.get("ok", False),
+        "state_before": data.get("state_before"),
+        "steps": data.get("steps", []),
+        "final_prompt": data.get("final_prompt"),
+        "elapsed_ms": elapsed_ms,
+    }
+
+
 def handle_tool_call(client: UartdClient, name: str, arguments: dict[str, Any], default_timeout: float, default_newline: str) -> dict[str, Any]:
     start = time.monotonic()
 
@@ -260,6 +290,68 @@ def handle_tool_call(client: UartdClient, name: str, arguments: dict[str, Any], 
         )
         normalized = normalize_command(raw, int((time.monotonic() - start) * 1000))
         return make_tool_result(normalized, normalized.get("output", normalized.get("output_since_command", normalized.get("error", ""))), is_error=not normalized.get("ok"))
+
+    if name == "uart_reboot_to_uboot":
+        login_user = arguments.get("login_user", "root")
+        shell_prompt = arguments.get("shell_prompt", "# ")
+        login_prompt = arguments.get("login_prompt", "login:")
+        password_prompt = arguments.get("password_prompt", "Password:")
+        reboot_command = arguments.get("reboot_command", "reboot")
+        autoboot_prompt = arguments.get("autoboot_prompt", "Hit any key to stop autoboot")
+        uboot_prompt = arguments.get("uboot_prompt", "=> ")
+        shell_timeout = float(arguments.get("shell_timeout", 10))
+        reboot_timeout = float(arguments.get("reboot_timeout", 60))
+        uboot_timeout = float(arguments.get("uboot_timeout", 5))
+        newline = arguments.get("newline", default_newline)
+
+        for value, label in [
+            (login_user, "login_user"),
+            (shell_prompt, "shell_prompt"),
+            (login_prompt, "login_prompt"),
+            (password_prompt, "password_prompt"),
+            (reboot_command, "reboot_command"),
+            (autoboot_prompt, "autoboot_prompt"),
+            (uboot_prompt, "uboot_prompt"),
+            (newline, "newline"),
+        ]:
+            if not isinstance(value, str):
+                raise UartMcpError(f"uart_reboot_to_uboot requires string field '{label}'")
+
+        tail = normalize_tail(client.request({"action": "tail_once", "lines": 40}, timeout=default_timeout + 3))
+        state_before = tail.get("state_hint", "unknown")
+        steps: list[dict[str, Any]] = []
+
+        if state_before == "password_prompt":
+            raw = client.request({"action": "send_expect", "text": "", "expect": login_prompt, "timeout": shell_timeout, "newline": newline, "from": "fresh"}, timeout=shell_timeout + 3)
+            steps.append({"name": "password_to_login", **normalize_command(raw, int((time.monotonic() - start) * 1000))})
+            state_before = "linux_login"
+
+        if state_before == "linux_login":
+            raw = client.request({"action": "send_expect", "text": login_user, "expect": shell_prompt, "timeout": shell_timeout, "newline": newline, "from": "fresh"}, timeout=shell_timeout + 3)
+            normalized = normalize_command(raw, int((time.monotonic() - start) * 1000))
+            steps.append({"name": "login_to_shell", **normalized})
+            if not normalized.get("ok"):
+                result = normalize_reboot_flow({"ok": False, "state_before": state_before, "steps": steps, "final_prompt": None}, int((time.monotonic() - start) * 1000))
+                return make_tool_result(result, normalized.get("output_since_command", normalized.get("error", "")), is_error=True)
+            state_before = "linux_root"
+
+        if state_before != "linux_root":
+            raise UartMcpError(f"uart_reboot_to_uboot requires Linux shell/login state, got '{state_before}'")
+
+        raw = client.request({"action": "send_expect", "text": reboot_command, "expect": autoboot_prompt, "timeout": reboot_timeout, "newline": newline, "from": "fresh"}, timeout=reboot_timeout + 3)
+        normalized = normalize_command(raw, int((time.monotonic() - start) * 1000))
+        steps.append({"name": "reboot_to_autoboot", **normalized})
+        if not normalized.get("ok"):
+            result = normalize_reboot_flow({"ok": False, "state_before": state_before, "steps": steps, "final_prompt": None}, int((time.monotonic() - start) * 1000))
+            return make_tool_result(result, normalized.get("output_since_command", normalized.get("error", "")), is_error=True)
+
+        raw = client.request({"action": "send_expect", "text": "", "expect": uboot_prompt, "timeout": uboot_timeout, "newline": newline, "from": "fresh"}, timeout=uboot_timeout + 3)
+        normalized = normalize_command(raw, int((time.monotonic() - start) * 1000))
+        steps.append({"name": "interrupt_to_uboot", **normalized})
+
+        result = normalize_reboot_flow({"ok": normalized.get("ok", False), "state_before": "linux_root", "steps": steps, "final_prompt": uboot_prompt if normalized.get("ok") else None}, int((time.monotonic() - start) * 1000))
+        text = normalized.get("output", normalized.get("output_since_command", normalized.get("error", "")))
+        return make_tool_result(result, text, is_error=not normalized.get("ok"))
 
     raise UartMcpError(f"unknown tool: {name}")
 
