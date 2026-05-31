@@ -19,8 +19,6 @@ if [ ! -x "$VERIFY_SCRIPT" ]; then
     exit 1
 fi
 
-"$VERIFY_SCRIPT"
-
 ACTION="${1:-all}"
 
 BUILD_BASE="$BRINGUP_ROOT/out/u-boot"
@@ -29,6 +27,7 @@ A53_OUT="$BUILD_BASE/a53"
 ARTIFACTS="$BUILD_BASE/artifacts"
 LOG_DIR="$BUILD_BASE/logs"
 PREBUILT_DIR="$PREBUILT_IMAGES/am64xx-evm"
+UBOOT_WATCHDOG_CONFIG_FRAGMENT="$BRINGUP_ROOT/bsp/u-boot/configs/am64x-watchdog.config"
 
 sanitize_standalone_env() {
     local contamination_detected=0
@@ -57,7 +56,9 @@ Usage:
   ./tools/build/build-u-boot.sh clean
   ./tools/build/build-u-boot.sh r5
   ./tools/build/build-u-boot.sh a53
+  ./tools/build/build-u-boot.sh a53-watchdog
   ./tools/build/build-u-boot.sh all
+  ./tools/build/build-u-boot.sh all-watchdog
   ./tools/build/build-u-boot.sh artifacts
 EOF
 }
@@ -80,6 +81,16 @@ require_file() {
         echo "[ERROR] Missing $label: $path" >&2
         exit 1
     fi
+}
+
+apply_a53_watchdog_config() {
+    require_file "$UBOOT_WATCHDOG_CONFIG_FRAGMENT" "U-Boot watchdog config fragment"
+
+    "$UBOOT_SRC/scripts/config" --file "$A53_OUT/.config" \
+        -e CMD_WDT \
+        -e WDT \
+        -e WDT_K3_RTI \
+        -d WATCHDOG_AUTOSTART
 }
 
 require_clean_workspace() {
@@ -131,6 +142,10 @@ ensure_inputs() {
     mkdir -p "$R5_OUT" "$A53_OUT" "$ARTIFACTS" "$LOG_DIR"
 }
 
+run_workspace_verify() {
+    ALLOW_DIRTY_WORKSPACE=linux "$VERIFY_SCRIPT"
+}
+
 run_r5() {
     rm -rf "$R5_OUT"
     mkdir -p "$R5_OUT"
@@ -148,6 +163,8 @@ run_r5() {
 }
 
 run_a53() {
+    local enable_watchdog="${1:-0}"
+
     rm -rf "$A53_OUT"
     mkdir -p "$A53_OUT"
     find_libgcc
@@ -163,6 +180,10 @@ run_a53() {
         -d CMD_BOOTEFI_SELFTEST \
         -d EFI_SELFTEST \
         -e EFI_LOAD_FILE2_INITRD
+
+    if [ "$enable_watchdog" = "1" ]; then
+        apply_a53_watchdog_config
+    fi
 
     make -C "$UBOOT_SRC" \
         ARCH=arm CROSS_COMPILE="$CROSS_COMPILE_AARCH64" \
@@ -240,23 +261,41 @@ case "$ACTION" in
         clean_outputs
         ;;
     r5)
+        run_workspace_verify
         ensure_inputs
         run_r5
         ;;
     a53)
+        run_workspace_verify
         ensure_inputs
         run_a53
         ;;
     artifacts)
+        run_workspace_verify
         ensure_inputs
         collect_artifacts
         generate_manifest
         show_artifacts
         ;;
+    a53-watchdog)
+        run_workspace_verify
+        ensure_inputs
+        run_a53 1
+        ;;
     all)
+        run_workspace_verify
         ensure_inputs
         run_r5
         run_a53
+        collect_artifacts
+        generate_manifest
+        show_artifacts
+        ;;
+    all-watchdog)
+        run_workspace_verify
+        ensure_inputs
+        run_r5
+        run_a53 1
         collect_artifacts
         generate_manifest
         show_artifacts
