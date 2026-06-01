@@ -1,0 +1,4 @@
+# USB extlinux rehearsal
+#
+# Try USB bootflow first, then allow existing bootcmd_ti_mmc SD boot to continue on failure.
+uenvcmd=setenv boot_targets usb mmc1 mmc0 pxe dhcp; usb start; bootflow scan -lb

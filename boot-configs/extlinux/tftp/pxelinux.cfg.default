@@ -1,0 +1,8 @@
+menu title AM64x PXE Rehearsal
+timeout 30
+default AM64x_NET
+
+label AM64x_NET
+    kernel Image
+    fdt k3-am642-sk.dtb
+    append console=ttyS2,115200n8 earlycon=ns16550a,mmio32,0x02800000 root=/dev/nfs rw nfsroot=192.168.0.246:/srv/nfs/am64-rootfs,tcp,v3 ip=dhcp rootwait

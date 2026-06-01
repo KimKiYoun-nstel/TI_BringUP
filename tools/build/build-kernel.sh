@@ -19,16 +19,35 @@ if [ ! -x "$VERIFY_SCRIPT" ]; then
     exit 1
 fi
 
-"$VERIFY_SCRIPT"
-
 ACTION="${1:-all}"
 
 BUILD_BASE="$BRINGUP_ROOT/out/kernel"
+USB_BUILD_BASE="$BRINGUP_ROOT/out/kernel-usb-boot"
 ARTIFACTS="$BUILD_BASE/artifacts"
 MODULES_OUT="$BUILD_BASE/modules"
 LOG_DIR="$BUILD_BASE/logs"
 DTB_SOURCE_DIR="$KERNEL_SRC/arch/arm64/boot/dts/ti"
 IMAGE_PATH="$KERNEL_SRC/arch/arm64/boot/Image"
+USB_BOOT_CONFIG_FRAGMENT="$BRINGUP_ROOT/bsp/linux/configs/am64x-usb-boot.config"
+USB_ROOT_DIAG_INITRAMFS_CONFIG_FRAGMENT="$BRINGUP_ROOT/bsp/linux/configs/am64x-usb-root-diag-initramfs.config"
+USB_EXTRA_CONFIG_FRAGMENT=""
+ALLOW_DIRTY_BUILD=0
+
+case "$ACTION" in
+    usb-boot-defconfig|usb-boot-image|usb-boot-dtbs|usb-boot-modules|usb-boot-all|usb-boot-artifacts|usb-root-diag-defconfig|usb-root-diag-image|usb-root-diag-dtbs|usb-root-diag-modules|usb-root-diag-all|usb-root-diag-artifacts)
+        BUILD_BASE="$USB_BUILD_BASE"
+        ARTIFACTS="$BUILD_BASE/artifacts"
+        MODULES_OUT="$BUILD_BASE/modules"
+        LOG_DIR="$BUILD_BASE/logs"
+        ALLOW_DIRTY_BUILD=1
+        ;;
+esac
+
+case "$ACTION" in
+    usb-root-diag-defconfig|usb-root-diag-image|usb-root-diag-dtbs|usb-root-diag-modules|usb-root-diag-all|usb-root-diag-artifacts)
+        USB_EXTRA_CONFIG_FRAGMENT="$USB_ROOT_DIAG_INITRAMFS_CONFIG_FRAGMENT"
+        ;;
+esac
 
 sanitize_standalone_env() {
     local contamination_detected=0
@@ -60,6 +79,18 @@ Usage:
   ./tools/build/build-kernel.sh modules
   ./tools/build/build-kernel.sh all
   ./tools/build/build-kernel.sh artifacts
+  ./tools/build/build-kernel.sh usb-boot-defconfig
+  ./tools/build/build-kernel.sh usb-boot-image
+  ./tools/build/build-kernel.sh usb-boot-dtbs
+  ./tools/build/build-kernel.sh usb-boot-modules
+  ./tools/build/build-kernel.sh usb-boot-all
+  ./tools/build/build-kernel.sh usb-boot-artifacts
+  ./tools/build/build-kernel.sh usb-root-diag-defconfig
+  ./tools/build/build-kernel.sh usb-root-diag-image
+  ./tools/build/build-kernel.sh usb-root-diag-dtbs
+  ./tools/build/build-kernel.sh usb-root-diag-modules
+  ./tools/build/build-kernel.sh usb-root-diag-all
+  ./tools/build/build-kernel.sh usb-root-diag-artifacts
 EOF
 }
 
@@ -88,6 +119,11 @@ require_clean_workspace() {
     dirty="$(git -C "$KERNEL_SRC" status --short)"
 
     if [ -n "$dirty" ]; then
+        if [ "$ALLOW_DIRTY_BUILD" -eq 1 ]; then
+            echo "[WARN] Kernel workspace is dirty, continuing because this is an explicit USB boot build." >&2
+            printf '%s\n' "$dirty" >&2
+            return
+        fi
         echo "[ERROR] Kernel workspace is dirty. Stop before building." >&2
         printf '%s\n' "$dirty" >&2
         exit 1
@@ -117,6 +153,14 @@ ensure_inputs() {
     mkdir -p "$ARTIFACTS" "$MODULES_OUT" "$LOG_DIR"
 }
 
+run_workspace_verify() {
+    if [ "$ALLOW_DIRTY_BUILD" -eq 1 ]; then
+        ALLOW_DIRTY_WORKSPACE=linux "$VERIFY_SCRIPT"
+    else
+        "$VERIFY_SCRIPT"
+    fi
+}
+
 list_dtb_candidates() {
     find "$DTB_SOURCE_DIR" -maxdepth 1 -name 'k3-am64*.dts' -print | sort
 }
@@ -129,6 +173,84 @@ run_defconfig() {
         ARCH=arm64 \
         CROSS_COMPILE="$CROSS_COMPILE_AARCH64" \
         defconfig | tee "$LOG_DIR/defconfig.log"
+}
+
+run_usb_boot_defconfig() {
+    local merge_script
+    local fragment
+
+    merge_script="$KERNEL_SRC/scripts/kconfig/merge_config.sh"
+
+    require_file "$USB_BOOT_CONFIG_FRAGMENT" "USB boot config fragment"
+    require_file "$merge_script" "kernel merge_config.sh"
+
+    if [ -n "$USB_EXTRA_CONFIG_FRAGMENT" ]; then
+        require_file "$USB_EXTRA_CONFIG_FRAGMENT" "USB extra config fragment"
+    fi
+
+    echo "[INFO] USB boot config policy: make defconfig + repo fragment + olddefconfig."
+
+    make -C "$KERNEL_SRC" \
+        ARCH=arm64 \
+        CROSS_COMPILE="$CROSS_COMPILE_AARCH64" \
+        defconfig | tee "$LOG_DIR/usb-boot-defconfig.log"
+
+    (
+        cd "$KERNEL_SRC"
+        ARCH=arm64 \
+        CROSS_COMPILE="$CROSS_COMPILE_AARCH64" \
+        "$merge_script" -m .config "$USB_BOOT_CONFIG_FRAGMENT" ${USB_EXTRA_CONFIG_FRAGMENT:+"$USB_EXTRA_CONFIG_FRAGMENT"}
+    ) | tee "$LOG_DIR/usb-boot-merge-config.log"
+
+    make -C "$KERNEL_SRC" \
+        ARCH=arm64 \
+        CROSS_COMPILE="$CROSS_COMPILE_AARCH64" \
+        olddefconfig | tee "$LOG_DIR/usb-boot-olddefconfig.log"
+
+    verify_usb_boot_config
+}
+
+verify_usb_boot_config() {
+    local config_path
+
+    config_path="$KERNEL_SRC/.config"
+    require_file "$config_path" "kernel .config"
+
+    for required in \
+        CONFIG_USB=y \
+        CONFIG_USB_XHCI_HCD=y \
+        CONFIG_USB_XHCI_PLATFORM=y \
+        CONFIG_USB_STORAGE=y \
+        CONFIG_USB_GADGET=y \
+        CONFIG_USB_CDNS_SUPPORT=y \
+        CONFIG_USB_CDNS3=y \
+        CONFIG_USB_CDNS3_GADGET=y \
+        CONFIG_USB_CDNS3_HOST=y \
+        CONFIG_USB_CDNS3_TI=y \
+        CONFIG_SCSI=y \
+        CONFIG_BLK_DEV_SD=y \
+        CONFIG_EXT4_FS=y \
+        CONFIG_DEVTMPFS=y \
+        CONFIG_DEVTMPFS_MOUNT=y
+    do
+        if ! grep -qx "$required" "$config_path"; then
+            echo "[ERROR] Missing required USB boot config: $required" >&2
+            exit 1
+        fi
+    done
+
+    if [ -n "$USB_EXTRA_CONFIG_FRAGMENT" ]; then
+        for required in \
+            CONFIG_BLK_DEV_INITRD=y \
+            CONFIG_RD_GZIP=y \
+            CONFIG_DEBUG_FS=y
+        do
+            if ! grep -qx "$required" "$config_path"; then
+                echo "[ERROR] Missing required USB root diag config: $required" >&2
+                exit 1
+            fi
+        done
+    fi
 }
 
 build_image() {
@@ -209,7 +331,12 @@ generate_manifest() {
         printf 'ARTIFACTS_DIR: %s\n' "$ARTIFACTS"
         printf 'MODULES_OUT: %s\n' "$MODULES_OUT"
         printf 'BUILD_COMMAND: %s\n' "./tools/build/build-kernel.sh $ACTION"
-        printf 'DEFCONFIG_POLICY: %s\n' 'Temporary: make defconfig is used. Open question: confirm exact TI SDK defconfig/config fragment used by Processor SDK Linux 12 AM64x.'
+        if [ "$ALLOW_DIRTY_BUILD" -eq 1 ]; then
+            printf 'DEFCONFIG_POLICY: %s\n' 'USB boot flow: make defconfig + bsp/linux/configs/am64x-usb-boot.config + olddefconfig'
+            printf 'CONFIG_FRAGMENT: %s\n' "$USB_BOOT_CONFIG_FRAGMENT"
+        else
+            printf 'DEFCONFIG_POLICY: %s\n' 'Temporary: make defconfig is used. Open question: confirm exact TI SDK defconfig/config fragment used by Processor SDK Linux 12 AM64x.'
+        fi
         printf '\n[artifact sizes]\n'
         find "$ARTIFACTS" -maxdepth 1 \( -name 'Image' -o -name 'k3-am64*.dtb' \) -type f -print0 | sort -z | xargs -0 stat -c '%n %s bytes'
         printf '\n[sha256]\n'
@@ -224,22 +351,27 @@ show_artifacts() {
 
 case "$ACTION" in
     defconfig)
+        run_workspace_verify
         ensure_inputs
         run_defconfig
         ;;
     image)
+        run_workspace_verify
         ensure_inputs
         build_image
         ;;
     dtbs)
+        run_workspace_verify
         ensure_inputs
         build_dtbs
         ;;
     modules)
+        run_workspace_verify
         ensure_inputs
         build_modules
         ;;
     all)
+        run_workspace_verify
         ensure_inputs
         run_defconfig
         build_image
@@ -250,6 +382,48 @@ case "$ACTION" in
         show_artifacts
         ;;
     artifacts)
+        run_workspace_verify
+        ensure_inputs
+        collect_artifacts
+        generate_manifest
+        show_artifacts
+        ;;
+    usb-boot-defconfig|usb-root-diag-defconfig)
+        run_workspace_verify
+        ensure_inputs
+        run_usb_boot_defconfig
+        ;;
+    usb-boot-image|usb-root-diag-image)
+        run_workspace_verify
+        ensure_inputs
+        run_usb_boot_defconfig
+        build_image
+        ;;
+    usb-boot-dtbs|usb-root-diag-dtbs)
+        run_workspace_verify
+        ensure_inputs
+        run_usb_boot_defconfig
+        build_dtbs
+        ;;
+    usb-boot-modules|usb-root-diag-modules)
+        run_workspace_verify
+        ensure_inputs
+        run_usb_boot_defconfig
+        build_modules
+        ;;
+    usb-boot-all|usb-root-diag-all)
+        run_workspace_verify
+        ensure_inputs
+        run_usb_boot_defconfig
+        build_image
+        build_dtbs
+        build_modules
+        collect_artifacts
+        generate_manifest
+        show_artifacts
+        ;;
+    usb-boot-artifacts|usb-root-diag-artifacts)
+        run_workspace_verify
         ensure_inputs
         collect_artifacts
         generate_manifest

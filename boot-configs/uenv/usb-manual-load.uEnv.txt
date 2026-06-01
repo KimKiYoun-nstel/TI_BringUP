@@ -1,0 +1,5 @@
+# USB manual load rehearsal
+#
+# Use this only when USB extlinux discovery via bootflow is inconclusive.
+# It directly loads Image + DTB from USB-BOOT and boots with usb-rootfs.
+uenvcmd=usb start; setenv bootargs console=ttyS2,115200n8 earlycon=ns16550a,mmio32,0x02800000 root=PARTUUID=2bcf5ad2-03 rw rootfstype=ext4 rootwait rootdelay=30 loglevel=8 ignore_loglevel; load usb 0:2 ${loadaddr} /Image; load usb 0:2 ${fdtaddr} /k3-am642-sk.dtb; booti ${loadaddr} - ${fdtaddr}

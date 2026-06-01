@@ -1,0 +1,5 @@
+# SD extlinux rehearsal
+#
+# Imported by U-Boot envboot before bootcmd_ti_mmc.
+# If bootflow does not find or boot the extlinux entry, normal SD env boot continues.
+uenvcmd=setenv boot_targets mmc1 mmc0 usb pxe dhcp; bootflow scan -lb

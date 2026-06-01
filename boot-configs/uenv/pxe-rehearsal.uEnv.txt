@@ -1,0 +1,4 @@
+# PXE rehearsal
+#
+# This performs an explicit PXE attempt first. On failure, control returns and normal SD boot continues.
+uenvcmd=setenv serverip 192.168.0.246; dhcp; pxe get; pxe boot

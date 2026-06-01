@@ -1,0 +1,6 @@
+# USB manual load N17 initramfs diagnostic rehearsal
+#
+# This template is not the baseline path. Use only for N17-style diagnostic
+# rehearsal where the kernel/DTB are loaded manually and /init in the external
+# initramfs observes USB root readiness before either switching root or timing out.
+uenvcmd=usb start; setenv bootargs console=ttyS2,115200n8 earlycon=ns16550a,mmio32,0x02800000 root=PARTUUID=2bcf5ad2-03 rw rootfstype=ext4 rdinit=/init diag.rootdev=/dev/sda3 diag.rootfstype=ext4 diag.timeout=120 diag.poll=1 loglevel=8 ignore_loglevel; load usb 0:2 ${loadaddr} /boot/Image.usbtest; load usb 0:2 ${fdtaddr} /boot/dtb/ti/k3-am642-sk-usb-root.dtb; load mmc 1:2 ${rdaddr} /boot/sk-am64b-usb-root-diag.cpio.gz; setenv rd_spec ${rdaddr}:${filesize}; booti ${loadaddr} ${rd_spec} ${fdtaddr}

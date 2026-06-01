@@ -1,0 +1,4 @@
+# Baseline rehearsal restore template
+#
+# The current board already imports uEnv.txt if present.
+# Keeping this file comment-only preserves the existing env-driven SD boot path.
