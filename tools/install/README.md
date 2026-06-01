@@ -14,6 +14,30 @@
 
 ## 주요 스크립트
 
+### extlinux / PXE rehearsal asset deploy
+
+```bash
+./tools/install/install-extlinux-rehearsal-assets.sh 192.168.0.110 sd
+./tools/install/install-extlinux-rehearsal-assets.sh 192.168.0.110 usb
+./tools/install/install-extlinux-rehearsal-assets.sh 192.168.0.110 tftp
+```
+
+### rehearsal uEnv mode 전환
+
+```bash
+./tools/install/set-uenv-rehearsal-mode.sh 192.168.0.110 sd-extlinux
+./tools/install/set-uenv-rehearsal-mode.sh 192.168.0.110 usb-extlinux
+./tools/install/set-uenv-rehearsal-mode.sh 192.168.0.110 usb-manual
+./tools/install/set-uenv-rehearsal-mode.sh 192.168.0.110 pxe
+./tools/install/set-uenv-rehearsal-mode.sh 192.168.0.110 baseline
+```
+
+### USB rehearsal media 준비
+
+```bash
+./tools/install/prepare-usb-rehearsal-media.sh 192.168.0.110
+```
+
 ### bootloader deploy
 
 ```bash
