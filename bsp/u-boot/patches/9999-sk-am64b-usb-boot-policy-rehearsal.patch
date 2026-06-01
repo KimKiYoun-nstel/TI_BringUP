@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sisyphus <noreply@example.com>
+Date: Mon, 1 Jun 2026 16:40:00 +0900
+Subject: [PATCH] board: ti: am64x: force usb-only boot policy after usb rom boot
+
+When SPL was entered from BOOT_DEVICE_USB, the default U-Boot env still kept
+the generic mmc-first boot policy:
+
+  bootcmd=run envboot; run bootcmd_ti_mmc; bootflow scan -lb
+  boot_targets=mmc1 mmc0 usb pxe dhcp
+
+That means SD-inserted runs naturally prefer SD paths even if the early
+bootloader chain came from USB. For USB-only autoboot rehearsal, make the
+policy explicit by overriding boot, boot_targets, and bootcmd when the boot
+device is USB.
+
+This is a rehearsal-only patch and should be documented as such in the bringup
+repo.
+---
+ board/ti/am64x/evm.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/board/ti/am64x/evm.c b/board/ti/am64x/evm.c
+index 0000000000..1111111111 100644
+--- a/board/ti/am64x/evm.c
++++ b/board/ti/am64x/evm.c
+@@
+ #ifdef CONFIG_BOARD_LATE_INIT
+ int board_late_init(void)
+ {
++	if (IS_ENABLED(CONFIG_USB_STORAGE) && spl_boot_device() == BOOT_DEVICE_USB) {
++		env_set("boot", "usb");
++		env_set("boot_targets", "usb");
++		env_set("bootcmd", "bootflow scan -lb");
++	}
++
+ 	if (IS_ENABLED(CONFIG_TI_I2C_BOARD_DETECT)) {
+ 		struct ti_am6_eeprom *ep = TI_AM6_EEPROM_DATA;
+ 
+-- 
+2.43.0

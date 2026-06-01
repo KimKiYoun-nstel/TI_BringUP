@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * SK-AM64B USB ROM boot rehearsal override for U-Boot SPL.
+ *
+ * Goal:
+ * - avoid the SK USB3 PHY dependency in SPL USB storage boot
+ * - force a simpler USB2/high-speed host path for USB mass-storage continuation
+ */
+
+&usbss0 {
+	bootph-all;
+	ti,vbus-divider;
+	ti,usb2-only;
+};
+
+&usb0 {
+	bootph-all;
+	dr_mode = "host";
+	maximum-speed = "high-speed";
+	/delete-property/ phys;
+	/delete-property/ phy-names;
+};

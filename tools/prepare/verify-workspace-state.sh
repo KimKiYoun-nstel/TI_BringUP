@@ -12,6 +12,7 @@ check_git_workspace() {
     local name="$1"
     local path="$2"
     local series="$3"
+    local allow_dirty="${ALLOW_DIRTY_WORKSPACE:-0}"
 
     if [ ! -d "$path/.git" ]; then
         echo "[ERROR] Missing workspace git repo: $name ($path)" >&2
@@ -22,6 +23,10 @@ check_git_workspace() {
     if git -C "$path" diff --quiet; then
         echo "[OK] $name workspace has no unstaged diff"
     else
+        if [ "$allow_dirty" = "1" ] || [ "$allow_dirty" = "$name" ]; then
+            echo "[WARN] $name workspace has unstaged diff but ALLOW_DIRTY_WORKSPACE=1: $path" >&2
+            return
+        fi
         echo "[WARN] $name workspace has unstaged diff: $path" >&2
         echo "[ERROR] Export or discard workspace changes before build/deploy: $path" >&2
         if [ ! -f "$series" ]; then
