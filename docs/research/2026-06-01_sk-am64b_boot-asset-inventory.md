@@ -264,13 +264,14 @@
 
 ### Rework or mark as legacy
 
-- `tools/install/install-extlinux-rehearsal-assets.sh`
-- `tools/install/set-uenv-rehearsal-mode.sh`
-- `boot-configs/uenv/*` (except N17-specific if needed)
-- `docs/setup/sk-am64b-extlinux-pxe-rehearsal.md`
+- `tools/install/legacy/install-extlinux-rehearsal-assets.sh`
+- `tools/install/legacy/set-uenv-rehearsal-mode.sh`
+- `boot-configs/legacy/uenv/*`
+- `boot-configs/legacy/extlinux/*`
+- `docs/setup/legacy/sk-am64b-extlinux-pxe-rehearsal.md`
 
-이 자산들은 삭제보다는,
-현재 최종 USB-only path 이전의 **legacy rehearsal path** 로 라벨링하는 것이 더 안전하다.
+이 자산들은 실제로 `legacy/` 경로로 이동해,
+현재 최종 USB-only path 이전의 **legacy rehearsal path** 임을 명확히 했다.
 
 ---
 

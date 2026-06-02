@@ -14,22 +14,22 @@
 
 ## 주요 스크립트
 
-### extlinux / PXE rehearsal asset deploy
+### legacy extlinux / PXE rehearsal asset deploy
 
 ```bash
-./tools/install/install-extlinux-rehearsal-assets.sh 192.168.0.110 sd
-./tools/install/install-extlinux-rehearsal-assets.sh 192.168.0.110 usb
-./tools/install/install-extlinux-rehearsal-assets.sh 192.168.0.110 tftp
+./tools/install/legacy/install-extlinux-rehearsal-assets.sh 192.168.0.110 sd
+./tools/install/legacy/install-extlinux-rehearsal-assets.sh 192.168.0.110 usb
+./tools/install/legacy/install-extlinux-rehearsal-assets.sh 192.168.0.110 tftp
 ```
 
-### rehearsal uEnv mode 전환
+### legacy rehearsal uEnv mode 전환
 
 ```bash
-./tools/install/set-uenv-rehearsal-mode.sh 192.168.0.110 sd-extlinux
-./tools/install/set-uenv-rehearsal-mode.sh 192.168.0.110 usb-extlinux
-./tools/install/set-uenv-rehearsal-mode.sh 192.168.0.110 usb-manual
-./tools/install/set-uenv-rehearsal-mode.sh 192.168.0.110 pxe
-./tools/install/set-uenv-rehearsal-mode.sh 192.168.0.110 baseline
+./tools/install/legacy/set-uenv-rehearsal-mode.sh 192.168.0.110 sd-extlinux
+./tools/install/legacy/set-uenv-rehearsal-mode.sh 192.168.0.110 usb-extlinux
+./tools/install/legacy/set-uenv-rehearsal-mode.sh 192.168.0.110 usb-manual
+./tools/install/legacy/set-uenv-rehearsal-mode.sh 192.168.0.110 pxe
+./tools/install/legacy/set-uenv-rehearsal-mode.sh 192.168.0.110 baseline
 ```
 
 ### USB rehearsal media 준비
@@ -37,6 +37,11 @@
 ```bash
 ./tools/install/prepare-usb-rehearsal-media.sh 192.168.0.110
 ```
+
+주의:
+
+- 위 extlinux/uEnv helper들은 현재 최종 채택 경로가 아니라 **legacy rehearsal path** 입니다.
+- 현재 채택된 USB-only autoboot media preparation은 `prepare-sk-am64b-usb-rom-boot-media.sh` 기준입니다.
 
 ### bootloader deploy
 
