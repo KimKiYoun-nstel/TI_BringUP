@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sisyphus <noreply@example.com>
+Date: Mon, 1 Jun 2026 17:10:00 +0900
+Subject: [PATCH] am64x: sk u-boot: force usb2 high-speed host path in SPL
+
+For SK-AM64B USB ROM boot rehearsal, reduce the SPL USB dependency on the
+USB3/SerDes path and force a simpler USB2/high-speed host configuration.
+
+This keeps the ROMBOOT USB storage continuation on the SK path closer to the
+EVM-style safe configuration by adding ti,usb2-only and dropping the USB3 PHY
+phandle requirement from the SPL-visible usb0 node.
+---
+ arch/arm/dts/k3-am642-sk-u-boot.dtsi | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/arch/arm/dts/k3-am642-sk-u-boot.dtsi b/arch/arm/dts/k3-am642-sk-u-boot.dtsi
+index 0322645de24..a275a5f8bcb 100644
+--- a/arch/arm/dts/k3-am642-sk-u-boot.dtsi
++++ b/arch/arm/dts/k3-am642-sk-u-boot.dtsi
+@@ -127,3 +127,17 @@
+ 		spi-max-frequency = <25000000>;
+ 	};
+ };
++
++&usbss0 {
++	bootph-all;
++	ti,vbus-divider;
++	ti,usb2-only;
++};
++
++&usb0 {
++	bootph-all;
++	dr_mode = "host";
++	maximum-speed = "high-speed";
++	/delete-property/ phys;
++	/delete-property/ phy-names;
++};
+-- 
+2.43.0

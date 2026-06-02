@@ -76,6 +76,21 @@
 - 현재는 patch text 자체가 "rehearsal" 성격이지만,
   boot policy 분리 개념을 문서화하는 가치가 있다.
 
+#### [bsp/u-boot/patches/0003-am64x-sk-u-boot-force-usb2-high-speed-host-path.patch](/home/nstel/ti/TI_Bringup/bsp/u-boot/patches/0003-am64x-sk-u-boot-force-usb2-high-speed-host-path.patch)
+
+- 현재 U-Boot workspace diff에서 replay 가치가 있는 SPL DTS override를 patch로 승격한 것
+- clean baseline에서 SK USB ROM boot SPL path를 다시 만들 때 필요
+
+#### [bsp/u-boot/patches/0004-usb-cdns3-skip-usb3-phy-in-usb2-only-mode.patch](/home/nstel/ti/TI_Bringup/bsp/u-boot/patches/0004-usb-cdns3-skip-usb3-phy-in-usb2-only-mode.patch)
+
+- 현재 U-Boot workspace diff에서 replay 가치가 있는 Cadence core driver patch를 patch로 승격한 것
+- `usb2-only` path를 code level에서 재현할 때 필요
+
+#### [bsp/u-boot/patches/series](/home/nstel/ti/TI_Bringup/bsp/u-boot/patches/series)
+
+- 기존 0001/0002에 더해 0003/0004를 추가함
+- 다만 9999 policy patch는 아직 rehearsal 성격이 강해 series 밖에 둔 상태
+
 #### [logs/provenance/u-boot/2026-06-01_sk-am64b-usb-rom-boot-driver-experiment.md](/home/nstel/ti/TI_Bringup/logs/provenance/u-boot/2026-06-01_sk-am64b-usb-rom-boot-driver-experiment.md)
 
 - Cadence core driver 실험 provenance
@@ -130,6 +145,15 @@
 - USB root rehearsal용 DT trace
 - 최종 autoboot는 `k3-am642-sk.dtb` 이름을 사용했지만,
   중간 실험을 재현할 때 필요
+
+#### [bsp/linux/patches/0002-arm64-dts-ti-k3-am642-sk-add-usb-root-variant.patch](/home/nstel/ti/TI_Bringup/bsp/linux/patches/0002-arm64-dts-ti-k3-am642-sk-add-usb-root-variant.patch)
+
+- 현재 kernel workspace의 replay 가치가 있는 diff를 patch로 승격한 것
+- `k3-am642-sk-usb-root.dts`와 Makefile build entry를 baseline에서 다시 적용 가능하게 함
+
+#### [bsp/linux/patches/series](/home/nstel/ti/TI_Bringup/bsp/linux/patches/series)
+
+- 기존 `r5f-status-shm` patch에 이어 USB-root variant patch를 추가함
 
 ### 실험 자산이지만 보관 가치 있음
 
@@ -220,7 +244,12 @@
 - `tools/build/build-kernel.sh`
 - `tools/install/prepare-sk-am64b-usb-rom-boot-media.sh`
 - `bsp/u-boot/dts/k3-am642-sk-u-boot-usbrom.dtsi`
+- `bsp/u-boot/patches/0003-am64x-sk-u-boot-force-usb2-high-speed-host-path.patch`
+- `bsp/u-boot/patches/0004-usb-cdns3-skip-usb3-phy-in-usb2-only-mode.patch`
+- `bsp/u-boot/patches/series`
 - `bsp/linux/configs/am64x-usb-boot.config`
+- `bsp/linux/patches/0002-arm64-dts-ti-k3-am642-sk-add-usb-root-variant.patch`
+- `bsp/linux/patches/series`
 
 ### Keep as experiment history
 
@@ -256,3 +285,116 @@
 4. 따라서 지금 필요한 것은 USB-only success path를 채택 자산으로 고정하고,
    그 외 실험 자산은 history/legacy로 재라벨링하는 것이다.
 ```
+
+---
+
+## 6. clean baseline 재시작 관점의 현재 상태
+
+현재 시점에서는 다음 문장이 성립한다.
+
+```text
+workspace diff를 그대로 끌고 가지 않더라도,
+repo 안의 patch/config/dts/docs/provenance 자산만으로
+TI SDK baseline clean tree 위에 필요한 변경을 다시 적용할 수 있는 방향으로
+정리가 진행된 상태다.
+```
+
+다만 주의점은 다음과 같다.
+
+1. 문서/patch 승격은 많이 진행되었지만, 모든 실험 자산이 final adopted path인 것은 아니다.
+2. 특히 `9999-sk-am64b-usb-boot-policy-rehearsal.patch` 는 아직 series에 넣지 않은 rehearsal patch다.
+3. clean restart에서 어떤 patch를 base로 볼지 별도 정책 결정이 필요하다.
+
+## 7. 현재 최종 base workspace 정의
+
+사용자 요구 기준의 base workspace는 다음처럼 정리되었다.
+
+### U-Boot base workspace
+
+목표:
+
+```text
+1. bootdelay = 5
+2. SD-first boot policy 유지
+3. watchdog는 source patch가 아니라 build option/config fragment로 활성화
+```
+
+현재 실제 workspace 상태:
+
+```text
+branch: base-sd-watchdog
+HEAD: ecaf8c660ef (bootdelay=5 patch 적용 상태)
+status: clean
+```
+
+즉 U-Boot base workspace는 **baseline + bootdelay 5 patch만 적용된 clean 상태**다.
+
+watchdog는 workspace source diff가 아니라 다음 build 경로로 얻는다.
+
+```text
+tools/build/build-u-boot.sh all-watchdog
+bsp/u-boot/configs/am64x-watchdog.config
+```
+
+따라서 현재 U-Boot base의 본질은:
+
+```text
+source tree = SD-first baseline 유지
+build option = watchdog enabled build 가능
+```
+
+### kernel base workspace
+
+목표:
+
+```text
+USB boot 실험용 DTS/config는 workspace에 남기지 않음
+repo 자산으로만 관리
+```
+
+현재 실제 workspace 상태:
+
+```text
+branch: base-clean
+HEAD: c214492085504176b9c252a7175e4e60b4b442af
+status: clean
+```
+
+즉 kernel base workspace는 **TI SDK baseline clean 상태**다.
+
+### base replay 기준
+
+이제 clean baseline에서 다시 시작할 때는 다음처럼 이해하면 된다.
+
+```text
+U-Boot base:
+  series에 포함된 것은 현재 0002 (bootdelay 5)만 적용
+  watchdog는 build option/config fragment로 활성화
+
+kernel base:
+  series 미적용 clean baseline 유지
+
+USB 실험 자산:
+  repo patch/config/dts/doc/helper로만 선택 적용
+```
+
+즉 현재는:
+
+1. base workspace는 최대한 얇게 유지
+2. USB 실험 변경은 repo 자산으로만 보관
+3. 필요 시 clean baseline 위에 선택 적용
+
+하는 운영 모델로 정리된 상태다.
+
+```text
+U-Boot base:
+  0002 + watchdog config fragment
+
+kernel base:
+  no patch
+
+USB-specific experiments:
+  0003/0004, linux 0002, media/scripts/docs를 선택 적용
+```
+
+처럼 **base와 experiment를 분리**해서 선택 적용하면 된다.

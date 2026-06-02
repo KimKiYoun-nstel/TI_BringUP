@@ -1,0 +1,79 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sisyphus <noreply@example.com>
+Date: Mon, 1 Jun 2026 17:11:00 +0900
+Subject: [PATCH] usb: cdns3: skip usb3 phy handling in usb2-only mode
+
+The SK-AM64B USB ROM boot path in SPL still failed after the DT was reduced to
+usb2-only/high-speed and the usb3 phy phandle was removed. Make the Cadence
+core aware of the wrapper-level ti,usb2-only flag and skip the usb3 phy get,
+init, and power_on path entirely in that mode.
+---
+ drivers/usb/cdns3/core.c | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/usb/cdns3/core.c b/drivers/usb/cdns3/core.c
+index 4434dc15bec..dd0bf97e8e6 100644
+--- a/drivers/usb/cdns3/core.c
++++ b/drivers/usb/cdns3/core.c
+@@ -320,6 +320,8 @@ exit:
+ static int cdns3_probe(struct cdns3 *cdns)
+ {
+ 	struct udevice *dev = cdns->dev;
++	struct udevice *parent = dev->parent;
++	bool usb2_only;
+ 	int ret;
+ 
+ 	cdns->xhci_regs = dev_remap_addr_name(dev, "xhci");
+@@ -331,6 +333,7 @@ static int cdns3_probe(struct cdns3 *cdns)
+ 		return -EINVAL;
+ 
+ 	mutex_init(&cdns->mutex);
++	usb2_only = parent && dev_read_bool(parent, "ti,usb2-only");
+ 
+ 	ret = generic_phy_get_by_name(dev, "cdns3,usb2-phy", &cdns->usb2_phy);
+ 	if (!ret) {
+@@ -344,19 +347,22 @@ static int cdns3_probe(struct cdns3 *cdns)
+ 		return ret;
+ 	}
+ 
+-	ret = generic_phy_get_by_name(dev, "cdns3,usb3-phy", &cdns->usb3_phy);
+-	if (!ret) {
+-		ret = generic_phy_init(&cdns->usb3_phy);
+-		if (ret) {
+-			dev_err(dev, "USB3 PHY init failed: %d\n", ret);
+-			return ret;
++	if (!usb2_only) {
++		ret = generic_phy_get_by_name(dev, "cdns3,usb3-phy", &cdns->usb3_phy);
++		if (!ret) {
++			ret = generic_phy_init(&cdns->usb3_phy);
++			if (ret) {
++				dev_err(dev, "USB3 PHY init failed: %d\n", ret);
++				return ret;
++			}
++		} else if (ret != -ENOENT && ret != -ENODATA && ret != -ENODEV) {
++			dev_err(dev, "Couldn't get USB3 PHY:  %d\n", ret);
++			return ret;
+ 		}
+-	} else if (ret != -ENOENT && ret != -ENODATA && ret != -ENODEV) {
+-		dev_err(dev, "Couldn't get USB3 PHY:  %d\n", ret);
+-		return ret;
+ 	}
+ 
+ 	ret = generic_phy_power_on(&cdns->usb2_phy);
+@@ -364,9 +370,12 @@ static int cdns3_probe(struct cdns3 *cdns)
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = generic_phy_power_on(&cdns->usb3_phy);
+-	if (ret)
+-		return ret;
++	if (!usb2_only) {
++		ret = generic_phy_power_on(&cdns->usb3_phy);
++		if (ret)
++			return ret;
++	}
+ 
+ 	ret = cdns3_drd_init(cdns);
+ 	if (ret)
+-- 
+2.43.0

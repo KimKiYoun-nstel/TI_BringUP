@@ -4,5 +4,4 @@
 # - Keep newest patches at the end.
 # - Only list patches that are approved for replay into a fresh workspace.
 # - Experimental changes that should not be replayed yet must stay out of this series.
-0001-am64x-rm-cfg-assign-mcu-gpio-router-to-main-0-r5-1.patch
-0002-am64x-evm-a53-set-bootdelay-to-10.patch
+0002-am64x-evm-a53-set-bootdelay-to-5.patch

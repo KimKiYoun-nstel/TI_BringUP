@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sisyphus <noreply@example.com>
+Date: Mon, 1 Jun 2026 17:12:00 +0900
+Subject: [PATCH] arm64: dts: ti: k3-am642-sk: add usb root rehearsal variant
+
+Add a dedicated usb-root rehearsal DT variant and build it in the local kernel
+workspace so USB-root experiments can be reproduced from a clean baseline.
+
+The base k3-am642-sk.dts workspace diff also carries the previously adopted
+r5f-status-shm change, which is intentionally kept in its own earlier patch.
+---
+ arch/arm64/boot/dts/ti/Makefile               |  1 +
+ arch/arm64/boot/dts/ti/k3-am642-sk-usb-root.dts | 29 +++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/ti/k3-am642-sk-usb-root.dts
+
+diff --git a/arch/arm64/boot/dts/ti/Makefile b/arch/arm64/boot/dts/ti/Makefile
+index cb2623885..d9982e4fb 100644
+--- a/arch/arm64/boot/dts/ti/Makefile
++++ b/arch/arm64/boot/dts/ti/Makefile
+@@ -135,6 +135,7 @@ dtb-$(CONFIG_ARCH_K3) += k3-am642-phyboard-electra-pcie-usb2.dtbo
+ dtb-$(CONFIG_ARCH_K3) += k3-am642-phyboard-electra-x27-gpio1-spi1-uart3.dtbo
+ dtb-$(CONFIG_ARCH_K3) += k3-am642-phyboard-electra-peb-c-010.dtbo
+ dtb-$(CONFIG_ARCH_K3) += k3-am642-sk.dtb
++dtb-$(CONFIG_ARCH_K3) += k3-am642-sk-usb-root.dtb
+ dtb-$(CONFIG_ARCH_K3) += k3-am642-sk-pwm.dtbo
+ dtb-$(CONFIG_ARCH_K3) += k3-am642-tqma64xxl-mbax4xxl.dtb
+ dtb-$(CONFIG_ARCH_K3) += k3-am64-tqma64xxl-mbax4xxl-sdcard.dtbo
+diff --git a/arch/arm64/boot/dts/ti/k3-am642-sk-usb-root.dts b/arch/arm64/boot/dts/ti/k3-am642-sk-usb-root.dts
+new file mode 100644
+index 000000000..244247263
+--- /dev/null
++++ b/arch/arm64/boot/dts/ti/k3-am642-sk-usb-root.dts
+@@ -0,0 +1,29 @@
++// SPDX-License-Identifier: GPL-2.0-only OR MIT
++/*
++ * USB-root rehearsal DT variant for Texas Instruments AM642 SK.
++ *
++ * Goal:
++ * - Keep the proven SK baseline intact
++ * - Reduce early-boot USB3/SerDes dependency for USB rootfs experiments
++ * - Force a simpler host/high-speed path for rootfs bring-up isolation
++ */
++
++/dts-v1/;
++
++#include "k3-am642-sk.dts"
++
++&usbss0 {
++	/* Rehearsal variant: prefer USB2-only path over USB3/SerDes path */
++	ti,usb2-only;
++};
++
++&serdes_wiz0 {
++	status = "disabled";
++};
++
++&usb0 {
++	dr_mode = "host";
++	maximum-speed = "high-speed";
++	/delete-property/ phys;
++	/delete-property/ phy-names;
++};
+-- 
+2.43.0
