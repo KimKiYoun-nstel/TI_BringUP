@@ -5,6 +5,7 @@
 - [ ] RootFS overlay build/deploy skeleton 정리
 - [ ] TI prebuilt kernel config flow 확인
 - [ ] rpmsg_json.service startup ordering race 완화책 장기 정책 검토
+- [ ] SK-AM64B direct USB root pre-root enumeration 원인 분리 (`dr_mode=host` vs initramfs holdoff)
 
 ## 다음
 

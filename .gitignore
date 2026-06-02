@@ -63,5 +63,6 @@ Thumbs.db
 
 .sisyphus/run-continuation
 logs/uartd.*
+logs/runtime_log.pre*
 tools/uart/__pycache__
 tests/tools/uart/__pycache__

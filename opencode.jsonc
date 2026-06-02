@@ -13,7 +13,7 @@
       "environment": {
         "PYTHONUNBUFFERED": "1",
         "UARTD_SOCKET": "/home/nstel/ti/TI_Bringup/logs/uartd.sock",
-        "UART_MCP_DEFAULT_NEWLINE": "crlf",
+        "UART_MCP_DEFAULT_NEWLINE": "lf",
         "UART_MCP_DEFAULT_TIMEOUT": "10"
       }
     }
