@@ -43,6 +43,19 @@ out/u-boot/artifacts/tispl.bin
 out/u-boot/artifacts/u-boot.img
 ```
 
+### 2-1. MCU+ SBL OSPI Linux LP4 base prepare
+
+```bash
+./tools/prepare/apply-mcu-plus-sk-am64b-sbl-ospi-linux-lp4-base.sh --check
+./tools/prepare/apply-mcu-plus-sk-am64b-sbl-ospi-linux-lp4-base.sh --apply
+```
+
+의미:
+
+- repo-managed LPDDR4 `board_ddrReginit.h` asset를 MCU+ workspace에 복사
+- clean `sbl_ospi_linux` syscfg delta 적용
+- 현재 early-boot clean workspace base를 재구성
+
 ### 3. kernel build
 
 ```bash
@@ -56,6 +69,19 @@ out/kernel/artifacts/Image
 out/kernel/artifacts/k3-am642-sk.dtb
 out/kernel/modules/
 ```
+
+### 3-1. linux appimage generation
+
+```bash
+./tools/build/gen-linux-appimage-for-sbl.sh --print
+./tools/build/gen-linux-appimage-for-sbl.sh --execute
+```
+
+의미:
+
+- `gen-linux-appimage-for-sbl.sh --print`: 입력 artifact 후보와 override 변수 확인
+- `gen-linux-appimage-for-sbl.sh --execute`: repo-managed staging dir 기준 local `linux.mcelf.hs_fs` 생성
+- 성공 경로 기준으로는 LPDDR4 reginit가 반영된 SBL과 조합해 OSPI에 기록한다
 
 ### 4. deploy 전 검토
 

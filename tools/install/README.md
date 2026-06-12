@@ -82,6 +82,16 @@
 - `overlay-apply`: repo-managed lab overlay marker/drop-in을 설치해 서비스는 enabled 상태로 두되 boot 시 skip되게 함
 - `overlay-restore`: overlay marker/drop-in을 제거하고 baseline auto-start 정책으로 복귀
 
+### SBL OSPI Linux operator note
+
+현재 canonical 경로에서는 `tools/install/` 아래 별도 OSPI dry-run skeleton을 쓰지 않는다.
+
+현재 기준:
+
+- SBL 빌드/자산 생성은 `tools/build/` 또는 manual build로 수행
+- OSPI 기록은 `U-Boot tftp + sf write` absolute offset model을 source of truth로 사용
+- first success와 LPDDR4 원인 정리는 `/home/nstel/ti/TI_Bringup/docs/bringup-logs/2026-06-11_SK-AM64B_sbl-ospi-linux-lp4-first-success.md`를 따른다
+
 ### golden 운용
 
 ```bash
