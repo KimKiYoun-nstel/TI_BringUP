@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TI_Bringup Workspace Base <noreply@example.com>
+Date: Fri, 12 Jun 2026 10:30:00 +0900
+Subject: [PATCH] am64x: sbl_ospi_linux: keep LP4 appimage MPU policy
+
+This patch captures the minimal `sbl_ospi_linux` source delta kept after
+removing temporary early-boot debug markers.
+
+Scope:
+- keep the tested `example.syscfg` MPU delta for the appimage DDR window
+
+Important:
+- The LPDDR4 DDR register table itself is managed as a separate standalone
+  asset under `bsp/mcu-plus/syscfg/`.
+- This patch is intended to be the current clean replay delta for the
+  `sbl_ospi_linux` example source.
+---
+ .../boot/sbl_ospi_linux/.../example.syscfg         | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/examples/drivers/boot/sbl_ospi_linux/am64x-evm/r5fss0-0_nortos/example.syscfg b/examples/drivers/boot/sbl_ospi_linux/am64x-evm/r5fss0-0_nortos/example.syscfg
+--- a/examples/drivers/boot/sbl_ospi_linux/am64x-evm/r5fss0-0_nortos/example.syscfg
++++ b/examples/drivers/boot/sbl_ospi_linux/am64x-evm/r5fss0-0_nortos/example.syscfg
+@@ -96,9 +96,11 @@ mpu_armv74.accessPermissions = "Supervisor RD+WR, User RD";
+ mpu_armv74.baseAddr          = 0x70000000;
+ mpu_armv74.size              = 21;
+ 
+-mpu_armv75.$name    = "CONFIG_MPU_REGION4";
+-mpu_armv75.baseAddr = 0x80000000;
+-mpu_armv75.size     = 31;
++mpu_armv75.$name        = "CONFIG_MPU_REGION4";
++mpu_armv75.attributes   = "NonCached";
++mpu_armv75.allowExecute = false;
++mpu_armv75.baseAddr     = 0x80000000;
++mpu_armv75.size         = 31;
+ 
+ default_linker1.$name = "memory_configurator_default_linker0";
+-- 
+2.43.0

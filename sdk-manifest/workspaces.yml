@@ -56,14 +56,14 @@ workspaces:
 
   - name: mcu-plus-sdk-am64x-12.00.00
     component: mcu-plus
-    path: workspace/mcu-plus-sdk-am64x-12.00.00
+    path: workspace/mcu_plus_sdk_am64x_12_00_00_27
     upstream_reference: ~/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27
     baseline_tag: null
     baseline_commit: null
     export_series: bsp/mcu-plus/patches/series
     provenance_target: logs/provenance/mcu-plus/
     inclusion_mode: selective
-    status: draft
+    status: observed
     branch_model:
       baseline_branch: main
       topic_branch_required: true
@@ -71,7 +71,7 @@ workspaces:
         - phase2-
         - rehearsal-
         - custom-board-
-      archival_rule: "Do not use this until a reproducible local workspace flow exists."
+      archival_rule: "Use the local workspace for reproducible experiments, then export selected patches/provenance into the Main Repo."
     notes:
-      - "The external SDK original is currently the source of truth, but direct editing is forbidden."
-      - "If MCU+ SDK changes are needed, a local workspace or reproducible patch-application flow must be introduced first."
+      - "The external SDK original remains reference-only, and direct editing is forbidden."
+      - "The current repo already has a local MCU+ workspace path and env helper; exported patches/provenance remain mandatory for durable adoption."
