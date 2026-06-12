@@ -2,6 +2,9 @@
 
 ## 현재
 
+- [x] SK-AM64B SBL OSPI Linux LPDDR4 reginit delta를 workspace-base asset/note로 정리
+- [x] SK-AM64B SBL OSPI Linux 기본 dual-boot 경로 OSPI write 및 Linux boot 재검증
+- [ ] SK-AM64B SBL OSPI Linux dual boot 이후 Linux attach / RPMsg 검증
 - [ ] RootFS overlay build/deploy skeleton 정리
 - [ ] TI prebuilt kernel config flow 확인
 - [ ] rpmsg_json.service startup ordering race 완화책 장기 정책 검토
@@ -23,6 +26,7 @@
 
 ## 완료
 
+- [x] R5F early boot task-unit-1 inventory 문서화 및 repo skeleton 정리
 - [x] Ubuntu 22.04 WSL 준비
 - [x] `TI_BringUP` GitHub repo 생성
 - [x] Git 기반 프로젝트 지식 저장소 운영 방식 결정
@@ -40,3 +44,5 @@
 - [x] rpmsg_json.service startup ordering race 완화책 적용 및 reboot 검증
 - [x] SK-AM64B Phase 4 SHM status block live board 검증
 - [x] SK-AM64B Phase 4 VTM temperature telemetry live board 검증
+- [x] SK-AM64B SBL OSPI Linux LPDDR4 reginit 기반 A53-only first boot 성공
+- [x] SK-AM64B SBL OSPI Linux LPDDR4 dual-boot OSPI boot 성공
