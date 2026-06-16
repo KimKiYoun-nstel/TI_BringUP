@@ -6,4 +6,5 @@
 
 - `facts`와 `candidates`는 자동 helper 산출물이다.
 - `final/`은 board decision을 반영한 수동 통합 결과다.
+- `final/`도 `generated/`에 속하는 공식 산출물 층이다.
 - 아직 정책이 필요한 항목은 TODO comment와 notes 문서로 남긴다.

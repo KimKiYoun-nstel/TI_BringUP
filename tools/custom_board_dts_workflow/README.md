@@ -93,7 +93,12 @@ reports/
 - `facts`: `.NET + SysConfig DB`만으로 확인된 불변 사실층
 - `candidates`: reference DTS precedent와 기본 규칙으로 만든 후보층
 - `base`: facts와 candidates를 조합한 시작점
-- `todo`: 사람이 추가 판단해야 하는 항목
+
+공식 산출물 기준은 `generated/`다.
+
+- `generated/`는 이 워크플로우가 만드는 공식 DTS 산출물 계층이다.
+- `final/`은 `generated/` 아래의 최종 후보층이다.
+- `reports/`는 산출물 자체가 아니라 검토와 판단을 돕는 보조 증적이다.
 
 ## 자동화 가능한 영역
 

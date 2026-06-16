@@ -95,16 +95,20 @@ Stage-1 결과만으로 확정되지 않는 항목은 `docs/board_dts_decisions.
 
 ## Final Candidate 작성
 
-이 워크플로우의 현실적인 최종 목표는 `production DTS 자동 생성`이 아니라, 다음 두 층을 준비하는 것이다.
+이 워크플로우의 현실적인 최종 목표는 `production DTS 자동 생성`이 아니라, `generated/` 아래 공식 산출물 계층을 준비하는 것이다.
+
+그 안에서:
 
 1. Stage-1 facts/candidates/base
-2. 사람이 판단을 반영한 `generated/*/final/` final candidate
+2. 사람이 판단을 반영한 `generated/*/final/`
 
 권장 원칙:
 
 - 확정된 내용만 final candidate에 올린다.
 - 미확정 정책은 TODO comment나 별도 notes 문서로 남긴다.
 - Stage-1 자동 산출물과 final candidate를 분리한다.
+
+`reports/`는 공식 산출물이 아니라 review 보조 자료로 본다.
 
 ## 완료 기준
 
