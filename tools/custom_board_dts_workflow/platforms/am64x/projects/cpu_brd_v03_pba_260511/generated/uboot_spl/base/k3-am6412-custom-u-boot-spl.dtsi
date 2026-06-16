@@ -1,0 +1,22 @@
+/* U-Boot/SPL base layer composed from hardware facts and candidate rules. */
+#include "../facts/k3-am6412-custom-early-pinmux.facts.dtsi"
+
+&main_uart0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uboot_uart0_early_pins_default>;
+	/* Default U-Boot console candidate */
+};
+
+&sdhci0 {
+	status = "okay";
+	/* Reference/default precedent: MMC0 candidate without pinctrl-0 */
+	/* Default U-Boot boot media candidate: CLK/CMD/DAT0 required */
+};
+
+&ospi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uboot_ospi0_early_pins_default>;
+	/* Default U-Boot boot media candidate: CLK/CSN0/D0 required */
+};

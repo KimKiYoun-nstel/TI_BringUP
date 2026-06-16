@@ -1,0 +1,36 @@
+/* Early boot hardware facts for U-Boot/SPL candidate use. */
+/* This file contains only valid offset-based facts from .NET + SoC DB. */
+
+&main_pmx0 {
+	uboot_uart0_early_pins_default: uboot-uart0-early-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0230, PIN_INPUT, 0) /* (D15) UART0_RXD */
+			AM64X_IOPAD(0x0234, PIN_OUTPUT, 0) /* (C16) UART0_TXD */
+		>;
+	};
+	uboot_ospi0_early_pins_default: uboot-ospi0-early-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0000, PIN_OUTPUT, 0) /* (N20) OSPI0_CLK */
+			AM64X_IOPAD(0x0004, PIN_INPUT, 0) /* (N21) OSPI0_LBCLKO */
+			AM64X_IOPAD(0x0008, PIN_INPUT, 0) /* (N19) OSPI0_DQS */
+			AM64X_IOPAD(0x000c, PIN_INPUT, 0) /* (M19) OSPI0_D0 */
+			AM64X_IOPAD(0x0010, PIN_INPUT, 0) /* (M18) OSPI0_D1 */
+			AM64X_IOPAD(0x0014, PIN_INPUT, 0) /* (M20) OSPI0_D2 */
+			AM64X_IOPAD(0x0018, PIN_INPUT, 0) /* (M21) OSPI0_D3 */
+			AM64X_IOPAD(0x001c, PIN_INPUT, 0) /* (P21) OSPI0_D4 */
+			AM64X_IOPAD(0x0020, PIN_INPUT, 0) /* (P20) OSPI0_D5 */
+			AM64X_IOPAD(0x0024, PIN_INPUT, 0) /* (N18) OSPI0_D6 */
+			AM64X_IOPAD(0x0028, PIN_INPUT, 0) /* (M17) OSPI0_D7 */
+			AM64X_IOPAD(0x002c, PIN_OUTPUT, 0) /* (L19) OSPI0_CSn0 */
+		>;
+	};
+};
+
+&wkup_pmx0 {
+	uboot_mcu_uart0_early_pins_default: uboot-mcu-uart0-early-pins-default {
+		pinctrl-single,pins = <
+			AM64X_MCU_IOPAD(0x0028, PIN_INPUT, 0) /* (A9) MCU_UART0_RXD */
+			AM64X_MCU_IOPAD(0x002c, PIN_OUTPUT, 0) /* (A8) MCU_UART0_TXD */
+		>;
+	};
+};

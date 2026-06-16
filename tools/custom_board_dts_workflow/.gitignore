@@ -1,0 +1,7 @@
+config/paths.local.yaml
+config/override.local.yaml
+**/*.pdf
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+.pytest_cache/

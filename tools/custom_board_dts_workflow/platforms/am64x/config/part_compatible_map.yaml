@@ -1,0 +1,17 @@
+# Optional part-to-Linux-compatible mapping.
+# Local agent should extend this with actual board components.
+
+AT24C512C:
+  bus: i2c
+  compatible: atmel,24c512
+  address_resolver: i2c_eeprom_a0_a1_a2
+
+AT97SC3205T:
+  bus: i2c
+  compatible: atmel,at97sc3204
+  note: Verify actual Linux binding before production use.
+
+DP83867:
+  bus: mdio
+  compatible: ti,dp83867
+  note: PHY address, rgmii delays, reset/interrupt require resolver.

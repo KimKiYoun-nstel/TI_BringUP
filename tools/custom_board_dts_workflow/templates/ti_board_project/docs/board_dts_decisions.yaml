@@ -1,0 +1,36 @@
+# Custom board DTS decision file
+# Copy this template under platforms/<soc>/projects/<board-project>/docs/
+# and update it from schematic review before relying on candidate outputs.
+
+version: 1
+board: template_board_name
+
+source_documents:
+  - path: inputs/schematic/TEMPLATE_BOARD_REV_A.pdf
+    role: custom_board_schematic
+    revision: "A"
+    date: "YYYY-MM-DD"
+  - path: inputs/netlist/TEMPLATE_BOARD_REV_A.NET
+    role: orcad_connectivity_netlist
+  - path: ../../db/<soc>_sysconfig_pinmux_db.csv
+    role: ti_am64x_pinmux_database
+
+rules:
+  precedence:
+    - board_dts_decisions
+    - exact_soc_symbol_pin_match
+    - schematic_context_inference
+    - unresolved
+  workflow_requirements:
+    - "Do not use NETNAME as the primary key for pinmux generation."
+    - "Use soc_ref + ball + selected_function and validate against SysConfig DB."
+
+mux_decisions: []
+
+controller_decisions: []
+
+external_device_decisions: []
+
+ethernet_phy_decisions: []
+
+report_only: []

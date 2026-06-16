@@ -1,0 +1,56 @@
+/* Controller candidates generated from hardware facts + SK reference + workflow defaults. */
+
+&main_i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_i2c0_pins_default>;
+	clock-frequency = <400000>;
+};
+
+&main_i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_i2c1_pins_default>;
+	clock-frequency = <400000>;
+};
+
+&mcu_uart0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcu_uart0_pins_default>;
+};
+
+&sdhci0 {
+	status = "okay";
+	/* Reference DTS precedent: &sdhci0 is typically used without pinctrl-0 */
+	bus-width = <8>;
+	non-removable;
+	/* TODO: confirm card-detect, write-protect, removable policy */
+};
+
+&ospi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&ospi0_pins_default>;
+	/* explicit bus width candidate: 8 */
+	/* TODO: confirm flash compatible, partitions, and PHY timing */
+};
+
+&main_uart0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart0_pins_default>;
+};
+
+&main_uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart1_pins_default>;
+};
+
+&main_uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart2_pins_default>;
+	/* TODO: controller candidate incomplete: RXD/TXD required */
+};

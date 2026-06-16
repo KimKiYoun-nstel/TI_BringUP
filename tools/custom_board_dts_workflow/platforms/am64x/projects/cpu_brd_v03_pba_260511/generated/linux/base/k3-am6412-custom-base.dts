@@ -1,0 +1,25 @@
+/dts-v1/;
+
+#include "k3-am642.dtsi"
+#include "../facts/k3-am6412-custom-pinmux.facts.dtsi"
+#include "../candidates/k3-am6412-custom-controllers.candidates.dtsi"
+#include "../candidates/k3-am6412-custom-devices.candidates.stub.dtsi"
+
+/ {
+	model = "Custom AM6412 Board";
+	compatible = "custom,am6412-board", "ti,am642";
+	/* Base DTS composed from hardware facts and candidate layers. */
+
+	aliases {
+		serial0 = &mcu_uart0;
+		serial2 = &main_uart0;
+		i2c0 = &main_i2c0;
+		i2c1 = &main_i2c1;
+		mmc0 = &sdhci0;
+		spi0 = &ospi0;
+	};
+
+	chosen {
+		stdout-path = &main_uart0;
+	};
+};

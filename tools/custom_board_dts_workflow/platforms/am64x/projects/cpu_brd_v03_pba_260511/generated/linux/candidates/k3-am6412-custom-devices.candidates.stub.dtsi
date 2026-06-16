@@ -1,0 +1,42 @@
+/* Device candidates generated from hardware facts + SK reference + workflow defaults. */
+/* This file may require resolver data before production use. */
+
+/ {
+	led-controller {
+		compatible = "gpio-leds";
+		test-led2 {
+			gpios = <&mcu_gpio0 5 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		test-led1 {
+			gpios = <&main_gpio0 60 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+};
+
+&main_i2c0 {
+	u14: u14@51 {
+		compatible = "atmel,24c512";
+		reg = <0x51>;
+		/* purpose: board_id_eeprom */
+	};
+};
+
+&main_i2c1 {
+	u15: u15@29 {
+		compatible = "unknown,device";
+		reg = <0x29>;
+		/* purpose: tpm_for_test */
+	};
+	u20: u20@48 {
+		compatible = "ti,ads1115";
+		reg = <0x48>;
+		/* purpose: temperature_monitor_adc */
+	};
+	u21: u21@0 {
+		compatible = "unknown,device";
+		reg = <0x00>; /* TODO: resolve I2C address */
+		/* TODO: confirm part PI6ULS5V9509UEX and bus attachment */
+	};
+};

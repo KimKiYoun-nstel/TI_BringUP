@@ -1,0 +1,44 @@
+# Interface-to-Linux-node mapping for AM64x/AM6412.
+# Local agent should extend this as new interfaces are supported.
+
+UART0:
+  node: main_uart0
+  pinctrl_label: main_uart0_pins_default
+  domain: MAIN
+  required_signals: [UART0_RXD, UART0_TXD]
+
+UART1:
+  node: main_uart1
+  pinctrl_label: main_uart1_pins_default
+  domain: MAIN
+  required_signals: [UART1_RXD, UART1_TXD]
+
+MCU_UART0:
+  node: mcu_uart0
+  pinctrl_label: mcu_uart0_pins_default
+  domain: MCU_WKUP
+  required_signals: [MCU_UART0_RXD, MCU_UART0_TXD]
+
+I2C0:
+  node: main_i2c0
+  pinctrl_label: main_i2c0_pins_default
+  domain: MAIN
+  required_signals: [I2C0_SCL, I2C0_SDA]
+  defaults:
+    clock-frequency: 400000
+
+I2C1:
+  node: main_i2c1
+  pinctrl_label: main_i2c1_pins_default
+  domain: MAIN
+  required_signals: [I2C1_SCL, I2C1_SDA]
+  defaults:
+    clock-frequency: 400000
+
+MCU_I2C0:
+  node: mcu_i2c0
+  pinctrl_label: mcu_i2c0_pins_default
+  domain: MCU_WKUP
+  required_signals: [MCU_I2C0_SCL, MCU_I2C0_SDA]
+  defaults:
+    clock-frequency: 400000

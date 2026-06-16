@@ -1,0 +1,61 @@
+# Stage-1 workflow defaults.
+
+outputs:
+  facts_dir: facts
+  candidates_dir: candidates
+  base_dir: base
+  uboot_facts_dir: facts
+  uboot_candidates_dir: candidates
+  uboot_base_dir: base
+  reports_facts_dir: facts
+  reports_todo_dir: todo
+  generate_uboot_spl_notes: true
+
+linux_base:
+  include_soc_dtsi: k3-am642.dtsi
+  include_sk_dts_directly: false
+  generate_todo_comments: true
+  generate_unknown_device_nodes: true
+  unknown_compatible: unknown,device
+  base_dts_name: base
+
+base_defaults:
+  stdout_preference:
+    - UART0
+    - MCU_UART0
+  uboot_stdout_preference:
+    - UART0
+    - MCU_UART0
+  uboot_boot_media_preference:
+    - MMC0
+    - MMC1
+    - OSPI0
+  alias_preference:
+    serial0: MCU_UART0
+    serial2: UART0
+    i2c0: I2C0
+    i2c1: I2C1
+    mmc0: MMC0
+    mmc1: MMC1
+    spi0: OSPI0
+  controller_enable:
+    enable_detected_uart: true
+    enable_detected_i2c: true
+    enable_detected_spi: true
+    enable_detected_mcan: true
+    enable_detected_mmc: true
+    enable_detected_ospi: true
+    enable_detected_ethernet_stub: true
+
+pinmux:
+  default_unknown_flag: PIN_INPUT
+  i2c_flag: PIN_INPUT_PULLUP
+  uart_rx_flag: PIN_INPUT
+  uart_tx_flag: PIN_OUTPUT
+  gpio_input_flag: PIN_INPUT
+  gpio_output_flag: PIN_OUTPUT
+
+stub_safety:
+  add_confidence_comments: true
+  mark_unresolved_properties_with_todo: true
+  prefer_stub_over_silent_drop: true

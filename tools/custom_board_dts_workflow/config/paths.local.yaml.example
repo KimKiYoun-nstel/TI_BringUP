@@ -1,0 +1,48 @@
+# Copy this file to paths.local.yaml and update values for your workspace.
+
+project_root: /absolute/path/to/TI_Bringup/tools/custom_board_dts_workflow
+
+# Optional override YAML. If the file exists, it is merged over
+# config/workflow_defaults.yaml at runtime.
+override_workflow_yaml: config/override.local.yaml
+
+# Active board project under the selected SoC platform.
+board_project_dir: platforms/am64x/projects/cpu_brd_v03_pba_260511
+
+# Input netlist path relative to board_project_dir.
+netlist_path: inputs/netlist/CPU_BRD_V03_PBA_260511.NET
+
+# Active SoC platform profile.
+platform_dir: platforms/am64x
+soc_refdes: U1
+soc_name: AM6412
+soc_family: AM64x
+package: ALV
+
+# Imported SysConfig base DB files.
+pinmux_db_csv: platforms/am64x/db/am64x_sysconfig_pinmux_db.csv
+pinmux_db_json: platforms/am64x/db/am64x_sysconfig_pinmux_db.json
+
+# Linux SDK references from the repo workspace only.
+linux_dts_dir: /absolute/path/to/TI_Bringup/workspace/ti-linux-kernel-sdk12/arch/arm64/boot/dts/ti
+linux_include_dir: /absolute/path/to/TI_Bringup/workspace/ti-linux-kernel-sdk12/include
+
+soc_dtsi:
+  - k3-am64.dtsi
+  - k3-am642.dtsi
+
+reference_board_dts:
+  - k3-am642-sk.dts
+
+pinctrl_header: k3-pinctrl.h
+
+board_dts_prefix: k3-am6412-custom
+vendor_compatible: custom,am6412-board
+model: Custom AM6412 Board
+
+defaults:
+  i2c_clock_frequency: 400000
+  spi_max_frequency: 10000000
+  gpio_default_active: GPIO_ACTIVE_HIGH
+  unknown_compatible: unknown,device
+  generate_todo_comments: true
