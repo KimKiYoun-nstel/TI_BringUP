@@ -1,0 +1,34 @@
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/net/ti-dp83867.h>
+#include "k3-am642.dtsi"
+#include "k3-am6412-cpu-brd-v03-pba-pinctrl.dtsi"
+#include "k3-am6412-cpu-brd-v03-pba-peripherals.dtsi"
+
+/ {
+	model = "Custom AM6412 CPU_BRD_V03_PBA_260511";
+	compatible = "custom,cpu-brd-v03-pba-260511", "custom,am6412-board", "ti,am642";
+	/* Handoff DTS set for manual review and reuse. */
+
+	aliases {
+		serial0 = &mcu_uart0;
+		serial2 = &main_uart0;
+		i2c0 = &main_i2c0;
+		i2c1 = &main_i2c1;
+		mmc0 = &sdhci0;
+		spi0 = &ospi0;
+		ethernet0 = &cpsw_port1;
+		ethernet1 = &cpsw_port2;
+	};
+
+	chosen {
+		stdout-path = &main_uart0;
+	};
+
+	/* TODO: add memory node when LPDDR4 size and reserved-memory policy are finalized. */
+	/* TODO: add regulator and PMIC tree after power policy is reviewed. */
+	/* TODO: add USB0/SERDES0 integration after role and protocol policy are finalized. */
+	/* TODO: main_uart2 RX path remains unresolved between schematic decision and current netlist evidence. */
+	/* TODO: TPM compatible for U15 and PI6ULS5V9509UEX attachment for U21 remain unresolved. */
+};

@@ -1,0 +1,132 @@
+/* Pinctrl set derived from validated netlist and SysConfig matches. */
+
+&main_pmx0 {
+	gpio0_pins_default: gpio0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0034, PIN_INPUT, 7) /* (K17) GPIO0_13 net=GPIO_OSPI_RSTN TODO: review flag */
+			AM64X_IOPAD(0x0038, PIN_INPUT, 7) /* (L17) GPIO0_14 net=OSPI_INTN TODO: review flag */
+			AM64X_IOPAD(0x00f4, PIN_INPUT, 7) /* (Y9) GPIO0_60 net=TEST_LED1 TODO: review flag */
+		>;
+	};
+	gpmc0_pins_default: gpmc0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x003c, PIN_INPUT, 0) /* (T20) GPMC0_AD0 net=GPMC0_AD0 TODO: review flag */
+			AM64X_IOPAD(0x0040, PIN_INPUT, 0) /* (U21) GPMC0_AD1 net=GPMC0_AD1 TODO: review flag */
+			AM64X_IOPAD(0x0044, PIN_INPUT, 0) /* (T18) GPMC0_AD2 net=GPMC0_AD2 TODO: review flag */
+			AM64X_IOPAD(0x0048, PIN_INPUT, 0) /* (U20) GPMC0_AD3 net=GPMC0_AD3 TODO: review flag */
+			AM64X_IOPAD(0x004c, PIN_INPUT, 0) /* (U18) GPMC0_AD4 net=GPMC0_AD4 TODO: review flag */
+			AM64X_IOPAD(0x0050, PIN_INPUT, 0) /* (U19) GPMC0_AD5 net=GPMC0_AD5 TODO: review flag */
+			AM64X_IOPAD(0x0054, PIN_INPUT, 0) /* (V20) GPMC0_AD6 net=GPMC0_AD6 TODO: review flag */
+			AM64X_IOPAD(0x0058, PIN_INPUT, 0) /* (V21) GPMC0_AD7 net=GPMC0_AD7 TODO: review flag */
+			AM64X_IOPAD(0x005c, PIN_INPUT, 0) /* (V19) GPMC0_AD8 net=GPMC0_AD8 TODO: review flag */
+			AM64X_IOPAD(0x0060, PIN_INPUT, 0) /* (T17) GPMC0_AD9 net=GPMC0_AD9 TODO: review flag */
+			AM64X_IOPAD(0x0064, PIN_INPUT, 0) /* (R16) GPMC0_AD10 net=GPMC0_AD10 TODO: review flag */
+			AM64X_IOPAD(0x0068, PIN_INPUT, 0) /* (W20) GPMC0_AD11 net=GPMC0_AD11 TODO: review flag */
+			AM64X_IOPAD(0x006c, PIN_INPUT, 0) /* (W21) GPMC0_AD12 net=GPMC0_AD12 TODO: review flag */
+			AM64X_IOPAD(0x0070, PIN_INPUT, 0) /* (V18) GPMC0_AD13 net=GPMC0_AD13 TODO: review flag */
+			AM64X_IOPAD(0x0074, PIN_INPUT, 0) /* (Y21) GPMC0_AD14 net=GPMC0_AD14 TODO: review flag */
+			AM64X_IOPAD(0x0078, PIN_INPUT, 0) /* (Y20) GPMC0_AD15 net=GPMC0_AD15 TODO: review flag */
+			AM64X_IOPAD(0x007c, PIN_OUTPUT, 0) /* (R17) GPMC0_CLK net=GPMC0_CLK */
+			AM64X_IOPAD(0x0090, PIN_INPUT, 0) /* (P17) GPMC0_BE0n_CLE net=GPMC0_BE0_N TODO: review flag */
+			AM64X_IOPAD(0x0094, PIN_INPUT, 0) /* (T19) GPMC0_BE1n net=GPMC0_BE1_N TODO: review flag */
+			AM64X_IOPAD(0x00a8, PIN_OUTPUT, 0) /* (R19) GPMC0_CSn0 net=GPMC0_CS0N */
+		>;
+	};
+	main_i2c0_pins_default: main-i2c0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0260, PIN_INPUT_PULLUP, 0) /* (A18) I2C0_SCL net=I2C0_SCL */
+			AM64X_IOPAD(0x0264, PIN_INPUT_PULLUP, 0) /* (B18) I2C0_SDA net=I2C0_SDA */
+		>;
+	};
+	main_i2c1_pins_default: main-i2c1-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0268, PIN_INPUT_PULLUP, 0) /* (C18) I2C1_SCL net=I2C1_SCL */
+			AM64X_IOPAD(0x026c, PIN_INPUT_PULLUP, 0) /* (B19) I2C1_SDA net=I2C1_SDA */
+		>;
+	};
+	ospi0_pins_default: ospi0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0000, PIN_OUTPUT, 0) /* (N20) OSPI0_CLK net=OSPI_CLK */
+			AM64X_IOPAD(0x0004, PIN_INPUT, 0) /* (N21) OSPI0_LBCLKO net=N105198 TODO: review flag */
+			AM64X_IOPAD(0x0008, PIN_INPUT, 0) /* (N19) OSPI0_DQS net=OSPI_DQS TODO: review flag */
+			AM64X_IOPAD(0x000c, PIN_INPUT, 0) /* (M19) OSPI0_D0 net=OSPI_DQ0 TODO: review flag */
+			AM64X_IOPAD(0x0010, PIN_INPUT, 0) /* (M18) OSPI0_D1 net=OSPI_DQ1 TODO: review flag */
+			AM64X_IOPAD(0x0014, PIN_INPUT, 0) /* (M20) OSPI0_D2 net=OSPI_DQ2 TODO: review flag */
+			AM64X_IOPAD(0x0018, PIN_INPUT, 0) /* (M21) OSPI0_D3 net=OSPI_DQ3 TODO: review flag */
+			AM64X_IOPAD(0x001c, PIN_INPUT, 0) /* (P21) OSPI0_D4 net=OSPI_DQ4 TODO: review flag */
+			AM64X_IOPAD(0x0020, PIN_INPUT, 0) /* (P20) OSPI0_D5 net=OSPI_DQ5 TODO: review flag */
+			AM64X_IOPAD(0x0024, PIN_INPUT, 0) /* (N18) OSPI0_D6 net=OSPI_DQ6 TODO: review flag */
+			AM64X_IOPAD(0x0028, PIN_INPUT, 0) /* (M17) OSPI0_D7 net=OSPI_DQ7 TODO: review flag */
+			AM64X_IOPAD(0x002c, PIN_OUTPUT, 0) /* (L19) OSPI0_CSn0 net=N105076 */
+		>;
+	};
+	pru_icssg0_pru1_pins_default: pru-icssg0-pru1-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x01f8, PIN_INPUT, 0) /* (P5) PRG0_PRU1_GPO18 net=CPSW_RGMII_MDIO TODO: review flag */
+			AM64X_IOPAD(0x01fc, PIN_INPUT, 0) /* (R2) PRG0_PRU1_GPO19 net=CPSW_RGMII_MDC TODO: review flag */
+		>;
+	};
+	pru_icssg1_pru0_pins_default: pru-icssg1-pru0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x00b8, PIN_INPUT, 0) /* (Y7) PRG1_PRU0_GPO0 net=VSEL_SD_SWITCH TODO: review flag */
+			AM64X_IOPAD(0x00cc, PIN_INPUT, 0) /* (V13) PRG1_PRU0_GPO5 net=CPSW_RGMII1_RX_CTRL TODO: review flag */
+			AM64X_IOPAD(0x00d0, PIN_INPUT, 0) /* (AA7) PRG1_PRU0_GPO6 net=PMIC_STBY TODO: review flag */
+			AM64X_IOPAD(0x00d8, PIN_INPUT, 0) /* (W13) PRG1_PRU0_GPO8 net=CPSW_RGMII1_RX_CLK TODO: review flag */
+			AM64X_IOPAD(0x00e0, PIN_INPUT, 0) /* (U14) PRG1_PRU0_GPO10 net=CPSW_RGMII1_TX_CLK TODO: review flag */
+		>;
+	};
+	pru_icssg1_pru1_pins_default: pru-icssg1-pru1-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0108, PIN_INPUT, 0) /* (W11) PRG1_PRU1_GPO0 net=CPSW_RGMII2_RXD0 TODO: review flag */
+			AM64X_IOPAD(0x010c, PIN_INPUT, 0) /* (V11) PRG1_PRU1_GPO1 net=CPSW_RGMII2_RXD1 TODO: review flag */
+			AM64X_IOPAD(0x0110, PIN_INPUT, 0) /* (AA12) PRG1_PRU1_GPO2 net=CPSW_RGMII2_RXD2 TODO: review flag */
+			AM64X_IOPAD(0x0114, PIN_INPUT, 0) /* (Y12) PRG1_PRU1_GPO3 net=CPSW_RGMII2_RXD3 TODO: review flag */
+			AM64X_IOPAD(0x0118, PIN_INPUT, 0) /* (W12) PRG1_PRU1_GPO4 net=CPSW_RGMII2_RX_CTRL TODO: review flag */
+			AM64X_IOPAD(0x011c, PIN_INPUT, 0) /* (AA13) PRG1_PRU1_GPO5 net=CPSW_RGMII1_RXD0 TODO: review flag */
+			AM64X_IOPAD(0x0120, PIN_INPUT, 0) /* (U11) PRG1_PRU1_GPO6 net=CPSW_RGMII2_RX_CLK TODO: review flag */
+			AM64X_IOPAD(0x0124, PIN_INPUT, 0) /* (V15) PRG1_PRU1_GPO7 net=CPSW_RGMII1_TXD0 TODO: review flag */
+			AM64X_IOPAD(0x0128, PIN_INPUT, 0) /* (U12) PRG1_PRU1_GPO8 net=CPSW_RGMII1_RXD1 TODO: review flag */
+			AM64X_IOPAD(0x012c, PIN_INPUT, 0) /* (V14) PRG1_PRU1_GPO9 net=CPSW_RGMII1_TXD1 TODO: review flag */
+			AM64X_IOPAD(0x0130, PIN_INPUT, 0) /* (W14) PRG1_PRU1_GPO10 net=CPSW_RGMII1_TXD2 TODO: review flag */
+			AM64X_IOPAD(0x0134, PIN_INPUT, 0) /* (AA10) PRG1_PRU1_GPO11 net=CPSW_RGMII2_TXD0 TODO: review flag */
+			AM64X_IOPAD(0x0138, PIN_INPUT, 0) /* (V10) PRG1_PRU1_GPO12 net=CPSW_RGMII2_TXD1 TODO: review flag */
+			AM64X_IOPAD(0x013c, PIN_INPUT, 0) /* (U10) PRG1_PRU1_GPO13 net=CPSW_RGMII2_TXD2 TODO: review flag */
+			AM64X_IOPAD(0x0140, PIN_INPUT, 0) /* (AA11) PRG1_PRU1_GPO14 net=CPSW_RGMII2_TXD3 TODO: review flag */
+			AM64X_IOPAD(0x0148, PIN_INPUT, 0) /* (Y10) PRG1_PRU1_GPO16 net=CPSW_RGMII2_TX_CLK TODO: review flag */
+			AM64X_IOPAD(0x014c, PIN_INPUT, 0) /* (AA14) PRG1_PRU1_GPO17 net=CPSW_RGMII1_TXD3 TODO: review flag */
+			AM64X_IOPAD(0x0150, PIN_INPUT, 0) /* (Y13) PRG1_PRU1_GPO18 net=CPSW_RGMII1_RXD2 TODO: review flag */
+			AM64X_IOPAD(0x0154, PIN_INPUT, 0) /* (V12) PRG1_PRU1_GPO19 net=CPSW_RGMII1_RXD3 TODO: review flag */
+		>;
+	};
+	main_uart0_pins_default: main-uart0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0230, PIN_INPUT, 0) /* (D15) UART0_RXD net=SOC_UART0_RXD */
+			AM64X_IOPAD(0x0234, PIN_OUTPUT, 0) /* (C16) UART0_TXD net=SOC_UART0_TXD */
+		>;
+	};
+	main_uart1_pins_default: main-uart1-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0240, PIN_INPUT, 0) /* (E15) UART1_RXD net=SOC_UART1_RXD */
+			AM64X_IOPAD(0x0244, PIN_OUTPUT, 0) /* (E14) UART1_TXD net=SOC_UART1_TXD */
+		>;
+	};
+	main_uart2_pins_default: main-uart2-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0280, PIN_OUTPUT, 3) /* (K19) UART2_TXD net=SOC_UART2_TXD */
+		>;
+	};
+};
+
+&wkup_pmx0 {
+	mcu_gpio0_pins_default: mcu-gpio0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_MCU_IOPAD(0x0014, PIN_INPUT, 7) /* (A7) MCU_GPIO0_5 net=TEST_LED2 TODO: review flag */
+		>;
+	};
+	mcu_uart0_pins_default: mcu-uart0-pins-default {
+		pinctrl-single,pins = <
+			AM64X_MCU_IOPAD(0x0028, PIN_INPUT, 0) /* (A9) MCU_UART0_RXD net=MCU_UART0_RXD */
+			AM64X_MCU_IOPAD(0x002c, PIN_OUTPUT, 0) /* (A8) MCU_UART0_TXD net=MCU_UART0_TXD */
+		>;
+	};
+};

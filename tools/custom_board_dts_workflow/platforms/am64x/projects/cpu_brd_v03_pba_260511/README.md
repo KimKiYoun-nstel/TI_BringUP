@@ -19,4 +19,6 @@
 - `generated/linux/final/k3-am6412-custom-final.dts`
 - `generated/uboot_spl/base/k3-am6412-custom-u-boot-spl.dtsi`
 - `generated/uboot_spl/final/k3-am6412-custom-u-boot-final.dtsi`
+- `delivery/linux/`
+- `delivery/uboot_spl/`
 - `reports/todo/manual_review_report.md`
