@@ -1,0 +1,56 @@
+schema_version: 0.2
+schema_name: cpu_brd_v03_pba_hardware_semantic_db
+language: ko-KR
+purpose:
+  - "CPU_Brd_V03_PBA 회로도 PDF의 설계 의도를 AI Agent가 재사용 가능한 구조화 데이터로 고정한다."
+  - "delivery DTS/DTSI 자동 생성 결과에 누락된 회로도 기반 fact를 보강한다."
+  - "Linux DTS, U-Boot DTS, SPL/R5 boot-critical fragment 생성 시 회로 fact와 BSP policy를 분리한다."
+
+source_documents:
+  schematic_pdf:
+    file: CPU_Brd_V03_PBA_260511.pdf
+    document_rev: "0.3"
+    date_on_sheet: "2026-05-11"
+    total_pages: 45
+    role: "schematic_design_intent_source"
+  netlist:
+    file: CPU_BRD_V03_PBA_260511.NET
+    role: "electrical_connectivity_source"
+  sysconfig_db:
+    role: "pinmux_and_soc_signal_database"
+  delivery_dts:
+    file_hint: delivery.zip
+    role: "existing_generated_dts_base_to_be_completed"
+  reference_dts:
+    file_hint: reference_dts.zip
+    role: "SK-AM64B/TI SDK reference DTS baseline"
+
+classification:
+  fact:
+    description: "회로도/PDF/.NET/SysConfig에서 직접 확인되는 사실"
+    examples: ["부품명", "refdes", "bus width", "net name", "I2C address", "reset signal"]
+  inferred_fact:
+    description: "회로도와 DTS binding 지식을 함께 사용해 추론한 사실. review_required를 함께 둔다."
+  policy:
+    description: "회로도가 아니라 BSP/제품/부팅 전략에서 결정해야 하는 항목"
+    examples: ["OSPI partition", "reserved-memory layout", "USB vs PCIe SerDes mode", "GPMC Linux ownership"]
+  observation:
+    description: "bring-up 과정에서 확인된 동작/실패 사실"
+    examples: ["OSPI octal Boot ROM 실패 후 single fallback 성공"]
+
+entry_conventions:
+  source:
+    schematic_pages: "PDF page number list"
+    evidence: "사람이 검토 가능한 짧은 근거 설명"
+    confidence: "high | medium | low"
+    review_required: "true | false"
+  dts_mapping:
+    linux_node: "생성 또는 보강 대상 Linux DTS 노드"
+    uboot_node: "생성 또는 보강 대상 U-Boot/SPL 노드"
+    status_candidate: "okay | disabled | reserved | TBD"
+    generation_hint: "AI Agent가 DTS 생성 시 따라야 할 규칙"
+
+artifact_policy:
+  do_not_treat_as_final_schematic_review: true
+  do_not_generate_final_dts_without_reviewing_tbd_items: true
+  always_generate_gap_report_with_dts: true

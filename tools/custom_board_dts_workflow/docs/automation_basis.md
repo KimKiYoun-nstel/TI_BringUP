@@ -9,6 +9,8 @@
 1. `.NET`에서 board wiring 사실을 읽는다.
 2. SysConfig DB에서 pad/signal/mux 근거를 읽는다.
 
+그리고 반복 작업에서는 PDF 원문 대신 `inputs/schematic/hardware_db/`를 보조 입력으로 함께 사용한다.
+
 이 두 입력이 만나는 지점까지만 helper를 강하게 신뢰한다.
 
 ## 입력과 역할
@@ -65,14 +67,32 @@
 - reference DTS는 fact source가 아니다.
 - reference DTS는 integration precedent다.
 
+### 4. Schematic Hardware DB
+
+경로 예:
+
+- `platforms/am64x/projects/<board-project>/inputs/schematic/hardware_db/`
+
+역할:
+
+- PDF 회로도에서 미리 정리한 board 의미 정보를 재사용
+- boot media, power tree, reset/interrupt, interface role 같은 비-pinmux 의미 보강
+- 반복 작업에서 PDF를 매번 다시 읽는 부담 완화
+
+중요:
+
+- `hardware_db`는 `.NET`을 대체하지 않는다.
+- `.NET`은 전기적 연결 원천이고, `hardware_db`는 회로도 의미를 정리한 backdata다.
+
 ## helper가 하는 일
 
 1. `.NET` parse
 2. SoC pin/net fact 추출
 3. `ball + selected signal` 중심 SysConfig DB lookup
-4. valid offset이 있는 pinmux만 facts 산출물 생성
-5. reference DTS precedent와 기본 규칙으로 candidates 산출물 생성
-6. facts + candidates를 조합해 base 산출물 생성
+4. `hardware_db`에서 boot/storage/interface/power/reset 의미를 확인
+5. valid offset이 있는 pinmux만 facts 산출물 생성
+6. reference DTS precedent와 기본 규칙으로 candidates 산출물 생성
+7. facts + candidates를 조합해 base 산출물 생성
 
 ## 왜 facts 층은 신뢰 가능한가
 

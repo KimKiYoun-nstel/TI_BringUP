@@ -1,0 +1,56 @@
+memory:
+  ddr:
+    type: LPDDR4
+    refdes: U12
+    part: MT53E1G16D1ZW-046 AIT-C
+    vendor: Micron
+    bus_width_bits: 16
+    schematic_density: "16Gbit / 2GByte / 1Gx16"
+    linux_memory_node:
+      required: true
+      base_address: 0x80000000
+      size_bytes_candidate: 0x80000000
+      status: add_to_custom_dts
+      dts_example: |
+        memory@80000000 {
+            device_type = "memory";
+            reg = <0x00000000 0x80000000 0x00000000 0x80000000>;
+        };
+    bootloader_dependency:
+      ddr_training_in_spl_or_sbl: required
+      note: "Linux DTS의 memory node는 DDR 초기화 자체가 아니라 Linux에 제공되는 물리 메모리 범위를 설명한다."
+    dts_gap:
+      delivery_status: missing
+      action: "memory@80000000 추가"
+    source:
+      schematic_pages: [1, 12, 22]
+      evidence:
+        - "DESIGN SUMMARY: SRAM LPDDR4 / MT53E1G16D1ZW-046 AIT-C"
+        - "LPDDR4 page: 16Gbit(2GByte), 1Gx16, 1ch 표기"
+      confidence: high
+      review_required: false
+
+reserved_memory:
+  nature: policy_not_schematic_fact
+  reason: "OP-TEE/R5F/remoteproc carveout은 회로 연결이 아니라 Linux/R5F 운용 메모리 정책이다."
+  recommended_baseline:
+    source: SK-AM64B_reference_dts
+    condition:
+      - "DDR base remains 0x80000000"
+      - "DDR size remains 2GB"
+      - "TI SDK OP-TEE configuration is retained"
+      - "Linux remoteproc/RPMsg is retained for R5F"
+    use_optee: true
+    use_r5f_remoteproc: true
+    use_shared_memory: true
+  generation_policy:
+    initial_action: "reference DTS의 reserved-memory baseline을 custom DTS에 이식하되 board-specific SHM은 별도 review 후 추가"
+    do_not_infer_from_pdf: true
+    add_k3_am64_ti_ipc_firmware_include_if_remoteproc_used: true
+  dts_gap:
+    delivery_status: missing
+    action: "reserved-memory + k3-am64-ti-ipc-firmware.dtsi 사용 여부 결정"
+  unresolved:
+    - "SBL OSPI Linux 방식으로 R5F 선부팅 시 Linux remoteproc ownership과 carveout 충돌 여부"
+    - "FPGA/GPMC DMA 또는 shared buffer가 DDR reserved-memory를 추가로 요구하는지"
+    - "Phase 4 SHM 영역을 reference carveout과 분리할지 통합할지"

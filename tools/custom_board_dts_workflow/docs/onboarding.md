@@ -7,7 +7,7 @@
 핵심은 다음 두 줄이다.
 
 - 새 board project는 `templates/ti_board_project/`에서 시작한다.
-- `.NET`, PDF 회로도, SysConfig DB, reference DTS를 넣고 `facts -> candidates -> final candidate` 순서로 올린다.
+- `.NET`, schematic hardware DB, SysConfig DB, reference DTS를 넣고 `facts -> candidates -> final candidate` 순서로 올린다.
 
 ## 먼저 읽을 문서
 
@@ -22,7 +22,8 @@
 
 1. board `.NET`
 2. board PDF 회로도
-3. target SoC용 SysConfig pinmux DB
+3. 회로도 기반 `hardware_db`
+4. target SoC용 SysConfig pinmux DB
 
 권장 참조 입력:
 
@@ -35,9 +36,10 @@
 1. `templates/ti_board_project/`를 `platforms/<soc>/projects/<board-project>/`로 복사한다.
 2. `inputs/netlist/`에 `.NET`을 넣는다.
 3. `inputs/schematic/`에 회로도 PDF를 넣는다.
-4. 필요하면 `inputs/reference_dts/`, `inputs/reference_headers/`에 비교용 복사본을 넣는다.
-5. `docs/board_dts_decisions.yaml`의 `source_documents`를 실제 파일명으로 맞춘다.
-6. `config/paths.local.yaml.example`를 `config/paths.local.yaml`로 복사하고 로컬 경로를 채운다.
+4. 반복 작업용 schematic backdata가 있으면 `inputs/schematic/hardware_db/`에 넣는다.
+5. 필요하면 `inputs/reference_dts/`, `inputs/reference_headers/`에 비교용 복사본을 넣는다.
+6. `docs/board_dts_decisions.yaml`의 `source_documents`를 실제 파일명으로 맞춘다.
+7. `config/paths.local.yaml.example`를 `config/paths.local.yaml`로 복사하고 로컬 경로를 채운다.
 
 ## 설정 수정
 
@@ -84,6 +86,8 @@ python3 tools/custom_board_dts_workflow/scripts/run_stage1.py
 ## 판단 입력 보강
 
 Stage-1 결과만으로 확정되지 않는 항목은 `docs/board_dts_decisions.yaml`에 반영한다.
+
+회로도 PDF를 이미 `hardware_db`로 구조화했다면, 우선 그 DB를 읽고 필요한 부분만 PDF 원문으로 역추적한다.
 
 대표 예:
 

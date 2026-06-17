@@ -3,6 +3,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/net/ti-dp83867.h>
 #include "k3-am642.dtsi"
+#include "k3-am64-ti-ipc-firmware.dtsi"
 #include "../facts/k3-am6412-custom-pinmux.facts.dtsi"
 #include "k3-am6412-custom-final-overrides.dtsi"
 
@@ -26,9 +27,37 @@
 		stdout-path = &main_uart0;
 	};
 
-	/* TODO: add memory node when LPDDR4 size and reserved-memory policy are finalized. */
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x00000000 0x80000000 0x00000000 0x80000000>;
+	};
+
+	reserved_memory: reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		secure_ddr: optee@9e800000 {
+			reg = <0x00 0x9e800000 0x00 0x01800000>;
+			alignment = <0x1000>;
+			no-map;
+		};
+
+		main_r5fss0_core0_dma_memory_region: memory@a0000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00 0xa0000000 0x00 0x100000>;
+			no-map;
+		};
+
+		main_r5fss0_core0_memory_region: memory@a0100000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00 0xa0100000 0x00 0xf00000>;
+			no-map;
+		};
+	};
+
+	/* TODO: review whether reserved-memory baseline should be kept as-is for this board's final product policy. */
 	/* TODO: add regulator and PMIC tree after power policy is reviewed. */
-	/* TODO: add USB0/SERDES0 integration after role and protocol policy are finalized. */
-	/* TODO: main_uart2 RX path remains unresolved between schematic decision and current netlist evidence. */
+	/* TODO: SERDES0 PCIe/USB3/FPGA/VITA routing policy is still unresolved. */
 	/* TODO: TPM compatible for U15 and PI6ULS5V9509UEX attachment for U21 remain unresolved. */
 };

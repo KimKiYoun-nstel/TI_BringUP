@@ -1,0 +1,50 @@
+vpx_connectors:
+  p0:
+    standard: VITA_46_0
+    role: utility_power_jtag_geo_reset_refclk
+    signals_of_interest:
+      power_inputs: [+12V_P0, +5V_P0, +3.3V_P0, +3.3V_AUX_P0]
+      geographical_address: [GEO_ADD_PARn, GEO_ADD0n, GEO_ADD1n, GEO_ADD2n, GEO_ADD3n, GEO_ADD4n]
+      jtag_to_soc: [SoC_TCK, SoC_TDI, SoC_TMS, SoC_TRSTn, SoC_TDO]
+      reset: P0_SYSRESETn
+      refclk_to_io_board: [IOB_REFCLK_P, IOB_REFCLK_N]
+    dts_impact:
+      mostly_board_management_not_direct_dts: true
+      exceptions:
+        - "P0_SYSRESETn if modeled as reset input"
+        - "GEO_ADD signals if read by FPGA/Linux through a driver"
+        - "JTAG not normally represented in Linux DTS"
+    source:
+      schematic_pages: [42]
+      confidence: high
+      review_required: true
+
+  p1:
+    role: high_speed_io_and_usb_lan_serdes
+    signals_of_interest:
+      usb2: [USB0_TYPEC_DP, USB0_TYPEC_DM]
+      serdes: [VITA_SERDES_TX_P, VITA_SERDES_TX_N, VITA_SERDES_RX_P, VITA_SERDES_RX_N]
+      lan1: [LAN1_MDI0_DP, LAN1_MDI0_DN, LAN1_MDI1_DP, LAN1_MDI1_DN, LAN1_MDI2_DP, LAN1_MDI2_DN, LAN1_MDI3_DP, LAN1_MDI3_DN]
+      lan2: [LAN2_MDI0_DP, LAN2_MDI0_DN, LAN2_MDI1_DP, LAN2_MDI1_DN, LAN2_MDI2_DP, LAN2_MDI2_DN, LAN2_MDI3_DP, LAN2_MDI3_DN]
+      rs232: [SoC_RS232_TXD, SoC_RS232_RXD]
+      rs422: [SoC_RS422_TXD_P, SoC_RS422_TXD_N, SoC_RS422_RXD_P, SoC_RS422_RXD_N]
+    dts_impact:
+      usb_vbus_role_policy: required_if_usb_enabled
+      ethernet_connector_properties: optional
+      serdes_switch_policy: required_if_pcie_or_usb3_enabled
+    source:
+      schematic_pages: [18, 23, 27, 28, 30, 43]
+      confidence: medium
+      review_required: true
+
+  p2:
+    role: gpio_front_or_rear_io
+    signals_of_interest:
+      gpio: [GPIO_1, GPIO_2, GPIO_3, GPIO_4, GPIO_5, GPIO_6, GPIO_7, GPIO_8]
+    dts_impact:
+      if_gpio_from_fpga: "needs FPGA GPIO driver model"
+      if_direct_soc_gpio: "not indicated by current schematic summary"
+    source:
+      schematic_pages: [34, 44]
+      confidence: medium
+      review_required: true

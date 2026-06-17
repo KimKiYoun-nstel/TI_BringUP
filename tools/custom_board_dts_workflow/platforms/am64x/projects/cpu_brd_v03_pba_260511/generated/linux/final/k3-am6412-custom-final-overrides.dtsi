@@ -18,6 +18,18 @@
 };
 
 &main_pmx0 {
+	main_usb0_pins_default: main-usb0-default-pins {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x02a8, PIN_OUTPUT, 0) /* (E19) USB0_DRVVBUS */
+		>;
+	};
+
+	main_uart2_rx_pins_fixup: main-uart2-rx-pins-fixup {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0184, PIN_INPUT, 10) /* (W6) PRG0_PRU0_GPO9.UART2_RXD */
+		>;
+	};
+
 	mdio1_pins_default: mdio1-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x01fc, PIN_OUTPUT, 4) /* (R2) PRG0_PRU1_GPO19.MDIO0_MDC */
@@ -81,9 +93,10 @@
 };
 
 &main_uart2 {
-	status = "disabled";
-	/* TODO: enable after UART2 RX path is reconciled. */
-	/* Decision YAML points to K18/UART2_RXD, but current netlist evidence highlights W6/SOC_UART2_RXD. */
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart2_pins_default &main_uart2_rx_pins_fixup>;
+	/* UART2 final candidate uses K19/UART2_TXD from MMC page and W6/UART2_RXD from PRG/debug netlist evidence. */
 };
 
 &main_i2c0 {
@@ -96,6 +109,8 @@
 		compatible = "atmel,24c512";
 		reg = <0x51>;
 	};
+
+	/* TODO: add pmic@30 after TPS6522053 Linux binding and regulator constraints are confirmed. */
 };
 
 &main_i2c1 {
@@ -133,10 +148,11 @@
 	flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0x0>;
-		spi-tx-bus-width = <8>;
-		spi-rx-bus-width = <8>;
-		spi-max-frequency = <166000000>;
-		/* TODO: confirm Macronix-specific timing, partitions, reset-gpios, and interrupt-gpios. */
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+		spi-max-frequency = <25000000>;
+		/* Initial safe profile: keep single SPI fallback until octal/DQS bring-up root cause is resolved. */
+		/* TODO: confirm Macronix-specific timing, partitions, reset-gpios, interrupt-gpios, and later octal profile. */
 	};
 };
 
@@ -178,4 +194,19 @@
 	};
 };
 
-/* TODO: USB0 role, VBUS handling, and SERDES0 protocol remain unresolved by current workflow inputs. */
+&usbss0 {
+	status = "okay";
+	ti,vbus-divider;
+	ti,usb2-only;
+};
+
+&usb0 {
+	status = "okay";
+	dr_mode = "otg";
+	maximum-speed = "high-speed";
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_usb0_pins_default>;
+	/* Initial policy: use USB2 OTG only, keep SERDES0/USB3 disabled until product routing policy is fixed. */
+};
+
+/* TODO: SERDES0 remains unresolved between PCIe/USB3/FPGA/VITA routing policies. */

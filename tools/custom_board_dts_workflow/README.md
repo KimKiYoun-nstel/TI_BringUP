@@ -9,7 +9,8 @@
 이 워크플로우는 다음 원칙을 따른다.
 
 - `.NET`은 board wiring fact의 1차 입력이다.
-- PDF 회로도는 `.NET`만으로 확정되지 않는 board intent를 확인하는 1차 근거다.
+- PDF 회로도는 `.NET`만으로 확정되지 않는 board intent를 확인하는 원천 근거다.
+- `inputs/schematic/hardware_db/`는 PDF 회로도를 반복 사용하지 않기 위해 미리 정리한 schematic-derived backdata다.
 - SysConfig DB는 SoC pinmux 사실 검증용 2차 생성물이다.
 - SoC reference DTS/DTSI와 header는 사실 소스가 아니라 integration precedent다.
 - 자동화 helper는 **신뢰도가 높은 사실 추출**에만 사용한다.
@@ -23,7 +24,8 @@
 
 1. 회로도 기반 `.NET`
 2. PDF 회로도
-3. SysConfig DB
+3. 회로도 기반 `hardware_db`
+4. SysConfig DB
 
 워크플로우 안에서 함께 활용하는 참조 입력:
 
@@ -128,6 +130,7 @@ reports/
 - Linux reference는 `workspace/ti-linux-kernel-sdk12`만 사용한다.
 - 외부 SDK 원본 `~/ti/am64x/.../board-support/...`는 직접 참조 대상으로 삼지 않는다.
 - board별 수동 판단은 문서나 YAML input으로 남겨 다음 실행에 재사용한다.
+- 반복 작업에서는 PDF 원문보다 `inputs/schematic/hardware_db/`를 우선 읽고, PDF는 원천 증적 확인이 필요할 때만 참고한다.
 
 ## 먼저 읽을 문서
 

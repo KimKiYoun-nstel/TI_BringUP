@@ -15,8 +15,10 @@
 1. `main_uart0` early console
 2. `sdhci0` eMMC boot candidate
 3. `sdhci1` disable
-4. `ospi0` boot candidate
+4. `ospi0` single-SPI safe boot candidate
 5. `main_timer0` tick-timer
+6. `k3-am64x-binman.dtsi` include 후보
+7. `usb0` peripheral candidate
 
 ## 아직 보류한 것
 
@@ -24,5 +26,7 @@
 2. LPDDR4 timing/training include chain
 3. binman / packaging include
 4. bootph 세부 조정
+5. OSPI octal/DQS profile 재전환 시점
+6. SERDES0 비활성 유지 여부와 USB3/PCIe 정책
 
 즉 현재 세트는 bring-up 시작점으로는 충분하지만, production packaging이 확정된 세트는 아니다.

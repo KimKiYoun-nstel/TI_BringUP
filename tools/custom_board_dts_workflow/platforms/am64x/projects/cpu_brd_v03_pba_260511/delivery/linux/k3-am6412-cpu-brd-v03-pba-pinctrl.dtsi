@@ -1,6 +1,18 @@
 /* Pinctrl set derived from validated netlist and SysConfig matches. */
 
 &main_pmx0 {
+	main_usb0_pins_default: main-usb0-default-pins {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x02a8, PIN_OUTPUT, 0) /* (E19) USB0_DRVVBUS */
+		>;
+	};
+
+	main_uart2_rx_pins_fixup: main-uart2-rx-pins-fixup {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0184, PIN_INPUT, 10) /* (W6) PRG0_PRU0_GPO9.UART2_RXD */
+		>;
+	};
+
 	gpio0_pins_default: gpio0-pins-default {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0034, PIN_INPUT, 7) /* (K17) GPIO0_13 net=GPIO_OSPI_RSTN TODO: review flag */

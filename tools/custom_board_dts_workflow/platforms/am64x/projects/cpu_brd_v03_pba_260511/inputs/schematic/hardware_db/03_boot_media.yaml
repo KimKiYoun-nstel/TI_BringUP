@@ -1,0 +1,152 @@
+boot_media:
+  sd_card:
+    exists: false
+    controller: sdhci1
+    schematic_intent: "MMC1 SD Card 4bit Not Used"
+    linux_dts:
+      node: sdhci1
+      status: disabled
+    uboot_dts:
+      node: sdhci1
+      status: disabled
+    source:
+      schematic_pages: [13]
+      evidence: ["SoC MMC page: MMC1 / SD Card 4bit / Not Used"]
+      confidence: high
+      review_required: false
+
+  emmc:
+    exists: true
+    refdes: U22
+    part_current: MKEMF032GT2E-IE
+    earlier_parts_or_notes:
+      - MTFC16GAPALBH-IT
+      - MTFC16GAPALBH-AIT
+      - MX52LM04A11XSI
+      - "용량변경: 16GB -> 8Gb or 4Gb -> 32GB, OS 용량 이슈 note"
+    controller: sdhci0
+    interface: MMC0
+    bus_width_bits: 8
+    non_removable: true
+    signals:
+      data: [MMC0_DAT0, MMC0_DAT1, MMC0_DAT2, MMC0_DAT3, MMC0_DAT4, MMC0_DAT5, MMC0_DAT6, MMC0_DAT7]
+      command: MMC0_CMD
+      clock: MMC0_CLK
+      data_strobe: MMC0_DS
+      reset_local: MMC0_RSTn
+      reset_control: GPIO_eMMC_RSTn
+    power:
+      vcc: VCC_3V3_SYS
+      vccq: VCC1V8
+      vddim: VDDIM
+      dts_vmmc_supply: TBD_regulator_node
+      dts_vqmmc_supply: TBD_regulator_node
+    linux_dts:
+      node: sdhci0
+      status: okay
+      required_properties:
+        bus-width: 8
+        non-removable: true
+      recommended_review_properties:
+        - vmmc-supply
+        - vqmmc-supply
+        - reset-gpios or mmc-pwrseq if supported by binding
+        - ti,driver-strength-ohm or equivalent if used by TI binding
+    uboot_dts:
+      boot_candidate: true
+      bootph_all: true
+      note: "eMMC boot/rootfs storage candidate"
+    source:
+      schematic_pages: [13, 26]
+      evidence:
+        - "SoC MMC page: MMC0 eMMC 8bit"
+        - "eMMC page: U22 MKEMF032GT2E-IE, DAT0-7/CMD/CLK/DS/RST_N, GPIO_eMMC_RSTn"
+      confidence: high
+      review_required: true
+
+  ospi:
+    exists: true
+    refdes: U2
+    part: MX66UM1G45GXDR00-T
+    controller: ospi0
+    role: boot_flash_candidate
+    hardware_wiring:
+      wired_bus_width_bits: 8
+      dqs_present: true
+      signals:
+        clock: OSPI_CLK
+        chip_select: OSPI_CSn
+        dqs: OSPI_DQS
+        data: [OSPI_DQ0, OSPI_DQ1, OSPI_DQ2, OSPI_DQ3, OSPI_DQ4, OSPI_DQ5, OSPI_DQ6, OSPI_DQ7]
+        reset: OSPI_RSTn
+        reset_control: GPIO_OSPI_RSTn
+        interrupt: OSPI_INTn
+      supply: VCC1V8_OSPI
+    schematic_notes:
+      - "DQS connected; external loopback clock series resistors are DNI when DQS is connected"
+      - "용량변경 512Mb -> 1Gb, 제조사변경 Infineon -> Macronix"
+      - "Place series resistor near to the SoC"
+    bringup_observation:
+      octal_bootrom_failed: true
+      single_mode_succeeded: true
+      conclusion_for_initial_generation: "Boot ROM/SPL 초기 프로파일은 single SPI fallback을 우선 사용"
+    linux_dts:
+      node: ospi0
+      status: okay
+      flash_node: flash@0
+      initial_profile:
+        spi-tx-bus-width: 1
+        spi-rx-bus-width: 1
+        spi-max-frequency: 25000000
+      target_profile_deferred:
+        spi-tx-bus-width: 8
+        spi-rx-bus-width: 8
+        dqs: true
+      required_review_properties:
+        - cdns timing properties for Macronix part
+        - reset-gpios provider
+        - interrupt-gpios or interrupts provider
+        - partitions
+    uboot_dts:
+      bootph_all: true
+      initial_profile: single_spi_fallback
+      avoid_octal_until_root_cause_known: true
+    source:
+      schematic_pages: [14]
+      evidence:
+        - "SoC OSPI page: U2 MX66UM1G45GXDR00-T, DQ0-DQ7, DQS, CLK, CS#, RESET#, INT#"
+        - "회로도 note: DQS connected, loopback clock resistor DNI"
+      confidence: high
+      review_required: true
+
+bootmode:
+  bootmode_strap_on_gpmc_ad15_0:
+    values:
+      BOOTMODE0: 1
+      BOOTMODE1: 1
+      BOOTMODE2: 0
+      BOOTMODE3: 1
+      BOOTMODE4: 0
+      BOOTMODE5: 0
+      BOOTMODE6: 0
+      BOOTMODE7: "0 (OSPI CS0n)"
+      BOOTMODE8: "1 (Iclock source internal)"
+      BOOTMODE9: Reserved
+      BOOTMODE10: "0 (none)"
+      BOOTMODE11: "0 (none)"
+      BOOTMODE12: "0 (none)"
+      BOOTMODE13: Reserved
+      BOOTMODE14: Reserved
+      BOOTMODE15: Reserved
+    schematic_intent:
+      - "GPMC0_AD[15:0]를 boot mode strap으로 사용"
+      - "PU/PD가 AD[15:0]에 영향을 주지 않게 할 것"
+      - "SN74AVC8T245RHL 8bit x2, reset 기준 isolation"
+    dts_impact:
+      linux: "일반적으로 DTS 직접 노드는 아니지만 GPMC pinmux와 FPGA bus enable policy에 영향"
+      uboot_spl: "Boot ROM/SPL boot mode 해석과 OSPI/eMMC boot troubleshooting에 필요"
+    source:
+      schematic_pages: [17]
+      evidence: ["SoC GPMC BUS page의 16bit BOOT MODE 표"]
+      confidence: high
+      review_required: false

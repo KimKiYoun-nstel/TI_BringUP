@@ -6,6 +6,7 @@
 
 - netlist: `inputs/netlist/CPU_BRD_V03_PBA_260511.NET`
 - schematic PDF: `inputs/schematic/CPU_Brd_V03_PBA_260511.pdf`
+- schematic DB: `inputs/schematic/hardware_db/`
 - board decision: `docs/board_dts_decisions.yaml`
 
 핵심 문서:

@@ -1,4 +1,5 @@
 /* U-Boot/SPL handoff fragment for CPU_BRD_V03_PBA_260511. */
+#include "k3-am64x-binman.dtsi"
 #include "k3-am6412-cpu-brd-v03-pba-u-boot-pinctrl.dtsi"
 
 / {
@@ -16,6 +17,11 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uboot_uart0_early_pins_default>;
+};
+
+&usb0 {
+	dr_mode="peripheral";
+	bootph-all;
 };
 
 &sdhci0 {
@@ -37,8 +43,8 @@
 
 	flash@0 {
 		bootph-all;
-		spi-tx-bus-width = <8>;
-		spi-rx-bus-width = <8>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
 		spi-max-frequency = <25000000>;
 	};
 };
@@ -46,3 +52,5 @@
 /* TODO: choose final boot priority between eMMC and OSPI for production images. */
 /* TODO: add DDR include chain after LPDDR4 timing/training source is finalized. */
 /* TODO: add binman/package integration once board boot flow is frozen. */
+/* TODO: keep SERDES0 disabled in U-Boot until USB3/PCIe policy is fixed. */
+/* TODO: enable octal/DQS profile only after Boot ROM/SPL root cause is resolved. */

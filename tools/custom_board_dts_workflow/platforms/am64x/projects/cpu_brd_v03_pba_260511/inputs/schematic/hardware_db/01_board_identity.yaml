@@ -1,0 +1,114 @@
+board:
+  name: CPU_Brd_V03_PBA
+  project_name: "CPU 보드 자체개발"
+  product_name: "CPU보드"
+  product_version: "0.3"
+  project_context: "차세대 구동 제어장치 CPU보드"
+  form_factor: "3U VPX"
+  pcb:
+    thickness: "1.6T"
+    layers: 12
+  reference_board: SK-AM64B
+  source:
+    schematic_pages: [1]
+    evidence:
+      - "DESIGN SUMMARY에 CPU보드 자체개발, PRODUCT VER 0.3, 3U VPX FORM FACTOR, PCB LAYER 12 LAYER 표기"
+    confidence: high
+    review_required: false
+
+soc:
+  refdes: U1
+  family: AM64x
+  part_on_design_summary: AM6412BSCGHAALV
+  part_on_symbol: AM6412
+  linux_base_dtsi: k3-am642.dtsi
+  compatible_candidates:
+    - "nstel,cpu-brd-v03-pba"
+    - "ti,am642"
+  silicon_revision_note:
+    value: "SR2.0 selected"
+    source_page: 10
+  source:
+    schematic_pages: [1, 10]
+    evidence:
+      - "DESIGN INFO CPU: ARM / AM6412BSCGHAALV"
+      - "SoC POWER & GND page에 SR2.0 관련 note 존재"
+    confidence: high
+    review_required: false
+
+major_components:
+  lpddr4:
+    refdes: U12
+    part: MT53E1G16D1ZW-046 AIT-C
+    role: external_ddr
+    source_pages: [1, 12, 22]
+  ospi_flash:
+    refdes: U2
+    part: MX66UM1G45GXDR00-T
+    role: boot_flash_candidate
+    source_pages: [1, 14]
+  emmc:
+    refdes: U22
+    part: MKEMF032GT2E-IE
+    role: non_removable_mmc_storage
+    source_pages: [1, 13, 26]
+  ethernet_phy1:
+    refdes: U24
+    part: DP83867IRRGZ
+    role: cpsw_rgmii_port1_phy
+    source_pages: [1, 27, 29]
+  ethernet_phy2:
+    refdes: U26
+    part: DP83867IRRGZ
+    role: cpsw_rgmii_port2_phy
+    source_pages: [1, 28, 29]
+  fpga:
+    refdes: U32
+    part: XC7A15T-2CSG325I
+    role: artix7_fpga_connected_to_gpmc_gpio_serdes
+    source_pages: [1, 31, 32, 33, 34, 35, 36]
+  board_eeprom:
+    refdes: U14
+    part: AT24C512C-MAHM-E
+    role: board_id_eeprom
+    source_pages: [23]
+  pcie_channel_switch:
+    refdes: U13
+    part: PI3DBS16222Q
+    role: serdes_channel_exchange_switch_between_am6412_fpga_vpx
+    source_pages: [23]
+  tpm:
+    refdes: U15
+    part: AT97SC3205T-U3A1C-10
+    role: i2c_tpm_for_test
+    source_pages: [24]
+  temp_adc:
+    refdes: U20
+    part: ADS1115QNKSRQ1
+    role: external_adc_for_temperature_monitor
+    source_pages: [25]
+  temp_sensors:
+    refdes: [U16, U17, U18, U19]
+    part: TMP235A2DBZR
+    role: analog_temperature_sensors_to_ads1115
+    source_pages: [25]
+  usb_uart_bridge:
+    refdes: U30
+    part: CP2105-F01-GM
+    role: debug_uart_to_usb_bridge
+    source_pages: [30]
+  main_3v3_buck:
+    refdes: U37
+    part: LM61460AASQRJRRQ1
+    role: main_5v_to_3v3_6a_regulator
+    source_pages: [38]
+  system_pmic:
+    refdes: U38
+    part: TPS6522053RHBR
+    role: am64x_system_pmic
+    source_pages: [39]
+  fpga_power_modules:
+    refdes: [U35, U36]
+    part: LTM4668AEY#PBF
+    role: fpga_power_rails
+    source_pages: [37]

@@ -1,0 +1,41 @@
+clocking:
+  mcu_main_25mhz:
+    oscillator: OSC1
+    frequency: 25MHz
+    buffer: U10_LMK1C1106APWR
+    outputs:
+      - MCU_CLK_25MHz
+      - CPSW_RGMII1_25MHz
+      - CPSW_RGMII2_25MHz
+      - FPGA_CLK_25MHz
+    dts_impact:
+      ethernet_phy_refclocks: review
+      fixed_clock_nodes_candidate: true
+    source:
+      schematic_pages: [21, 27, 28, 34]
+      confidence: high
+      review_required: true
+
+  pcie_serdes_refclock:
+    generator: U11_CDCE6214RGET
+    frequency: 100MHz
+    bus: I2C1_candidate
+    role:
+      - SoC_SERDES_REFCLK
+      - FPGA_REFCLK
+      - IOB_REFCLK
+    signals:
+      soc_serdes: [SERDES_REFCLK_P, SERDES_REFCLK_N]
+      fpga: [FPGA_REFCLK_P, FPGA_REFCLK_N]
+      io_board: [IOB_REFCLK_P, IOB_REFCLK_N]
+    control:
+      oe_signal: CDC_OE1/OE4
+      reset_sync: SoC_RESETSTATz
+    dts_impact:
+      cdce6214_driver_or_fixed_clock: TBD
+      if_static_programmed_by_eeprom: omit_or_fixed_clock
+      if_linux_programs_clock: add_i2c_clock_generator_node
+    source:
+      schematic_pages: [21, 23, 35, 42]
+      confidence: high
+      review_required: true

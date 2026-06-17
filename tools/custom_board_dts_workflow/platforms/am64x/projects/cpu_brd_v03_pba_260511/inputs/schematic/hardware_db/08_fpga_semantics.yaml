@@ -1,0 +1,97 @@
+fpga:
+  identity:
+    refdes: U32
+    part: XC7A15T-2CSG325I
+    family: Xilinx_Artix7
+    role: "FPGA connected to AM6412 via GPMC, SerDes channel switch, reset/control/status GPIOs, and VPX"
+    source_pages: [1, 31, 32, 33, 34, 35, 36]
+
+  configuration:
+    qspi_flash:
+      refdes: U33
+      part: MX25L25645GZNI-08G-TR
+      signals: [F_QSPI_CCLK, F_QSPI_CSn, F_QSPI_D00, F_QSPI_D01, F_QSPI_D02, F_QSPI_D03]
+      dts_impact: "Usually not in AM64x Linux DTS unless FPGA manager/control path is modeled"
+      source_pages: [31, 32]
+    jtag:
+      signals: [F_JTAG_TCK, F_JTAG_TDI, F_JTAG_TMS, F_JTAG_TDO]
+      source_pages: [31, 41]
+    status:
+      done: F_DONE
+      programn: F_PROGRAMn
+      init_or_int: F_INTn
+      source_pages: [31]
+
+  bank14_control_status:
+    description: "Control/status signals between AM6412/PMIC/power/reset and FPGA"
+    signals:
+      inputs_to_fpga:
+        - F_SoC_PORz_OUT
+        - F_SoC_RESET_REQz
+        - F_SoC_RESETSTATz
+        - F_PMIC_PGOOD
+        - F_SYSRESETn
+        - F_TPS22965_EN
+        - F_MCU_PORz
+        - LM61460_PG
+      outputs_or_control_from_fpga:
+        - TPS6522053_EN
+        - VPP_LDO_EN
+        - GPIO_CPSW1_RST
+        - GPIO_CPSW2_RST
+        - CDC_OE1/OE4
+        - LM61460_EN
+      geo_address_inputs:
+        - GEO_ADD_PARn
+        - GEO_ADD0n
+        - GEO_ADD1n
+        - GEO_ADD2n
+        - GEO_ADD3n
+        - GEO_ADD4n
+    dts_impact:
+      fpga_gpio_controller_model: TBD
+      note: "FPGA가 reset/power enable provider 역할을 하면 Linux DTS에서 직접 SoC GPIO provider로 표현하면 틀릴 수 있음"
+    source_pages: [32, 42]
+
+  bank15_gpmc:
+    interface: "Async Non-Multiplexed 16bit NOR Access I/F"
+    data_bus: GPMC0_AD[15:0]
+    address_bus: GPMC0_A[10:1]
+    command_signals: [GPMC0_CLK, GPMC0_CS0n, GPMC0_BE0_n, GPMC0_OEn, GPMC0_WEn, GPMC0_BE1_n]
+    dts_impact:
+      possible_models:
+        - "gpmc child node with simple-bus/regmap style driver"
+        - "custom FPGA memory-mapped driver"
+        - "leave disabled if R5F/firmware owns access"
+      required_policy_before_enable:
+        - fpga_register_map
+        - gpmc_timings
+        - address_window
+        - linux_vs_r5f_ownership
+    source_pages: [17, 33]
+
+  bank34_gpio:
+    description: "GPIO 8 Port + TEST LED + monitoring"
+    external_gpio_signals: [GPIO_1, GPIO_2, GPIO_3, GPIO_4, GPIO_5, GPIO_6, GPIO_7, GPIO_8]
+    leds:
+      active: low
+      notes:
+        - "TEST LED Low Active"
+        - "동작하면 1s 간격 점멸"
+        - "PMIC Power Good 점등"
+        - "TPS22965_EN 신호 모니터링"
+    dts_impact:
+      usually_not_am64x_gpio_leds: true
+      reason: "FPGA 내부 GPIO/LED라면 Linux DTS에는 FPGA driver/manager가 필요"
+    source_pages: [34, 44]
+
+  bank216_gtp:
+    role: SERDES_TEST
+    signals:
+      rx_from_cpu_or_switch: [FPGA_SERDES_RX_P, FPGA_SERDES_RX_N]
+      tx_to_cpu_or_switch: [FPGA_SERDES_TX_P, FPGA_SERDES_TX_N]
+      refclk: [FPGA_REFCLK_P, FPGA_REFCLK_N]
+    dts_impact:
+      depends_on_serdes_channel_switch_policy: true
+      no_generic_linux_node_without_driver: true
+    source_pages: [23, 35]

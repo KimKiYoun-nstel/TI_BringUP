@@ -1,0 +1,205 @@
+interfaces:
+  uart:
+    main_uart0:
+      role: linux_console_candidate
+      connected_to: CP2105_ECI_enhanced_comm
+      signals: {tx: SoC_UART0_TXD, rx: SoC_UART0_RXD}
+      dts_mapping: {linux_node: main_uart0, status_candidate: okay}
+      source: {schematic_pages: [19, 30], confidence: high, review_required: false}
+    mcu_uart0:
+      role: mcu_debug_console_candidate
+      connected_to: CP2105_SCI_standard_comm
+      signals: {tx: MCU_UART0_TXD, rx: MCU_UART0_RXD}
+      dts_mapping: {linux_node: mcu_uart0, status_candidate: okay_or_review}
+      source: {schematic_pages: [19, 30], confidence: high, review_required: false}
+    main_uart1:
+      role: external_or_aux_uart_candidate
+      signals: {tx: SoC_UART1_TXD, rx: SoC_UART1_RXD}
+      dts_mapping: {linux_node: main_uart1, status_candidate: review}
+      source: {schematic_pages: [19, 30], confidence: medium, review_required: true}
+    main_uart2:
+      role: external_debug_or_rs_interface_candidate
+      signals: {tx: SoC_UART2_TXD, rx: SoC_UART2_RXD}
+      notes:
+        - "TXD는 K19/MMC1_DAT2 -> UART2_TXD mux로 읽힘"
+        - "RXD는 W6/PRG0_PRU0_GPO9 -> UART2_RXD mux와 DEBUG page path가 직접 일치함"
+        - "초기 K18/MMC1_DAT3 해석은 page 13의 MMC block 관점이었고, 현재는 W6 기반으로 정리함"
+      dts_mapping: {linux_node: main_uart2, status_candidate: okay_with_k19_tx_and_w6_rx}
+      source: {schematic_pages: [13, 16, 30], confidence: high, review_required: false}
+
+  i2c:
+    main_i2c0:
+      signals: {scl: I2C0_SCL, sda: I2C0_SDA}
+      devices:
+        board_eeprom:
+          refdes: U14
+          part: AT24C512C-MAHM-E
+          address_7bit: 0x51
+          role: board_id_eeprom
+          dts_mapping:
+            compatible_candidate: atmel,24c512
+            node_name: eeprom@51
+            status_candidate: okay
+          source_pages: [23]
+        system_pmic:
+          refdes: U38
+          part: TPS6522053RHBR
+          address_7bit: 0x30
+          role: system_pmic
+          dts_mapping:
+            compatible_candidate: TBD_kernel_binding
+            node_name: pmic@30
+            status_candidate: okay
+          source_pages: [39]
+      source: {schematic_pages: [19, 23, 39], confidence: high, review_required: true}
+
+    main_i2c1:
+      signals: {scl: I2C1_SCL, sda: I2C1_SDA}
+      devices:
+        clock_generator:
+          refdes: U11
+          part: CDCE6214RGET
+          role: pcie_serdes_refclock_and_io_clock_generator
+          address_7bit: TBD
+          dts_mapping:
+            status_candidate: review
+            reason: "clock generator를 Linux에서 설정할지, EEPROM/default strap으로 둘지 결정 필요"
+          source_pages: [21]
+        tpm_for_test:
+          refdes: U15
+          part: AT97SC3205T-U3A1C-10
+          address_7bit_from_page: 0x29
+          role: TPM_for_TEST
+          dts_mapping:
+            compatible_candidate: TBD_tpm_i2c_binding
+            node_name: tpm@29
+            status_candidate: disabled_or_review
+          source_pages: [24]
+        temp_adc:
+          refdes: U20
+          part: ADS1115QNKSRQ1
+          address_7bit: 0x48
+          role: temperature_monitor_adc
+          channels:
+            AIN0: TEMP_AIN0_from_TMP235
+            AIN1: TEMP_AIN1_from_TMP235
+            AIN2: TEMP_AIN2_from_TMP235
+            AIN3: TEMP_AIN3_from_TMP235
+          dts_mapping:
+            compatible_candidate: ti,ads1115
+            node_name: adc@48
+            status_candidate: okay
+            child_channels_required: true
+          source_pages: [25]
+        i2c_level_translator:
+          refdes: U21
+          part: PI6ULS5V9509UEX
+          role: level_translation_or_buffer_for_temp_i2c_path
+          dts_mapping:
+            node_required: false_likely_passive
+            status_candidate: omit_unless_driver_required
+          source_pages: [25]
+      source: {schematic_pages: [19, 21, 24, 25], confidence: high, review_required: true}
+
+  ethernet:
+    cpsw3g:
+      mdio_signals: {mdc: CPSW_RGMII_MDC, mdio: CPSW_RGMII_MDIO}
+      ports:
+        port1:
+          phy_refdes: U24
+          phy_part: DP83867IRRGZ
+          phy_address_from_strap: 0
+          interface: rgmii-rxid_candidate
+          clock_input: CPSW_RGMII1_25MHz
+          reset_signal: GPIO_CPSW1_RST
+          phy_reset_net: CPSW_RGMII1_RESETn
+          interrupt_signal: CPSW_RGMII1_INTn
+          magnetics: T1_HX5149NLT
+          connector_path: VPX_P1_LAN1
+          strap_summary:
+            phy_address: "0000"
+            autoneg: enable
+            tx_clk_skew: "0ns per summary"
+            rx_clk_skew: "2.0ns per summary"
+          dts_mapping:
+            phy_node: ethernet-phy@0
+            status_candidate: okay
+            dp83867_delay_properties_need_review: true
+        port2:
+          phy_refdes: U26
+          phy_part: DP83867IRRGZ
+          phy_address_from_strap: 1
+          interface: rgmii-rxid_candidate
+          clock_input: CPSW_RGMII2_25MHz
+          reset_signal: GPIO_CPSW2_RST
+          phy_reset_net: CPSW_RGMII2_RESETn
+          interrupt_signal: CPSW_RGMII2_INTn
+          magnetics: T2_HX5149NLT
+          connector_path: VPX_P1_LAN2
+          strap_summary:
+            phy_address: "0001"
+            autoneg: enable
+            tx_clk_skew: "0ns per summary"
+            rx_clk_skew: "2.0ns per summary"
+          dts_mapping:
+            phy_node: ethernet-phy@1
+            status_candidate: okay
+            dp83867_delay_properties_need_review: true
+      interrupt_aggregation_note: "CPSW_RGMII1_INTn/CPSW_RGMII2_INTn/PMIC_INTn appear to be combined into RGMII_INTn/EXTINTN path"
+      source: {schematic_pages: [16, 27, 28, 29, 39], confidence: high, review_required: true}
+
+  usb_and_serdes:
+    usb0:
+      role: USB2_to_VPX_P1_with_DRVVBUS_power_switch
+      signals:
+        dp: USB0_TYPEC_DP
+        dm: USB0_TYPEC_DM
+        id: USB0_ID
+        drvbus: USB0_DRVBUS
+        vbus_detect: SoC_USB0_VBUS
+      power_switch:
+        refdes: U6
+        part: TPS2051BDBVR
+        control: USB0_DRVBUS
+      id_behavior:
+        grounded: host
+        floating: slave
+      dts_mapping:
+        nodes_if_enabled: [usbss0, usb0, vbus_regulator]
+        status_candidate: okay_as_usb2_otg_initial
+        linux_initial_profile:
+          usbss0:
+            properties: [ti,vbus-divider, ti,usb2-only]
+          usb0:
+            dr_mode: otg
+            maximum_speed: high-speed
+      source: {schematic_pages: [18, 43], confidence: high, review_required: false}
+    serdes0:
+      modes_mentioned: [PCIe_Gen2, USB_SuperSpeed]
+      signals: {tx_p: SERDES_TX_P, tx_n: SERDES_TX_N, rx_p: SERDES_RX_P, rx_n: SERDES_RX_N, refclk_p: SERDES_REFCLK_P, refclk_n: SERDES_REFCLK_N}
+      connected_via_switch:
+        refdes: U13
+        part: PI3DBS16222Q
+        routes: [FPGA_SERDES, VITA_SERDES]
+      dts_mapping:
+        status_candidate: TBD
+        reason: "USB3/PCIe/FPGA/VITA SerDes routing policy 결정 필요"
+      source: {schematic_pages: [18, 21, 23, 35, 43], confidence: high, review_required: true}
+
+  gpmc_fpga:
+    controller: gpmc0
+    connected_device: Artix7_FPGA_Bank15
+    interface_description: "Async Non-Multiplexed 16bit NOR Access I/F"
+    data_bus: GPMC0_AD[15:0]
+    address_bus: GPMC0_A[10:1]
+    control_signals: [GPMC0_CLK, GPMC0_CS0n, GPMC0_BE0_n, GPMC0_OEn, GPMC0_WEn, GPMC0_BE1_n]
+    bootmode_interaction: true
+    transceiver_isolation:
+      parts: [SN74AVC8T245RHL_x2]
+      reset_reference: SoC_PORz_OUT
+      note: "PU/PD가 AD[15:0]에 영향을 주지 않게 할 것"
+    dts_mapping:
+      pinctrl_required_if_used: true
+      gpmc_child_node_status: disabled_until_fpga_register_map_and_timing_defined
+      reason: "회로 연결은 명확하나 Linux 주소 window/timing/driver model이 정책 항목"
+    source: {schematic_pages: [16, 17, 33], confidence: high, review_required: true}

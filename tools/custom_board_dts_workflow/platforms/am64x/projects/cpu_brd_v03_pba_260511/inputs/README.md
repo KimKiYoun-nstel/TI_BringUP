@@ -8,6 +8,14 @@ platforms/am64x/projects/cpu_brd_v03_pba_260511/inputs/netlist/
 
 platforms/am64x/projects/cpu_brd_v03_pba_260511/inputs/schematic/
   CPU_Brd_V03_PBA_260511.pdf
+  hardware_db/
+    00_board_identity.yaml
+    01_memory_boot_media.yaml
+    02_power_tree.yaml
+    03_interfaces.yaml
+    04_reset_interrupt_gpio.yaml
+    05_dts_generation_policy.yaml
+    06_unresolved_items.yaml
 
 platforms/am64x/projects/cpu_brd_v03_pba_260511/inputs/reference_dts/linux/
   k3-am642-sk.dts
@@ -34,6 +42,9 @@ platforms/am64x/db/
 
 `schematic/` 아래 PDF는 `.NET`만으로 확정되지 않는 board intent를 확인하는 입력이다.
 현재 helper가 직접 읽지는 않지만, `board_dts_decisions.yaml`을 작성할 때의 기준 근거다.
+
+`schematic/hardware_db/`는 PDF 회로도를 미리 구조화한 reusable backdata다.
+반복 작업에서는 PDF 원문보다 이 DB를 우선 읽고, 필요할 때만 PDF 원문을 역참조한다.
 
 `reference_dts`와 `reference_headers` 복사본은 이 board project의 비교용 입력이다.
 workspace Linux/U-Boot DTS source는 여전히 primary upstream reference다.

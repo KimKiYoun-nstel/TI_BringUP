@@ -2,12 +2,14 @@
 
 &main_pmx0 {
 	uboot_uart0_early_pins_default: uboot-uart0-early-pins-default {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0230, PIN_INPUT, 0) /* (D15) UART0_RXD */
 			AM64X_IOPAD(0x0234, PIN_OUTPUT, 0) /* (C16) UART0_TXD */
 		>;
 	};
 	uboot_ospi0_early_pins_default: uboot-ospi0-early-pins-default {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0000, PIN_OUTPUT, 0) /* (N20) OSPI0_CLK */
 			AM64X_IOPAD(0x0004, PIN_INPUT, 0) /* (N21) OSPI0_LBCLKO */
@@ -27,6 +29,7 @@
 
 &wkup_pmx0 {
 	uboot_mcu_uart0_early_pins_default: uboot-mcu-uart0-early-pins-default {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_MCU_IOPAD(0x0028, PIN_INPUT, 0) /* (A9) MCU_UART0_RXD */
 			AM64X_MCU_IOPAD(0x002c, PIN_OUTPUT, 0) /* (A8) MCU_UART0_TXD */

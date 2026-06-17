@@ -6,7 +6,7 @@
 
 핵심은 다음 한 줄이다.
 
-- `.NET`, PDF 회로도, SysConfig DB, reference DTS를 순서대로 결합해 facts -> candidates -> base 층을 만든다.
+- `.NET`, schematic hardware DB, SysConfig DB, reference DTS를 순서대로 결합해 facts -> candidates -> base 층을 만든다.
 
 ## 입력 분류
 
@@ -14,7 +14,8 @@
 
 1. `platforms/<soc>/projects/<board-project>/inputs/netlist/*.NET`
 2. `platforms/<soc>/projects/<board-project>/inputs/schematic/*.pdf`
-3. `platforms/<soc>/db/*` 아래 SysConfig DB
+3. `platforms/<soc>/projects/<board-project>/inputs/schematic/hardware_db/`
+4. `platforms/<soc>/db/*` 아래 SysConfig DB
 
 ### 2. 워크플로우가 함께 읽는 참조 입력
 
@@ -59,12 +60,13 @@
 
 1. `templates/ti_board_project/`를 복사해 `platforms/<soc>/projects/<board-project>/`를 준비한다.
 2. `.NET`은 `inputs/netlist/`, PDF 회로도는 `inputs/schematic/` 아래 넣는다.
-3. SysConfig DB가 `platforms/<soc>/db/` 아래 있는지 확인한다.
-4. workspace Linux DTS/header 경로가 `paths.local.yaml`에 맞는지 확인한다.
-5. 필요하면 board decision YAML로 회로도 판단 결과를 명시한다.
-6. Stage-1 helper를 실행한다.
-7. facts report와 manual review report를 먼저 검토한다.
-8. SK/reference DTS와 비교해 base DTS를 보완한다.
+3. 반복 작업용 schematic backdata가 있으면 `inputs/schematic/hardware_db/` 아래 정리한다.
+4. SysConfig DB가 `platforms/<soc>/db/` 아래 있는지 확인한다.
+5. workspace Linux DTS/header 경로가 `paths.local.yaml`에 맞는지 확인한다.
+6. 필요하면 board decision YAML로 회로도 판단 결과를 명시한다.
+7. Stage-1 helper를 실행한다.
+8. facts report와 manual review report를 먼저 검토한다.
+9. SK/reference DTS와 비교해 base DTS를 보완한다.
 
 ## 실행 명령
 

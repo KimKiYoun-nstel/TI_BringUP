@@ -1,0 +1,161 @@
+power_tree:
+  input:
+    rail: +5V_P0
+    source: VPX_or_external_main_input
+    source_pages: [38, 42]
+
+  main_3v3:
+    refdes: U37
+    part: LM61460AASQRJRRQ1
+    function: "5V to 3.3V / 6A buck regulator"
+    input: +5V_P0
+    output: VCC3V3SYS_EXT
+    control:
+      enable_signal: LM61460_EN
+      power_good_signal: LM61460_PG
+    dts_role:
+      regulator_node_candidate: true
+      likely_always_on: true
+      note: "Linux가 enable을 직접 제어하지 않더라도 downstream supply dependency 표현을 위해 fixed-regulator 또는 regulator-always-on 후보"
+    source:
+      schematic_pages: [38]
+      evidence: ["POWER 5V MAIN INPUT page: LM61460, 3.3V/6A, LM61460_EN, LM61460_PG"]
+      confidence: high
+      review_required: true
+
+  system_pmic:
+    refdes: U38
+    part: TPS6522053RHBR
+    family_note: "회로도 note는 TPS65220 default I2C address를 설명함"
+    bus: main_i2c0
+    i2c_address_7bit: 0x30
+    input: VCC3V3SYS_EXT
+    control_signals:
+      i2c_scl: I2C0_SCL
+      i2c_sda: I2C0_SDA
+      standby: PMIC_STBY
+      reset_status_input: SoC_RESETSTATz
+      vsel_sd: VSEL_SD_SWITCH
+      power_good: PMIC_PGOOD
+      interrupt: PMIC_INTn
+      load_switch_enable: TPS22965_EN
+      pmic_enable: TPS6522053_EN
+    outputs:
+      buck1:
+        rail: VDD_CORE
+        voltage: 0.75V
+        current: 3.5A
+        consumers: [AM6412_core]
+      buck2:
+        rail: VCC1V8
+        voltage: 1.8V
+        current: 2A
+        consumers: [AM6412_io_analog, eMMC_vccq, OSPI_1v8, clocks]
+      buck3:
+        rail: VDD_LPDDR4
+        voltage: 1.1V
+        current: 2A
+        consumers: [LPDDR4]
+      ldo1:
+        rail: VDDSHV_SD_IO_PMIC
+        voltage_selectable: [3.3V, 1.8V]
+        current: 400mA
+        vsel_sd_behavior:
+          high: 3.3V
+          low: 1.8V
+        consumers: [VDDSHV_SD_IO]
+      ldo2:
+        rail: VDDAR_CORE
+        voltage: 0.85V
+        current: 400mA
+        consumers: [AM6412_array_core]
+      ldo3:
+        rail: VDDA_1V8
+        voltage: 1.8V
+        current: 300mA
+        consumers: [AM6412_analog]
+      ldo4:
+        rail: VDD_PHY_2V5
+        voltage: 2.5V
+        current: 300mA
+        consumers: [DP83867_PHY1, DP83867_PHY2]
+    dts_role:
+      regulator_node_required: true
+      compatible: TBD_kernel_binding
+      interrupt_parent: TBD_due_to_aggregation
+      constraints_review_required: true
+      always_on_or_boot_on_candidates:
+        - VDD_CORE
+        - VCC1V8
+        - VDD_LPDDR4
+        - VDDAR_CORE
+        - VDDA_1V8
+        - VDD_PHY_2V5
+    source:
+      schematic_pages: [39]
+      evidence:
+        - "POWER 5V PMIC page: DC/DC BUCK 3CH, LDO 4CH, 0x30 7-bit address"
+        - "BUCK1 0.75V/3.5A, BUCK2 1.8V/2A, BUCK3 1.1V/2A, LDO1 3.3V or 1.8V/400mA, LDO2 0.85V/400mA, LDO3 1.8V/300mA, LDO4 2.5V/300mA"
+      confidence: high
+      review_required: true
+
+  etc_power:
+    vcc_3v3_sys_load_switch:
+      rail: VCC_3V3_SYS
+      controlled_by: TPS22965_EN
+      note: "3V3 LOAD SWITCH. FPGA에서 컨트롤하도록 설계됨"
+      dts_role:
+        fixed_or_gpio_regulator_candidate: true
+        gpio_provider: FPGA_or_TBD
+        review_required: true
+      source_pages: [32, 39, 40]
+    ethernet_phy_core:
+      rail: VDD_1V0
+      regulator: LDO_1.0V_500mA
+      consumers: [DP83867_PHY1, DP83867_PHY2]
+      dts_role:
+        regulator_node_candidate: true
+        likely_always_on: true
+      source_pages: [27, 28, 40]
+    efuse_vpp:
+      rail: VPP_1V8
+      regulator: LDO_1.8V_500mA
+      enable_signal: VPP_LDO_EN
+      control_owner: FPGA_via_GPMC_register
+      strict_sequence:
+        - "Board power sequence complete; VPP must remain 0V initially"
+        - "Software load"
+        - "Set FPGA GPMC register VPP_LDO_EN = 1"
+        - "Program eFuse/OTP"
+        - "Verify then set VPP_LDO_EN = 0"
+      dts_role:
+        expose_to_linux: false_by_default
+        reason: "VPP는 아무 때나 공급하면 안 되며 OTP 프로그래밍 절차에서만 enable"
+      source:
+        schematic_pages: [40]
+        confidence: high
+        review_required: true
+
+  fpga_power:
+    regulators:
+      power_modules: [U35, U36]
+      part: LTM4668AEY#PBF
+      input: +5V_P0
+      rails:
+        - {rail: +1.0V_FPGA, role: "VCCINT/VCCBRAM/MGTAVCC"}
+        - {rail: +1.2V_FPGA, role: "MGTAVTT"}
+        - {rail: +1.8V_FPGA, role: "VCCAUX"}
+        - {rail: +3.3V_FPGA, role: "VCCO"}
+        - {rail: +1.0V_GTP, role: "GTP auxiliary/core rail"}
+      sequence:
+        - "1. VCCINT, VCCBRAM, MGTAVCC (1.0V)"
+        - "2. MGTAVTT (1.2V)"
+        - "3. VCCAUX (1.8V)"
+        - "4. VCCO (3.3V)"
+    dts_role:
+      linux_visible_regulators: false_by_default
+      reason: "일반 Linux DTS보다는 FPGA bring-up/management policy 영역"
+    source:
+      schematic_pages: [36, 37]
+      confidence: high
+      review_required: false

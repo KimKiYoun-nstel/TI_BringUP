@@ -1,0 +1,104 @@
+reset_and_interrupts:
+  soc_reset_core:
+    mcu_porz:
+      signal: MCU_PORz
+      description: "MCU/Main POR domain reset input"
+      source_pages: [19, 20]
+    soc_porz_out:
+      signal: SoC_PORz_OUT
+      description: "SoC POR status/output used by peripheral reset logic"
+      consumers: [OSPI_reset_logic, GPMC_transceiver_isolation, Ethernet_PHY_reset_logic, FPGA_bank14_logic]
+      source_pages: [14, 17, 19, 27, 28, 32]
+    soc_resetstatz:
+      signal: SoC_RESETSTATz
+      description: "SoC reset status signal"
+      consumers: [eMMC_reset_logic, PMIC_logic, clock_logic, FPGA_bank14_logic]
+      source_pages: [19, 21, 26, 32, 39]
+    soc_reset_reqz:
+      signal: SoC_RESET_REQz
+      description: "internal error 발생 시 외부에 system reset 요청"
+      source_pages: [19, 32]
+    sysresetn:
+      signal: SYSRESETn
+      description: "system reset signal generated from system reset/front/VITA path"
+      source_pages: [20, 32, 42]
+    p0_sysresetn:
+      signal: P0_SYSRESETn
+      description: "VITA P0 SYSRESET# input/output path"
+      source_pages: [20, 42]
+
+  reset_outputs_to_devices:
+    ospi_flash:
+      control_signal: GPIO_OSPI_RSTn
+      target_signal: OSPI_RSTn
+      target_device: U2_MX66UM1G45GXDR00-T
+      active: low
+      provider_candidate: gpio0_13_from_delivery_pinmux
+      dts_mapping: {property: reset-gpios, provider_review_required: true}
+      source_pages: [14]
+    emmc:
+      control_signal: GPIO_eMMC_RSTn
+      target_signal: MMC0_RSTn
+      target_device: U22_MKEMF032GT2E-IE
+      active: low
+      provider_candidate: TBD
+      dts_mapping: {property: reset-gpios_or_mmc_pwrseq, provider_review_required: true}
+      source_pages: [26]
+    ethernet_phy1:
+      control_signal: GPIO_CPSW1_RST
+      target_signal: CPSW_RGMII1_RESETn
+      target_device: U24_DP83867IRRGZ
+      active: low
+      provider_candidate: FPGA_bank14_or_TBD
+      dts_mapping: {property: reset-gpios, provider_review_required: true}
+      source_pages: [27, 32]
+    ethernet_phy2:
+      control_signal: GPIO_CPSW2_RST
+      target_signal: CPSW_RGMII2_RESETn
+      target_device: U26_DP83867IRRGZ
+      active: low
+      provider_candidate: FPGA_bank14_or_TBD
+      dts_mapping: {property: reset-gpios, provider_review_required: true}
+      source_pages: [28, 32]
+
+  interrupt_inputs:
+    aggregate_extintn:
+      signal: RGMII_INTn
+      soc_input: EXTINTN
+      soc_pin_or_ball: C19
+      sources: [PMIC_INTn, CPSW_RGMII1_INTn, CPSW_RGMII2_INTn]
+      schematic_note: "RGMII & PMIC INTERRUPT Pin setting: GPIO1_70 / Go to Block C, # C19, EXTINTN"
+      dts_implication:
+        - "PMIC와 PHY interrupt를 개별 interrupts 속성으로 바로 넣으면 회로와 맞지 않을 수 있음"
+        - "OR/wired/logic aggregation 방식 확인 후 interrupt-controller/gpio-keys/polling 등 결정"
+      source_pages: [19, 27, 28, 39]
+      confidence: medium
+      review_required: true
+    ospi_int:
+      signal: OSPI_INTn
+      source_device: U2_MX66UM1G45GXDR00-T
+      provider_candidate: gpio0_14_from_delivery_pinmux
+      dts_mapping: {property: interrupts_or_interrupt-gpios, required: optional}
+      source_pages: [14]
+      review_required: true
+    tpm_pirq:
+      signal: PIRQn
+      source_device: U15_AT97SC3205T
+      provider_candidate: TBD
+      dts_mapping: {property: interrupts, required_if_tpm_enabled: true}
+      source_pages: [24]
+      review_required: true
+
+  user_test_leds:
+    test_led1:
+      signal: TEST_LED1
+      provider_candidate: main_gpio0_60_from_delivery_pinmux
+      active: review
+      source_pages: [16, 19]
+      dts_mapping: {node: gpio-leds/test-led1, status_candidate: okay}
+    test_led2:
+      signal: TEST_LED2
+      provider_candidate: mcu_gpio0_5_from_delivery_pinmux
+      active: review
+      source_pages: [19]
+      dts_mapping: {node: gpio-leds/test-led2, status_candidate: okay}

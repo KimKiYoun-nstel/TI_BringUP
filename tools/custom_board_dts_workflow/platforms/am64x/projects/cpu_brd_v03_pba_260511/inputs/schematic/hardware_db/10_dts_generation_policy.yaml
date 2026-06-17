@@ -1,0 +1,68 @@
+dts_generation_policy:
+  guiding_rule: "회로도 fact를 그대로 DTS에 복사하지 말고 Linux/U-Boot/SPL 소유권과 boot phase에 맞게 변환한다."
+
+  linux_dts_initial:
+    add_or_keep:
+      - memory@80000000
+      - aliases for serial0/mmc0/spi0/ethernet0/ethernet1
+      - main_uart0 console
+      - main_i2c0 with eeprom@51 and pmic@30 placeholder
+      - main_i2c1 with adc@48; TPM disabled/review
+      - sdhci0 eMMC okay
+      - sdhci1 disabled
+      - ospi0 okay with single-width initial profile
+      - cpsw3g ports and MDIO PHY nodes
+      - gpio-leds for SoC-controlled TEST_LED1/TEST_LED2 only
+    defer_or_disable:
+      - main_uart2 until pin path reviewed
+      - usb0/serdes0 until USB2/USB3/PCIe policy selected
+      - gpmc0 child node until FPGA timing/map/ownership defined
+      - FPGA internal LEDs/GPIO unless FPGA driver exists
+      - VPP regulator exposure unless eFuse programming workflow is explicitly implemented
+
+  uboot_spl_initial:
+    boot_critical:
+      - main_uart0
+      - ospi0 single-spi fallback
+      - sdhci0 eMMC
+      - pmic/regulator if SPL configures TPS6522053
+    add_bootph:
+      - ospi0
+      - ospi flash@0
+      - sdhci0
+      - main_uart0
+      - pinctrl required for those devices
+    avoid:
+      - USB/SERDES until role fixed
+      - GPMC FPGA access before timing fixed
+
+  reserved_memory:
+    recommended_action: "SK-AM64B reference의 OP-TEE/R5F carveout baseline을 복사 후보로 두고, DDR=2GB 확인 후 적용"
+    not_from_schematic: true
+    requires_policy_review: true
+
+  ospi:
+    hardware_fact: "8-bit Octal wired with DQS"
+    initial_dts_policy: "single-bit safe profile"
+    target_later: "octal/DTR enable after Boot ROM/SPL root cause resolved"
+    partitions: "TBD; product boot layout decision"
+
+  emmc:
+    status: "primary non-removable storage candidate"
+    rootfs_candidate: true
+    boot_candidate: true
+    supply_properties: "must be connected to regulator nodes once power tree binding is fixed"
+
+  ethernet:
+    status: "enable CPSW3G and two DP83867 PHYs"
+    irq_policy: "do not blindly assign individual PHY IRQs until aggregation path is understood"
+    reset_policy: "do not assign reset-gpios until provider is confirmed; signals may be FPGA-controlled"
+    dp83867_delay_policy: "strap summary says RX delay/skew; validate rgmii-id/rxid/txid and ti,rx/tx-internal-delay properties against actual driver binding"
+
+  pmic:
+    status: "add skeleton but compatible/regulator constraints require kernel binding review"
+    binding_review_required: true
+
+  gpmc_fpga:
+    status: "pinctrl fact exists; functional node deferred"
+    required_before_enable: [gpmc_timings, fpga_register_map, ownership, reset_sequence]

@@ -2,6 +2,8 @@
 
 이 디렉터리에는 board 회로도 PDF를 둔다.
 
+현재 project는 `hardware_db/` 아래에 PDF 기반 semantic DB도 함께 둔다.
+
 권장 규칙:
 
 - 원본 PDF는 수정하지 않는다.
@@ -23,3 +25,5 @@ inputs/schematic/
 - GPIO/alt function 선택
 - external device 주소/목적 확인
 - USB/SERDES/Ethernet/MMC 같은 board policy 판단
+
+반복 작업에서는 `hardware_db/`를 우선 읽고, PDF는 원천 증적 확인이 필요할 때만 직접 본다.

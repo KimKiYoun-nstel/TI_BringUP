@@ -1,0 +1,70 @@
+unresolved_items:
+  - id: pmic_linux_binding
+    severity: high
+    area: power
+    description: "TPS6522053RHBR/TPS65220 계열을 현재 Linux kernel에서 어떤 compatible과 regulator binding으로 표현할지 확인 필요"
+    source_pages: [39]
+    affects: [pmic_node, regulator_nodes, vmmc_supply, vqmmc_supply, vdd_phy_supply]
+
+  - id: reset_gpio_provider
+    severity: high
+    area: reset_gpio
+    description: "GPIO_OSPI_RSTn, GPIO_eMMC_RSTn, GPIO_CPSW1_RST, GPIO_CPSW2_RST가 SoC GPIO인지 FPGA 제어 신호인지 확정 필요"
+    source_pages: [14, 26, 27, 28, 32]
+    affects: [ospi_reset_gpios, emmc_reset_gpios, phy_reset_gpios]
+
+  - id: interrupt_aggregation_model
+    severity: high
+    area: interrupt
+    description: "PMIC_INTn, CPSW_RGMII1_INTn, CPSW_RGMII2_INTn가 RGMII_INTn/EXTINTN C19 경로로 묶이는 구조를 Linux에서 어떻게 모델링할지 결정 필요"
+    source_pages: [19, 27, 28, 39]
+    affects: [pmic_interrupts, ethernet_phy_interrupts]
+
+  - id: ospi_octal_boot_root_cause
+    severity: high
+    area: boot
+    description: "회로상 OSPI octal/DQS 연결이 있으나 Boot ROM octal boot 실패. single fallback 유지하면서 원인 분석은 별도 과제"
+    source_pages: [14, 17]
+    affects: [uboot_spl_ospi_profile, linux_ospi_flash_profile]
+
+  - id: ospi_partition_layout
+    severity: medium
+    area: boot_storage
+    description: "OSPI flash partition layout은 회로도가 아니라 제품 boot layout 정책. tiboot3/tispl/u-boot/env/rootfs 위치 결정 필요"
+    source_pages: [14]
+    affects: [fixed_partitions]
+
+  - id: reserved_memory_final_layout
+    severity: high
+    area: memory
+    description: "OP-TEE/R5F/SHM/FPGA DMA carveout 정책 확정 필요. 회로도에서 직접 나오지 않음"
+    source_pages: []
+    affects: [reserved_memory, remoteproc, rpmsg, shm]
+
+  - id: usb_serdes_mode
+    severity: medium
+    area: usb_pcie_serdes
+    description: "SERDES0를 PCIe Gen2, USB SuperSpeed, FPGA/VITA SerDes 중 어떤 모드로 쓸지 결정 필요"
+    source_pages: [18, 23, 35, 43]
+    affects: [serdes_ln_ctrl, serdes_wiz0, usbss0, pcie0]
+
+  - id: gpmc_fpga_driver_model
+    severity: high
+    area: fpga_gpmc
+    description: "FPGA Bank15 GPMC 연결에 대한 Linux driver model, timing, address window, ownership 결정 필요"
+    source_pages: [17, 33]
+    affects: [gpmc0_child_node, custom_fpga_driver]
+
+  - id: tpm_for_test_enable_policy
+    severity: medium
+    area: i2c
+    description: "TPM U15는 for TEST 용도. production Linux DTS에서 enable할지 결정 필요"
+    source_pages: [24]
+    affects: [tpm_i2c_node]
+
+  - id: cdce6214_clock_control_policy
+    severity: medium
+    area: clock
+    description: "CDCE6214 clock generator를 Linux에서 제어할지 static clock으로 둘지 결정 필요"
+    source_pages: [21]
+    affects: [clock_generator_node, serdes_refclk]

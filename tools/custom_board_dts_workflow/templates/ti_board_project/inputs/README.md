@@ -8,6 +8,7 @@
 inputs/
   netlist/
   schematic/
+    hardware_db/
   reference_dts/
     linux/
     uboot/
