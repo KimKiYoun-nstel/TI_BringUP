@@ -24,7 +24,8 @@
 
 ### 4. eMMC supply/reset 미완성
 
-- 회로도 근거: U22 MKEMF032GT2E-IE, MMC0 8-bit, VCC_3V3_SYS, VCC1V8, GPIO_eMMC_RSTn.
+- DB 기준 실장품: U22 `MX52LM04A11XSI`.
+- 회로도 26페이지 표기: `MKEMF032GT2E-IE`, MMC0 8-bit, VCC_3V3_SYS, VCC1V8, GPIO_eMMC_RSTn.
 - 현재 delivery: `sdhci0 okay`, `bus-width=8`, `non-removable`만 존재.
 - 조치: vmmc/vqmmc/reset 관련 binding 검토 후 추가.
 

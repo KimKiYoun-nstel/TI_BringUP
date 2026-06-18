@@ -39,7 +39,7 @@ reset_and_interrupts:
     emmc:
       control_signal: GPIO_eMMC_RSTn
       target_signal: MMC0_RSTn
-      target_device: U22_MKEMF032GT2E-IE
+      target_device: U22_MX52LM04A11XSI
       active: low
       provider_candidate: TBD
       dts_mapping: {property: reset-gpios_or_mmc_pwrseq, provider_review_required: true}

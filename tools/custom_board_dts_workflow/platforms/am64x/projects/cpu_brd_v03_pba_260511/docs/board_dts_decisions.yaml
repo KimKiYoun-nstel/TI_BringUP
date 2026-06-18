@@ -199,7 +199,11 @@ controller_decisions:
     non_removable: true
     device: eMMC
     device_ref: U22
-    device_part: MKEMF032GT2E-IE
+    device_part: MX52LM04A11XSI
+    schematic_part_reference: MKEMF032GT2E-IE
+    assembly_override:
+      reason: "MKEMF032GT2E-IE 수급 문제로 실제 보드는 MX52LM04A11XSI로 실장"
+      source: "사용자 전달 실장 정보 (2026-06-18)"
     evidence:
       - page: 13
         title: "SoC MMC"
@@ -209,7 +213,8 @@ controller_decisions:
       - page: 26
         title: "eMMC"
         notes:
-          - "U22 is MKEMF032GT2E-IE eMMC device."
+          - "Schematic page 26 labels U22 as MKEMF032GT2E-IE."
+          - "Actual assembled board uses MX52LM04A11XSI per user-provided assembly information."
           - "MMC0 DAT0..DAT7, DS, CMD, CLK nets route to eMMC."
     dts_hints:
       - "status = okay"

@@ -1,0 +1,557 @@
+schema_version: '0.3'
+coverage_goal: PDF-to-DB page-level 1:1 traceability for DTS-purpose information, excluding .NET connectivity details by user request
+coverage_summary:
+  pdf_pages_total: 45
+  pdf_pages_covered: 45
+  page_coverage_percent: 100
+  dts_relevance_classified_pages: 45
+  unclassified_pages: 0
+pages:
+- page: 1
+  title: DESIGN SUMMARY
+  dts_relevance: dts_relevant
+  pdf_text_chars: 1780
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'Board identity and primary BOM: AM6412BSCGHAALV, LPDDR4, OSPI, eMMC, DP83867IRRGZ, AT97SC3205T, XC7A15T.'
+  - Page index is the master page coverage source.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 1
+- page: 2
+  title: DESIGN HISTORY
+  dts_relevance: indirect_or_supporting
+  pdf_text_chars: 1412
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - Revision changes include component substitutions and nets added; DTS impact is indirect except changed parts/nets must be treated as latest
+    revision.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 2
+- page: 3
+  title: BLOCK DIAGRAM
+  dts_relevance: dts_relevant
+  pdf_text_chars: 527
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'Block diagram identifies system-level data paths: AM6412 to DDR, OSPI, eMMC, Ethernet PHY, FPGA, TPM, temp monitor, PMIC, UART/USB debug,
+    VPX.'
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 3
+- page: 4
+  title: POWER DIAGRAM
+  dts_relevance: indirect_or_supporting
+  pdf_text_chars: 527
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - Power diagram visually summarizes rail producers/consumers; captured as power-tree source, but exact rail graph should be cross-checked from
+    pages 37-40.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 4
+- page: 5
+  title: POWER SEQUENCE
+  dts_relevance: indirect_or_supporting
+  pdf_text_chars: 528
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - Power sequence shows rail order and reset release timing; DTS implication is boot-on/always-on regulator ordering, not direct Linux sequencing.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 5
+- page: 6
+  title: GPIO MAPPING
+  dts_relevance: indirect_or_supporting
+  pdf_text_chars: 526
+  db_coverage_status: covered
+  conversion_completeness: complete_no_additional_dts_fact_in_pdf_page
+  observable_facts_for_dts:
+  - GPIO mapping page is blank; no PDF facts to extract except absence of mapping table.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 6
+- page: 7
+  title: I2C TREE
+  dts_relevance: indirect_or_supporting
+  pdf_text_chars: 547
+  db_coverage_status: covered
+  conversion_completeness: complete_no_additional_dts_fact_in_pdf_page
+  observable_facts_for_dts:
+  - I2C TREE page says content to be added and I2C ADDRESS; actual I2C device/address facts must come from pages 23-25 and 39.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 7
+- page: 8
+  title: BLANK
+  dts_relevance: not_dts_relevant_blank
+  pdf_text_chars: 524
+  db_coverage_status: covered
+  conversion_completeness: complete_no_additional_dts_fact_in_pdf_page
+  observable_facts_for_dts:
+  - Blank page; no DTS-relevant facts.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 8
+- page: 9
+  title: BLANK
+  dts_relevance: not_dts_relevant_blank
+  pdf_text_chars: 524
+  db_coverage_status: covered
+  conversion_completeness: complete_no_additional_dts_fact_in_pdf_page
+  observable_facts_for_dts:
+  - Blank page; no DTS-relevant facts.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 9
+- page: 10
+  title: SoC POWER & GND
+  dts_relevance: dts_relevant
+  pdf_text_chars: 4320
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'SoC power pins and rails listed: VDD_CORE, VDD_LPDDR4, VDDAR_CORE, SoC_DVDD3V3, SoC_DVDD1V8, VDDSHV_SD_IO, VDD_DLL_MMC0, VDD_MMC1, VDDA rails.'
+  - ADC0_REFP/REFN D-Note captured; ADC reference is hardware fact, not a Linux thermal sensor node by itself.
+  - MMCSD1_HOST_CONTROL2 V1P8_SIGNAL_ENA note captured; relevant only if MMC1/SDIO is used.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 10
+- page: 11
+  title: SoC ANALOG POWER & DECAP
+  dts_relevance: dts_relevant
+  pdf_text_chars: 3553
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - SoC analog/core rail decoupling and rail names captured; DTS impact mostly regulator supply naming and always-on constraints.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 11
+- page: 12
+  title: SoC LPDDR4
+  dts_relevance: dts_relevant
+  pdf_text_chars: 3109
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - AM6412 DDR0 signal side and LPDDR4 signal groups captured; DTS impact is memory node only, DDR training belongs to bootloader DDR config.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 12
+- page: 13
+  title: SoC MMC
+  dts_relevance: dts_relevant
+  pdf_text_chars: 1227
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - MMC0 is eMMC 8-bit. MMC1 SD Card 4-bit is Not Used. SoC UART2 TXD note points to page 30.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 13
+- page: 14
+  title: SoC OSPI
+  dts_relevance: dts_relevant
+  pdf_text_chars: 2305
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - OSPI flash is Macronix MX66UM1G45GXDR00-T, capacity changed 512Mb to 1Gb, Infineon to Macronix.
+  - OSPI is wired DQ0-DQ7 plus DQS, CLK, CSn, RESET#, INT#.
+  - 'D-Note: external loopback clock series resistors DNI when DQS is connected.'
+  - GPIO0_13/GPIO0_14 labels imply GPIO-based reset/int candidates, requiring mapping cross-check.
+  external_information_not_in_pdf:
+  - Boot ROM octal failure root cause
+  - OSPI partition layout
+  - Linux spi-nor exact performance profile
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 14
+- page: 15
+  title: SoC JTAG
+  dts_relevance: dts_relevant
+  pdf_text_chars: 768
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - SoC JTAG pins EMU0/1, TCK/TDI/TDO/TMS/TRSTN; DTS impact low, debug hardware path to VPX/JTAG.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 15
+- page: 16
+  title: SoC PRG (RGMII)
+  dts_relevance: dts_relevant
+  pdf_text_chars: 4270
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - CPSW RGMII1/RGMII2 signal breakout, MDIO/MDC shared.
+  - RGMII/PMIC interrupt pin setting note points to EXTINTN/C19.
+  - PMIC_STBY and VSEL_SD_SWITCH are exposed from SoC PRG pins.
+  - GPMC address[10:1] and UART2 RXD are muxed/represented here.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 16
+- page: 17
+  title: SoC GPMC BUS / BOOTMODE
+  dts_relevance: dts_relevant
+  pdf_text_chars: 4012
+  db_coverage_status: covered
+  conversion_completeness: pdf_facts_extracted_policy_or_binding_still_external
+  observable_facts_for_dts:
+  - GPMC0_AD[15:0] are used as 16-bit boot mode straps and as FPGA async non-multiplexed 16-bit NOR access interface.
+  - 'Bootmode values are printed: BOOTMODE0=1,1=1,2=0,3=1,4=0,5=0,6=0,7=0(OSPI CS0n),8=1(internal clock), 9/13/14/15 reserved, 10/11/12 none.'
+  - SN74AVC8T245 transceiver isolation after reset; DTS must not enable GPMC blindly without FPGA memory-map/timing policy.
+  external_information_not_in_pdf:
+  - FPGA GPMC register map
+  - GPMC timing parameters
+  - Linux/R5F/FPGA ownership policy
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 17
+- page: 18
+  title: SoC USB & SERDES
+  dts_relevance: dts_relevant
+  pdf_text_chars: 2379
+  db_coverage_status: covered
+  conversion_completeness: pdf_facts_extracted_policy_or_binding_still_external
+  observable_facts_for_dts:
+  - USB0 DP/DM, VBUS detect/divider, USB0_ID, USB0_DRVVBUS with TPS2051B power switch.
+  - USB0_ID GND=host, float=slave note captured.
+  - SERDES0 may be PCIe Gen2 or USB SuperSpeed; future PCIe switch PI7C9X2G304EV note.
+  - DTS mode remains policy because schematic shows capability, not final product mode.
+  external_information_not_in_pdf:
+  - Final USB vs PCIe SerDes product mode
+  - Linux connector/role policy
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 18
+- page: 19
+  title: SoC SYSTEM & I2C & UART
+  dts_relevance: dts_relevant
+  pdf_text_chars: 3001
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'EXTINTN C19 is used for RGMII & PMIC interrupt setting: GPIO1_70 note.'
+  - I2C0/I2C1, UART0/1, MCU_UART0/1, reset status/request pins, TEST_LED1/2 are shown.
+  - SoC reset-status and MCU reset-domain explanatory notes captured.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 19
+- page: 20
+  title: SYSTEM RESET
+  dts_relevance: dts_relevant
+  pdf_text_chars: 1328
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'System reset and power-on reset: SYSRESETn, MCU_PORz, PMIC_PGOOD, P0_SYSRESETn, MAX6816 debounce, gates.'
+  - DTS impact is mostly reset-controller/GPIO documentation; SoC reset itself is board hardware.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 20
+- page: 21
+  title: SYSTEM CLOCK
+  dts_relevance: dts_relevant
+  pdf_text_chars: 2797
+  db_coverage_status: covered
+  conversion_completeness: pdf_facts_extracted_policy_or_binding_still_external
+  observable_facts_for_dts:
+  - 'System clock: LMK1C1106 25MHz fanout to MCU_CLK_25MHz, CPSW PHY clocks, FPGA_CLK_25MHz.'
+  - CDCE6214RGET HCSL 100MHz clock generator on I2C1 with outputs to SERDES/FPGA/IO board refs.
+  - GPIO1-4 output enable notes captured; Linux clock control decision requires policy/binding.
+  external_information_not_in_pdf:
+  - Whether CDCE6214 is controlled by Linux clock framework or left hardware-default
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 21
+- page: 22
+  title: LPDDR4
+  dts_relevance: dts_relevant
+  pdf_text_chars: 3539
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - LPDDR4 U12 MT53E1G16D1ZW-046 AIT-C, 16Gbit/2GByte, 1Gx16, package/revision change notes.
+  - 'DTS memory size fact: 2GB candidate; DDR configuration remains bootloader asset.'
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 22
+- page: 23
+  title: PCIe Channel Exchange Switch / I2C0 EEPROM
+  dts_relevance: dts_relevant
+  pdf_text_chars: 1842
+  db_coverage_status: covered
+  conversion_completeness: pdf_facts_extracted_policy_or_binding_still_external
+  observable_facts_for_dts:
+  - I2C0 Board ID EEPROM U14 AT24C512C-MAHM-E address 0x51, write 0xA2/read 0xA3.
+  - PCIe/SERDES channel switch U13 PI3DBS16222Q between AM6412, FPGA, and VITA path.
+  external_information_not_in_pdf:
+  - Final PCIe/SERDES channel switch policy
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 23
+- page: 24
+  title: I2C1 TPM (for TEST)
+  dts_relevance: dts_relevant
+  pdf_text_chars: 1741
+  db_coverage_status: covered
+  conversion_completeness: pdf_facts_extracted_policy_or_binding_still_external
+  observable_facts_for_dts:
+  - I2C1 TPM U15 AT97SC3205T-U3A1C-10 address 0x29, reset pulse width minimum 2us, RC delay 2ms.
+  - TPM is marked for TEST; DTS status should follow product policy.
+  external_information_not_in_pdf:
+  - Whether TEST TPM is enabled in production Linux DTS
+  - Kernel compatible binding check
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 24
+- page: 25
+  title: I2C1 Temperature Monitor
+  dts_relevance: dts_relevant
+  pdf_text_chars: 1671
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'I2C1 temperature monitor: ADS1115QNKSRQ1 address 0x48 with TMP235A2DBZR sensors on AIN0-3 through PI6ULS5V9509UEX level translator.'
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 25
+- page: 26
+  title: eMMC
+  dts_relevance: dts_relevant
+  pdf_text_chars: 3060
+  db_coverage_status: covered
+  conversion_completeness: pdf_facts_extracted_policy_or_binding_still_external
+  observable_facts_for_dts:
+  - 'eMMC U22 MKEMF032GT2E-IE, MMC0 DAT0-7, DS, CMD, CLK, RST_N; part/capacity history: 4GB->32GB latest note.'
+  - GPIO_eMMC_RSTn/MMC0_RSTn reset logic shown; reset provider must be mapped with netlist or GPIO page.
+  external_information_not_in_pdf:
+  - Actual assembled-board eMMC override is MX52LM04A11XSI; schematic page 26 still labels U22 as MKEMF032GT2E-IE
+  - Exact Linux reset GPIO provider and eMMC reset binding application
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 26
+- page: 27
+  title: ETHERNET PHY1
+  dts_relevance: dts_relevant
+  pdf_text_chars: 3798
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - Ethernet PHY1 U24 DP83867IRRGZ, RGMII1, shared MDIO/MDC, 25MHz clock, reset GPIO_CPSW1_RST, interrupt CPSW_RGMII1_INTn/RGMII_INTn, magnetics
+    to LAN1 VPX.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 27
+- page: 28
+  title: ETHERNET PHY2
+  dts_relevance: dts_relevant
+  pdf_text_chars: 3630
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - Ethernet PHY2 U26 DP83867IRRGZ, RGMII2, shared MDIO/MDC, 25MHz clock, reset GPIO_CPSW2_RST, interrupt CPSW_RGMII2_INTn, magnetics to LAN2
+    VPX.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 28
+- page: 29
+  title: ETHERNET PHY STRAP
+  dts_relevance: dts_relevant
+  pdf_text_chars: 3353
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'PHY strap summaries: PHY1 address 0000, PHY2 address 0001; autoneg enable; TX skew 001 listed as 0ns; RX skew 000 listed as 2.0ns; mirror
+    disabled.'
+  - LED strap mode notes captured.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 29
+- page: 30
+  title: DEBUG (UART to USB)
+  dts_relevance: dts_relevant
+  pdf_text_chars: 2888
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'CP2105 debug USB bridge: SoC UART0 enhanced comm, MCU UART0 standard comm.'
+  - UART to RS232 via MAX3222 and UART to RS422 via MAX33048 paths to VPX.
+  - SoC UART1/UART2 signals are present but final Linux enable policy depends on intended external use.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 30
+- page: 31
+  title: FPGA CONFIG
+  dts_relevance: dts_relevant
+  pdf_text_chars: 2118
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'FPGA config: Artix-7 XC7A15T, config Bank0 3.3V, JTAG, QSPI NOR flash MX25L25645GZNI, DONE/PROGRAM status LEDs, no used notes.'
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 31
+- page: 32
+  title: FPGA BANK14
+  dts_relevance: dts_relevant
+  pdf_text_chars: 3429
+  db_coverage_status: covered
+  conversion_completeness: pdf_facts_extracted_policy_or_binding_still_external
+  observable_facts_for_dts:
+  - 'FPGA Bank14 control/status: GEO address, SoC_PORz_OUT, SoC_RESET_REQz, SoC_RESETSTATz, PMIC_PGOOD, SYSRESETn, TPS22965_EN, VPP_LDO_EN, GPIO_CPSW1_RST,
+    GPIO_CPSW2_RST, CDC_OE1/OE4, LM61460_EN/PG, TPS6522053_EN.'
+  - This page is key for GPIO/reset provider semantics; many signals are FPGA-mediated, not direct SoC Linux GPIO.
+  external_information_not_in_pdf:
+  - Which FPGA-controlled signals are driven by firmware/FPGA logic before Linux probes
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 32
+- page: 33
+  title: FPGA BANK15
+  dts_relevance: dts_relevant
+  pdf_text_chars: 2514
+  db_coverage_status: covered
+  conversion_completeness: pdf_facts_extracted_policy_or_binding_still_external
+  observable_facts_for_dts:
+  - FPGA Bank15 maps GPMC data[15:0], address[10:1], and commands CLK, CS0n, BE0_n, OEn, WEn, BE1_n to FPGA.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 33
+- page: 34
+  title: FPGA BANK34
+  dts_relevance: dts_relevant
+  pdf_text_chars: 2205
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - FPGA Bank34 GPIO 8 Port to VPX P2, FPGA_CLK_25MHz, test LEDs low active, PMIC power good/TPS22965_EN monitoring.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 34
+- page: 35
+  title: FPGA BANK216 (GTP)
+  dts_relevance: dts_relevant
+  pdf_text_chars: 1708
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'FPGA Bank216 GTP SERDES test lanes: FPGA_SERDES_RX/TX and FPGA_REFCLK_P/N; AC coupling/resistor notes.'
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 35
+- page: 36
+  title: FPGA POWER
+  dts_relevance: indirect_or_supporting
+  pdf_text_chars: 3656
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'FPGA power rails and sequence: VCCINT/VCCBRAM/MGTAVCC 1.0V, MGTAVTT 1.2V, VCCAUX 1.8V, VCCO 3.3V.'
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 36
+- page: 37
+  title: POWER FPGA PMIC
+  dts_relevance: indirect_or_supporting
+  pdf_text_chars: 3439
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'FPGA PMIC uses LTM4668AEY rails: +1.0V_FPGA, +1.2V_FPGA, +1.8V_FPGA, +3.3V_FPGA, +1.0V_GTP; sequence delays 0/10/20/30ms.'
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 37
+- page: 38
+  title: POWER 5V MAIN INPUT
+  dts_relevance: dts_relevant
+  pdf_text_chars: 1624
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - Main 5V input to 3.3V system buck LM61460, output VCC3V3SYS_EXT, EN LM61460_EN, PG LM61460_PG, 6A/400kHz notes.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 38
+- page: 39
+  title: POWER 5V PMIC
+  dts_relevance: dts_relevant
+  pdf_text_chars: 2946
+  db_coverage_status: covered
+  conversion_completeness: pdf_facts_extracted_policy_or_binding_still_external
+  observable_facts_for_dts:
+  - SoC PMIC TPS6522053RHBR/TPS65220-class, I2C0 address 0x30, interrupt PMIC_INTn into RGMII/PMIC interrupt aggregation.
+  - 'Rail table: BUCK1 0.75V VDD_CORE, BUCK2 1.8V VCC1V8/SoC_DVDD1V8, BUCK3 1.1V VDD_LPDDR4, LDO1 3.3V/1.8V SD/IO, LDO2 0.85V VDDAR_CORE, LDO3
+    1.8V VDDA_1V8, LDO4 2.5V VDD_PHY_2V5.'
+  external_information_not_in_pdf:
+  - Exact Linux PMIC compatible string for TPS6522053 variant
+  - Regulator always-on/boot-on constraints from BSP policy
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 39
+- page: 40
+  title: POWER 5V ETC
+  dts_relevance: dts_relevant
+  pdf_text_chars: 2143
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'Power ETC: TPS22965 3V3 load switch, TLV75510 VDD_1V0 for Ethernet PHY, TLV75518 VPP_1V8 with strict eFuse programming warning.'
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 40
+- page: 41
+  title: FRONT INTERFACE
+  dts_relevance: indirect_or_supporting
+  pdf_text_chars: 1228
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'Front panel: USB debug Type-C to CP2105 USB_DEBUG_DP/DN, FPGA JTAG header. Mechanical footprint warning.'
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 41
+- page: 42
+  title: REAR VITA 46.0 P0
+  dts_relevance: dts_relevant
+  pdf_text_chars: 2318
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'VPX P0 utility connector: power rails, geo address, SoC JTAG, P0_SYSRESETn, IOB_REFCLK_P/N.'
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 42
+- page: 43
+  title: REAR VITA 46.0 P1
+  dts_relevance: dts_relevant
+  pdf_text_chars: 4450
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - 'VPX P1 data/control plane: USB0 DP/DM/VBUS, LAN1/LAN2 MDI pairs, VITA_SERDES TX/RX, RS232/RS422, ESD protection.'
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 43
+- page: 44
+  title: REAR VITA 46.0 P2
+  dts_relevance: dts_relevant
+  pdf_text_chars: 2405
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - VPX P2 GPIO 8 Port from FPGA Bank34; connector differential template mostly unused for DTS except GPIO exported path.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 44
+- page: 45
+  title: HOLE
+  dts_relevance: indirect_or_supporting
+  pdf_text_chars: 930
+  db_coverage_status: covered
+  conversion_completeness: pdf_observable_dts_facts_extracted
+  observable_facts_for_dts:
+  - PCB holes, VITA guide/screw holes; mechanical/GND note. No direct DTS node, but chassis/frame ground note captured for hardware docs.
+  external_information_not_in_pdf: []
+  source_pdf: CPU_Brd_V03_PBA_260511.pdf
+  source_page: 45

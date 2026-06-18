@@ -18,12 +18,16 @@ boot_media:
   emmc:
     exists: true
     refdes: U22
-    part_current: MKEMF032GT2E-IE
+    part_current: MX52LM04A11XSI
+    schematic_part_reference: MKEMF032GT2E-IE
     earlier_parts_or_notes:
       - MTFC16GAPALBH-IT
       - MTFC16GAPALBH-AIT
-      - MX52LM04A11XSI
+      - MKEMF032GT2E-IE
       - "용량변경: 16GB -> 8Gb or 4Gb -> 32GB, OS 용량 이슈 note"
+    assembly_override:
+      reason: "MKEMF032GT2E-IE 수급 문제로 실제 보드는 MX52LM04A11XSI로 실장"
+      source: "사용자 전달 실장 정보 (2026-06-18)"
     controller: sdhci0
     interface: MMC0
     bus_width_bits: 8
@@ -61,6 +65,7 @@ boot_media:
       evidence:
         - "SoC MMC page: MMC0 eMMC 8bit"
         - "eMMC page: U22 MKEMF032GT2E-IE, DAT0-7/CMD/CLK/DS/RST_N, GPIO_eMMC_RSTn"
+        - "실제 보드 실장품은 사용자 전달 기준 MX52LM04A11XSI"
       confidence: high
       review_required: true
 

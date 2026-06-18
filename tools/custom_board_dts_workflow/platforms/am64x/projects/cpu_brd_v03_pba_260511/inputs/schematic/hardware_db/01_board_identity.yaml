@@ -49,9 +49,13 @@ major_components:
     source_pages: [1, 14]
   emmc:
     refdes: U22
-    part: MKEMF032GT2E-IE
+    part: MX52LM04A11XSI
     role: non_removable_mmc_storage
     source_pages: [1, 13, 26]
+    schematic_part_reference: MKEMF032GT2E-IE
+    assembly_override:
+      reason: "MKEMF032GT2E-IE 수급 문제로 실장품 변경"
+      source: "사용자 전달 실장 정보 (2026-06-18)"
   ethernet_phy1:
     refdes: U24
     part: DP83867IRRGZ
