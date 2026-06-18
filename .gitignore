@@ -69,6 +69,12 @@ tests/tools/uart/__pycache__
 
 .sisyphus/
 .opencode/
+!.opencode/
+/.opencode/*
+!.opencode/skills/
+/.opencode/skills/*
+!.opencode/skills/**/
+!.opencode/skills/**/SKILL.md
 /.agents/
 /firmware/
 /token-usage-output.txt

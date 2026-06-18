@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3 - PDF-to-DB 1:1 Traceability
+
+- PDF 45/45 page coverage matrix 추가.
+- PDF raw text page별 보존본 추가.
+- PDF fact와 외부 정책/binding/검증 필요 항목을 분리한 fidelity report 추가.
+- evidence map을 blank/support/mechanical page까지 포함하도록 확장.
+
 ## v0.2
 
 - 기존 v0.1 DB를 회로도 의도 중심으로 재구성.

@@ -21,6 +21,7 @@ interfaces:
       role: external_debug_or_rs_interface_candidate
       signals: {tx: SoC_UART2_TXD, rx: SoC_UART2_RXD}
       notes:
+        - "PDF 단독으로는 TXD/RXD 경로가 page 13/16/30에 분산 표현되며, 아래 status는 .NET cross-check까지 반영한 결과임"
         - "TXD는 K19/MMC1_DAT2 -> UART2_TXD mux로 읽힘"
         - "RXD는 W6/PRG0_PRU0_GPO9 -> UART2_RXD mux와 DEBUG page path가 직접 일치함"
         - "초기 K18/MMC1_DAT3 해석은 page 13의 MMC block 관점이었고, 현재는 W6 기반으로 정리함"
@@ -164,6 +165,8 @@ interfaces:
       id_behavior:
         grounded: host
         floating: slave
+      notes:
+        - "PDF는 USB2 OTG wiring과 ID behavior를 보여주며, 아래 initial profile은 회로도 fact와 reference precedent를 반영한 bring-up 초기 policy다."
       dts_mapping:
         nodes_if_enabled: [usbss0, usb0, vbus_regulator]
         status_candidate: okay_as_usb2_otg_initial

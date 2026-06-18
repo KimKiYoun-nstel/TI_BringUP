@@ -3,13 +3,13 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/net/ti-dp83867.h>
 #include "k3-am642.dtsi"
-#include "../facts/k3-am6412-custom-pinmux.facts.dtsi"
+#include "k3-am6412-custom-pinmux.facts.dtsi"
 #include "k3-am6412-custom-final-overrides.dtsi"
 
 / {
 	model = "Custom AM6412 CPU_BRD_V03_PBA_260511";
 	compatible = "custom,cpu-brd-v03-pba-260511", "custom,am6412-board", "ti,am642";
-	/* Final candidate assembled from facts plus explicit board decisions. */
+	/* Root-managed build DTS set derived from workflow final. */
 
 	aliases {
 		serial0 = &mcu_uart0;

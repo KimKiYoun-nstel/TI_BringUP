@@ -3,7 +3,6 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/net/ti-dp83867.h>
 #include "k3-am642.dtsi"
-#include "k3-am64-ti-ipc-firmware.dtsi"
 #include "k3-am6412-cpu-brd-v03-pba-pinctrl.dtsi"
 #include "k3-am6412-cpu-brd-v03-pba-peripherals.dtsi"
 
@@ -61,3 +60,5 @@
 	/* TODO: SERDES0 PCIe/USB3/FPGA/VITA routing policy is still unresolved. */
 	/* TODO: TPM compatible for U15 and PI6ULS5V9509UEX attachment for U21 remain unresolved. */
 };
+
+#include "k3-am64-ti-ipc-firmware.dtsi"

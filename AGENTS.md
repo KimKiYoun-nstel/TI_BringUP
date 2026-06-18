@@ -30,6 +30,15 @@ sdk-manifest/source-commits.md
 sdk-manifest/workspaces.yml
 ```
 
+커스텀 보드 DTS 재구성 또는 custom board image build 연동 작업이면 다음도 우선 확인한다.
+
+```text
+docs/common/CUSTOM_BOARD_DTS_WORKFLOW.md
+tools/custom_board_dts_workflow/README.md
+tools/custom_board_dts_workflow/docs/workflow_guide.md
+tools/custom_board_dts_workflow/platforms/am64x/projects/cpu_brd_v03_pba_260511/
+```
+
 작업이 보드별 이슈라면 추가로 확인한다.
 
 ```text

@@ -27,7 +27,7 @@
 	};
 };
 
-&wkup_pmx0 {
+&mcu_pmx0 {
 	uboot_mcu_uart0_early_pins_default: uboot-mcu-uart0-early-pins-default {
 		bootph-all;
 		pinctrl-single,pins = <

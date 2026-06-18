@@ -129,7 +129,7 @@
 	};
 };
 
-&wkup_pmx0 {
+&mcu_pmx0 {
 	mcu_gpio0_pins_default: mcu-gpio0-pins-default {
 		pinctrl-single,pins = <
 			AM64X_MCU_IOPAD(0x0014, PIN_INPUT, 7) /* (A7) MCU_GPIO0_5 net=TEST_LED2 TODO: review flag */

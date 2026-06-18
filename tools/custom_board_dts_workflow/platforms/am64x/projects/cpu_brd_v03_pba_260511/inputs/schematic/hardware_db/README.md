@@ -1,4 +1,4 @@
-# CPU_Brd_V03_PBA Hardware Semantic DB v0.2
+# CPU_Brd_V03_PBA Hardware Semantic DB v0.3
 
 이 DB는 `CPU_Brd_V03_PBA_260511.pdf` 회로도에서 DTS 생성에 필요한 보드 의미를 추출한 2차 보강본이다.
 
@@ -25,6 +25,9 @@
 11_delivery_gap_report.md
 12_unresolved_items.yaml
 13_evidence_map.md
+14_pdf_to_db_page_coverage.yaml
+15_pdf_raw_text_by_page.md
+16_pdf_to_db_fidelity_report.md
 README.md
 ```
 
@@ -51,3 +54,13 @@ README.md
 ## 현재 한계
 
 이 DB는 회로도 리뷰 완료 문서가 아니다. 특히 PMIC Linux binding, reset GPIO provider, interrupt aggregation, OSPI octal boot root cause, GPMC timing/register map, USB/SERDES mode는 별도 검토가 필요하다.
+
+## v0.3 PDF-to-DB 1:1 Traceability 보강
+
+이번 버전은 PDF 45 page 전체를 page-level로 DB에 대응시켰다. 핵심 추가 파일은 다음과 같다.
+
+- `14_pdf_to_db_page_coverage.yaml`: 45/45 page coverage, DTS relevance, observable facts, PDF 외부 필요 정보 분리
+- `15_pdf_raw_text_by_page.md`: PDF text layer를 page별로 보존
+- `16_pdf_to_db_fidelity_report.md`: 100% coverage 기준과 한계 명시
+
+주의: 여기서 100%는 PDF-to-DB traceability 기준이다. DTS 최종 확정률이나 hardware sign-off를 의미하지 않는다.
