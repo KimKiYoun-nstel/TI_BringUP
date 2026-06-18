@@ -1,18 +1,35 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "references": {
+    "custom-board-dts-workflow": {
+      "path": "./tools/custom_board_dts_workflow",
+      "description": "Use for custom board DTS workflow inputs, generated candidates, delivery DTS sets, and workflow docs."
+    },
+    "custom-board-project-cpu-brd-v03": {
+      "path": "./tools/custom_board_dts_workflow/platforms/am64x/projects/cpu_brd_v03_pba_260511",
+      "description": "Use for the current AM64x custom board project: hardware_db, board decisions, generated final DTS, and delivery handoff DTS."
+    },
+    "custom-board-linux-build-dts-sets": {
+      "path": "./bsp/linux/dts/custom-board",
+      "description": "Use for root-managed Linux DTS sets that are selected as actual custom board build inputs by purpose."
+    },
+    "custom-board-uboot-build-dts-sets": {
+      "path": "./bsp/u-boot/dts/custom-board",
+      "description": "Use for root-managed U-Boot/SPL DTS sets that are selected as actual custom board build inputs by purpose."
+    }
+  },
   "mcp": {
     "uart": {
       "type": "local",
       "command": [
         "/usr/bin/python3",
-        "/home/nstel/ti/TI_Bringup/tools/uart/uart-mcp-server.py",
-        "--socket",
-        "/home/nstel/ti/TI_Bringup/logs/uartd.sock"
+        "/home/nstel/ti/TI_Bringup/tools/uart/uart-mcp-server.py"
       ],
       "enabled": true,
       "environment": {
         "PYTHONUNBUFFERED": "1",
-        "UARTD_SOCKET": "/home/nstel/ti/TI_Bringup/logs/uartd.sock",
+        "UART_TARGETS_FILE": "/home/nstel/ti/TI_Bringup/tools/uart/targets.json",
+        "UART_TARGET": "sk",
         "UART_MCP_DEFAULT_NEWLINE": "lf",
         "UART_MCP_DEFAULT_TIMEOUT": "10"
       }

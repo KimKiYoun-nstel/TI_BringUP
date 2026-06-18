@@ -162,3 +162,28 @@
 - 재검토 조건:
   - 동일 project에 대해 repo-wide docs가 별도 canonical 위치를 가질 필요가 생길 때
   - Phase 1이 제품 문서/board 공통 문서로 승격되어 project 범위를 넘어설 때
+
+## D-008. UART MCP는 단일 server와 target 파라미터로 보드를 구분한다
+
+- 날짜: 2026-06-18
+- 상태: Accepted
+- 배경:
+  - SK-AM64B 로컬 `uartd`와 커스텀 보드 원격 `uartd`를 모두 제어해야 한다.
+  - target별 MCP alias를 추가하면 같은 tool 세트가 중복 노출되어 tool inventory와 토큰 사용량이 불필요하게 증가한다.
+  - 이미 `uartctl.py`와 `uart-mcp-server.py`는 `sk`, `custom` target profile을 공통으로 해석할 수 있다.
+- 결정:
+  - UART MCP는 generic `uart` server 하나만 유지한다.
+  - 실제 보드 구분은 MCP tool argument의 `target` 필드로 수행한다.
+  - 기본 target은 `sk`로 둔다.
+  - 로컬 SK `uartd`는 기본적으로 Unix socket과 TCP `127.0.0.1:17001`을 함께 연다.
+- 영향:
+  - MCP tool 수를 늘리지 않고 `sk`/`custom` endpoint를 선택할 수 있다.
+  - 새 세션에서는 요청 문맥에 따라 `target=sk` 또는 `target=custom`을 명시해 호출한다.
+  - 커스텀 보드 원격 daemon의 `runtime_log`는 local filesystem 기준 canonical 증적으로 가정하지 않는다.
+- 관련 문서:
+  - `docs/common/UART_DAEMON_AGENT_WORKFLOW.md`
+  - `docs/bringup-logs/2026-06-18_uart-mcp-target-routing-validation.md`
+  - `test_todo.md`
+- 재검토 조건:
+  - tool inventory 증가 없이 target 고정 convenience를 제공할 다른 MCP 메커니즘이 필요해질 때
+  - 원격 custom board runtime log를 이 host에서 안정적으로 참조/동기화하는 구조가 생길 때

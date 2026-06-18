@@ -8,14 +8,27 @@ import os
 import select
 import socket
 import sys
-import termios
-import tty
+import threading
 from pathlib import Path
 
+from uart_endpoint import DEFAULT_TARGETS_FILE
+from uart_endpoint import Endpoint
+from uart_endpoint import EndpointConfigError
+from uart_endpoint import endpoint_from_options
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SOCKET_PATH = REPO_ROOT / "logs" / "uartd.sock"
-ATTACH_ESCAPE = 0x1D
+try:
+    import termios
+    import tty
+except ImportError:  # Windows
+    termios = None
+    tty = None
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
+
+ATTACH_ESCAPE = 0x1D  # Ctrl-]
 
 
 class UartCtlError(Exception):
@@ -24,7 +37,12 @@ class UartCtlError(Exception):
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="UART daemon client")
-    parser.add_argument("--socket", default=str(DEFAULT_SOCKET_PATH), help="uartd Unix socket path")
+    transport = parser.add_mutually_exclusive_group()
+    transport.add_argument("--socket", default=None, help="uartd Unix socket path")
+    transport.add_argument("--tcp", default=None, help="uartd TCP endpoint HOST:PORT")
+    parser.add_argument("--target", default=None, help="Named UART target from tools/uart/targets.json")
+    parser.add_argument("--targets-file", default=str(DEFAULT_TARGETS_FILE), help="UART target profile JSON path")
+    parser.add_argument("--connect-timeout", type=float, default=10.0)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("status")
@@ -60,9 +78,39 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def send_request(socket_path: Path, payload: dict) -> socket.socket:
+def endpoint_from_args(args: argparse.Namespace) -> Endpoint:
+    try:
+        return endpoint_from_options(
+            tcp=args.tcp,
+            socket_path=args.socket,
+            target=args.target,
+            targets_file=args.targets_file,
+        )
+    except EndpointConfigError as exc:
+        raise UartCtlError(str(exc)) from exc
+
+
+def connect_endpoint(endpoint: Endpoint, timeout: float = 10.0) -> socket.socket:
+    if endpoint.kind == "tcp":
+        assert endpoint.host is not None and endpoint.port is not None
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect((endpoint.host, endpoint.port))
+        sock.settimeout(None)
+        return sock
+
+    if not hasattr(socket, "AF_UNIX"):
+        raise UartCtlError("Unix socket transport is not available on this platform. Use --tcp HOST:PORT.")
+    assert endpoint.socket_path is not None
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    sock.connect(str(socket_path))
+    sock.settimeout(timeout)
+    sock.connect(str(endpoint.socket_path))
+    sock.settimeout(None)
+    return sock
+
+
+def send_request(endpoint: Endpoint, payload: dict, timeout: float = 10.0) -> socket.socket:
+    sock = connect_endpoint(endpoint, timeout=timeout)
     sock.sendall((json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8"))
     return sock
 
@@ -82,28 +130,28 @@ def recv_json_line(sock: socket.socket) -> dict:
         return json.loads(line)
 
 
-def run_status(socket_path: Path) -> int:
-    with send_request(socket_path, {"action": "status"}) as sock:
+def run_status(endpoint: Endpoint, connect_timeout: float) -> int:
+    with send_request(endpoint, {"action": "status"}, timeout=connect_timeout) as sock:
         response = recv_json_line(sock)
     print(json.dumps(response, ensure_ascii=False, indent=2))
     return 0 if response.get("ok") else 1
 
 
-def run_send(socket_path: Path, text: str, newline: bool) -> int:
-    with send_request(socket_path, {"action": "send", "text": text, "newline": newline}) as sock:
+def run_send(endpoint: Endpoint, text: str, newline: bool, connect_timeout: float) -> int:
+    with send_request(endpoint, {"action": "send", "text": text, "newline": newline}, timeout=connect_timeout) as sock:
         response = recv_json_line(sock)
     if not response.get("ok"):
         raise UartCtlError(response.get("error", "send failed"))
     return 0
 
 
-def run_expect(socket_path: Path, pattern: str, timeout: float, fresh: bool, from_offset: int | None) -> int:
+def run_expect(endpoint: Endpoint, pattern: str, timeout: float, fresh: bool, from_offset: int | None, connect_timeout: float) -> int:
     payload: dict[str, object] = {"action": "expect", "pattern": pattern, "timeout": timeout}
     if fresh:
         payload["from"] = "fresh"
     if from_offset is not None:
         payload["from_offset"] = from_offset
-    with send_request(socket_path, payload) as sock:
+    with send_request(endpoint, payload, timeout=connect_timeout) as sock:
         response = recv_json_line(sock)
     if not response.get("ok"):
         raise UartCtlError(response.get("error", "expect failed"))
@@ -112,13 +160,14 @@ def run_expect(socket_path: Path, pattern: str, timeout: float, fresh: bool, fro
 
 
 def run_command(
-    socket_path: Path,
+    endpoint: Endpoint,
     text: str,
     expect: str,
     timeout: float,
     fresh: bool,
     from_offset: int | None,
     newline: bool,
+    connect_timeout: float,
 ) -> int:
     payload: dict[str, object] = {
         "action": "send_expect",
@@ -131,7 +180,7 @@ def run_command(
         payload["from"] = "fresh"
     if from_offset is not None:
         payload["from_offset"] = from_offset
-    with send_request(socket_path, payload) as sock:
+    with send_request(endpoint, payload, timeout=connect_timeout) as sock:
         response = recv_json_line(sock)
     if not response.get("ok"):
         raise UartCtlError(response.get("error", "command failed"))
@@ -139,8 +188,8 @@ def run_command(
     return 0
 
 
-def run_tail(socket_path: Path, lines: int) -> int:
-    with send_request(socket_path, {"action": "tail", "lines": lines}) as sock:
+def run_tail(endpoint: Endpoint, lines: int, connect_timeout: float) -> int:
+    with send_request(endpoint, {"action": "tail", "lines": lines}, timeout=connect_timeout) as sock:
         response = recv_json_line(sock)
         if not response.get("ok"):
             raise UartCtlError(response.get("error", "tail failed"))
@@ -155,10 +204,9 @@ def run_tail(socket_path: Path, lines: int) -> int:
                 sys.stdout.flush()
 
 
-def run_attach(socket_path: Path, mode: str, backlog_lines: int) -> int:
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+def run_attach(endpoint: Endpoint, mode: str, backlog_lines: int, connect_timeout: float) -> int:
+    sock = connect_endpoint(endpoint, timeout=connect_timeout)
     try:
-        sock.connect(str(socket_path))
         payload = {"action": "attach", "mode": mode, "backlog_lines": backlog_lines}
         sock.sendall((json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8"))
         response = recv_json_line(sock)
@@ -167,9 +215,22 @@ def run_attach(socket_path: Path, mode: str, backlog_lines: int) -> int:
 
         if mode == "ro":
             return _watch_stream(sock)
-        return _attach_stream(sock)
+        if os.name == "nt":
+            return _attach_stream_windows(sock)
+        return _attach_stream_posix(sock)
     finally:
-        sock.close()
+        try:
+            sock.close()
+        except OSError:
+            pass
+
+
+def _write_stdout_bytes(data: bytes) -> None:
+    try:
+        os.write(sys.stdout.fileno(), data)
+    except OSError:
+        sys.stdout.buffer.write(data)
+        sys.stdout.buffer.flush()
 
 
 def _watch_stream(sock: socket.socket) -> int:
@@ -177,10 +238,69 @@ def _watch_stream(sock: socket.socket) -> int:
         data = sock.recv(4096)
         if not data:
             return 0
-        os.write(sys.stdout.fileno(), data)
+        _write_stdout_bytes(data)
 
 
-def _attach_stream(sock: socket.socket) -> int:
+def _socket_to_stdout(sock: socket.socket, stop_event: threading.Event) -> None:
+    while not stop_event.is_set():
+        try:
+            data = sock.recv(4096)
+        except OSError:
+            stop_event.set()
+            return
+        if not data:
+            stop_event.set()
+            return
+        _write_stdout_bytes(data)
+
+
+def _attach_stream_windows(sock: socket.socket) -> int:
+    if msvcrt is None:
+        raise UartCtlError("Windows console support is unavailable")
+    kbhit = getattr(msvcrt, "kbhit", None)
+    getch = getattr(msvcrt, "getch", None)
+    if kbhit is None or getch is None:
+        raise UartCtlError("Windows console support is incomplete")
+
+    stop_event = threading.Event()
+    reader = threading.Thread(target=_socket_to_stdout, args=(sock, stop_event), daemon=True)
+    reader.start()
+
+    sys.stderr.write("[uartctl] attached mode=rw, shared_write=true. detach: Ctrl-] then q\n")
+    sys.stderr.flush()
+    escaped = False
+
+    while not stop_event.is_set():
+        if not kbhit():
+            stop_event.wait(0.02)
+            continue
+        data = getch()
+        if not data:
+            continue
+        value = data[0]
+        if escaped:
+            if value == ord("q"):
+                stop_event.set()
+                return 0
+            if value == ATTACH_ESCAPE:
+                payload = bytes([ATTACH_ESCAPE])
+            else:
+                payload = bytes([ATTACH_ESCAPE]) + data
+            escaped = False
+        elif value == ATTACH_ESCAPE:
+            escaped = True
+            continue
+        else:
+            payload = data
+        if payload:
+            sock.sendall(payload)
+    return 0
+
+
+def _attach_stream_posix(sock: socket.socket) -> int:
+    if termios is None or tty is None:
+        raise UartCtlError("POSIX terminal control is unavailable")
+
     stdin_fd = sys.stdin.fileno()
     stdout_fd = sys.stdout.fileno()
     old_attrs = termios.tcgetattr(stdin_fd)
@@ -230,8 +350,8 @@ def _attach_stream(sock: socket.socket) -> int:
         termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_attrs)
 
 
-def run_stop(socket_path: Path) -> int:
-    with send_request(socket_path, {"action": "stop"}) as sock:
+def run_stop(endpoint: Endpoint, connect_timeout: float) -> int:
+    with send_request(endpoint, {"action": "stop"}, timeout=connect_timeout) as sock:
         response = recv_json_line(sock)
     if not response.get("ok"):
         raise UartCtlError(response.get("error", "stop failed"))
@@ -241,34 +361,35 @@ def run_stop(socket_path: Path) -> int:
 
 def main() -> int:
     args = build_parser().parse_args()
-    socket_path = Path(args.socket)
+    endpoint = endpoint_from_args(args)
 
     try:
         if args.command == "status":
-            return run_status(socket_path)
+            return run_status(endpoint, args.connect_timeout)
         if args.command == "send":
-            return run_send(socket_path, args.text, args.newline)
+            return run_send(endpoint, args.text, args.newline, args.connect_timeout)
         if args.command == "expect":
-            return run_expect(socket_path, args.pattern, args.timeout, args.fresh, args.from_offset)
+            return run_expect(endpoint, args.pattern, args.timeout, args.fresh, args.from_offset, args.connect_timeout)
         if args.command == "command":
             return run_command(
-                socket_path,
+                endpoint,
                 args.text,
                 args.expect,
                 args.timeout,
                 args.fresh,
                 args.from_offset,
                 not args.no_newline,
+                args.connect_timeout,
             )
         if args.command == "attach":
-            return run_attach(socket_path, mode="rw", backlog_lines=args.backlog_lines)
+            return run_attach(endpoint, mode="rw", backlog_lines=args.backlog_lines, connect_timeout=args.connect_timeout)
         if args.command == "watch":
-            return run_attach(socket_path, mode="ro", backlog_lines=args.backlog_lines)
+            return run_attach(endpoint, mode="ro", backlog_lines=args.backlog_lines, connect_timeout=args.connect_timeout)
         if args.command == "tail":
-            return run_tail(socket_path, args.lines)
+            return run_tail(endpoint, args.lines, args.connect_timeout)
         if args.command == "stop":
-            return run_stop(socket_path)
-    except (OSError, UartCtlError, json.JSONDecodeError) as exc:
+            return run_stop(endpoint, args.connect_timeout)
+    except (OSError, UartCtlError, EndpointConfigError, json.JSONDecodeError) as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1
 

@@ -1,0 +1,16 @@
+{
+  "default_target": "sk",
+  "targets": {
+    "sk": {
+      "transport": "tcp",
+      "tcp": "127.0.0.1:17001",
+      "socket": "../../logs/uartd.sock",
+      "description": "Local SK-AM64B uartd"
+    },
+    "custom": {
+      "transport": "tcp",
+      "tcp": "192.168.0.170:17001",
+      "description": "Remote custom board uartd"
+    }
+  }
+}

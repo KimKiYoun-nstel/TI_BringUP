@@ -22,15 +22,18 @@ except ImportError:
     serial = None
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[2] if len(Path(__file__).resolve().parents) >= 3 else Path.cwd()
 DEFAULT_RUNTIME_LOG = REPO_ROOT / "logs" / "runtime_log"
 DEFAULT_SOCKET_PATH = REPO_ROOT / "logs" / "uartd.sock"
 DEFAULT_PID_PATH = REPO_ROOT / "logs" / "uartd.pid"
 DEFAULT_DAEMON_LOG = REPO_ROOT / "logs" / "uartd.log"
-DEFAULT_PORT = "/dev/ttyUSB1"
+DEFAULT_PORT = "COM7" if os.name == "nt" else "/dev/ttyUSB1"
 DEFAULT_BAUD = 115200
 DEFAULT_READ_TIMEOUT = 0.2
 DEFAULT_WRITE_TIMEOUT = 5.0
+DEFAULT_TCP_HOST = "127.0.0.1"
+DEFAULT_TCP_PORT = 17001
+DEFAULT_TCP = f"{DEFAULT_TCP_HOST}:{DEFAULT_TCP_PORT}"
 BUFFER_LIMIT = 1024 * 1024
 
 
@@ -47,6 +50,7 @@ class ClientState:
     attached: bool = False
     attach_mode: str = "none"
     client_id: int = 0
+    peer: str = "unknown"
 
 
 @dataclass
@@ -77,18 +81,22 @@ class DaemonConfig:
     write_timeout: float
     encoding: str
     exclusive: bool
+    tcp_host: str | None
+    tcp_port: int | None
+    enable_unix_socket: bool
 
 
 class UartDaemon:
     def __init__(self, config: DaemonConfig) -> None:
         if serial is None:
             raise UartDaemonError(
-                "pyserial is not installed. Install it with 'python3 -m pip install pyserial'."
+                "pyserial is not installed. Install it with 'python -m pip install pyserial'."
             )
 
         self.config = config
         self.selector = selectors.DefaultSelector()
-        self.server: socket.socket | None = None
+        self.servers: list[socket.socket] = []
+        self.server_names: dict[socket.socket, str] = {}
         self.serial_port: Any | None = None
         self.clients: dict[socket.socket, ClientState] = {}
         self.waiters: list[ExpectWaiter] = []
@@ -113,17 +121,25 @@ class UartDaemon:
     def start(self) -> None:
         self._write_pid()
         self._setup_serial()
-        self._setup_socket()
+        self._setup_servers()
         signal.signal(signal.SIGTERM, self._handle_signal)
         signal.signal(signal.SIGINT, self._handle_signal)
         self._log_daemon(
-            f"uartd started port={self.config.port} baud={self.config.baud} socket={self.config.socket_path}"
+            "uartd started "
+            f"port={self.config.port} baud={self.config.baud} "
+            f"unix={self.config.socket_path if self.config.enable_unix_socket else 'disabled'} "
+            f"tcp={self._tcp_description()}"
         )
 
         try:
             self.run_loop()
         finally:
             self.cleanup()
+
+    def _tcp_description(self) -> str:
+        if self.config.tcp_host is None or self.config.tcp_port is None:
+            return "disabled"
+        return f"{self.config.tcp_host}:{self.config.tcp_port}"
 
     def _handle_signal(self, signum: int, _frame: Any) -> None:
         self._log_daemon(f"received signal {signum}, stopping")
@@ -141,22 +157,45 @@ class UartDaemon:
             "timeout": self.config.read_timeout,
             "write_timeout": self.config.write_timeout,
         }
-        if self.config.exclusive:
+        if self.config.exclusive and os.name != "nt":
             kwargs["exclusive"] = True
         try:
             self.serial_port = serial.Serial(**kwargs)
         except Exception as exc:
             raise UartDaemonError(f"Failed to open serial port {self.config.port}: {exc}") from exc
 
-    def _setup_socket(self) -> None:
+    def _setup_servers(self) -> None:
+        if self.config.enable_unix_socket:
+            self._setup_unix_socket()
+        if self.config.tcp_host is not None and self.config.tcp_port is not None:
+            self._setup_tcp_socket()
+        if not self.servers:
+            raise UartDaemonError("no control socket enabled; enable Unix socket or TCP")
+
+    def _setup_unix_socket(self) -> None:
+        if not hasattr(socket, "AF_UNIX"):
+            raise UartDaemonError("Unix sockets are not available on this platform. Use --tcp-host/--tcp-port.")
         if self.config.socket_path.exists():
             self.config.socket_path.unlink()
+        self.config.socket_path.parent.mkdir(parents=True, exist_ok=True)
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server.bind(str(self.config.socket_path))
+        server.listen()
+        server.setblocking(False)
+        self.selector.register(server, selectors.EVENT_READ, self._accept_client)
+        self.servers.append(server)
+        self.server_names[server] = f"unix:{self.config.socket_path}"
 
-        self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.server.bind(str(self.config.socket_path))
-        self.server.listen()
-        self.server.setblocking(False)
-        self.selector.register(self.server, selectors.EVENT_READ, self._accept_client)
+    def _setup_tcp_socket(self) -> None:
+        assert self.config.tcp_host is not None and self.config.tcp_port is not None
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind((self.config.tcp_host, self.config.tcp_port))
+        server.listen()
+        server.setblocking(False)
+        self.selector.register(server, selectors.EVENT_READ, self._accept_client)
+        self.servers.append(server)
+        self.server_names[server] = f"tcp:{self.config.tcp_host}:{self.config.tcp_port}"
 
     def run_loop(self) -> None:
         while self.running:
@@ -167,14 +206,21 @@ class UartDaemon:
                 callback(key.fileobj)
             self._check_waiters()
 
-    def _accept_client(self, _server_sock: socket.socket) -> None:
-        assert self.server is not None
-        client_sock, _ = self.server.accept()
+    def _accept_client(self, server_sock: socket.socket) -> None:
+        client_sock, addr = server_sock.accept()
         client_sock.setblocking(False)
         client_id = self.next_client_id
         self.next_client_id += 1
-        self.clients[client_sock] = ClientState(sock=client_sock, client_id=client_id)
+        peer = self._format_peer(server_sock, addr)
+        self.clients[client_sock] = ClientState(sock=client_sock, client_id=client_id, peer=peer)
         self.selector.register(client_sock, selectors.EVENT_READ, self._read_client)
+        self._log_daemon(f"client connected id={client_id} peer={peer}")
+
+    def _format_peer(self, server_sock: socket.socket, addr: Any) -> str:
+        name = self.server_names.get(server_sock, "unknown")
+        if isinstance(addr, tuple) and len(addr) >= 2:
+            return f"{name}/{addr[0]}:{addr[1]}"
+        return name
 
     def _read_client(self, client_sock: socket.socket) -> None:
         state = self.clients[client_sock]
@@ -218,6 +264,7 @@ class UartDaemon:
             last_write_iso = None
             if self.last_write_at is not None:
                 last_write_iso = time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(self.last_write_at))
+            state = self.clients.get(client_sock)
             self._send_json(
                 client_sock,
                 {
@@ -225,9 +272,11 @@ class UartDaemon:
                     "pid": os.getpid(),
                     "port": self.config.port,
                     "baud": self.config.baud,
-                    "socket": str(self.config.socket_path),
+                    "socket": str(self.config.socket_path) if self.config.enable_unix_socket else None,
+                    "tcp": self._tcp_description(),
                     "runtime_log": str(self.config.runtime_log),
                     "clients": len(self.clients),
+                    "client_peer": state.peer if state else None,
                     "attached_clients": self._count_attached_clients(),
                     "attach_clients": self._count_attached_clients(),
                     "rw_attach_clients": self._count_attach_mode("rw"),
@@ -483,6 +532,8 @@ class UartDaemon:
         now = time.monotonic()
         remaining: list[ExpectWaiter] = []
         for waiter in self.waiters:
+            if waiter.client not in self.clients:
+                continue
             matched = self._search_since(waiter.pattern, waiter.start_offset)
             if matched is not None:
                 response = {
@@ -604,7 +655,8 @@ class UartDaemon:
             self._drop_client(client_sock)
 
     def _drop_client(self, client_sock: socket.socket) -> None:
-        if client_sock not in self.clients:
+        state = self.clients.get(client_sock)
+        if state is None:
             return
         self.waiters = [item for item in self.waiters if item.client is not client_sock]
         try:
@@ -615,25 +667,71 @@ class UartDaemon:
             client_sock.close()
         except Exception:
             pass
+        self._log_daemon(f"client disconnected id={state.client_id} peer={state.peer}")
         del self.clients[client_sock]
 
     def cleanup(self) -> None:
         for client in list(self.clients):
             self._drop_client(client)
-        if self.server is not None:
+        for server in list(self.servers):
             try:
-                self.selector.unregister(self.server)
+                self.selector.unregister(server)
             except Exception:
                 pass
-            self.server.close()
+            try:
+                server.close()
+            except Exception:
+                pass
         if self.serial_port is not None:
             self.serial_port.close()
         self.runtime_log_handle.close()
         self.daemon_log_handle.close()
-        if self.config.socket_path.exists():
-            self.config.socket_path.unlink()
+        if self.config.enable_unix_socket and self.config.socket_path.exists():
+            try:
+                self.config.socket_path.unlink()
+            except OSError:
+                pass
         if self.config.pid_path.exists():
-            self.config.pid_path.unlink()
+            try:
+                self.config.pid_path.unlink()
+            except OSError:
+                pass
+
+
+def parse_tcp_endpoint(value: str) -> tuple[str, int]:
+    text = value.strip()
+    if text.startswith("tcp://"):
+        text = text[len("tcp://") :]
+    if ":" not in text:
+        raise argparse.ArgumentTypeError("TCP endpoint must be HOST:PORT")
+    host, port_text = text.rsplit(":", 1)
+    if not host:
+        host = "127.0.0.1"
+    try:
+        port = int(port_text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("TCP port must be an integer") from exc
+    if not (1 <= port <= 65535):
+        raise argparse.ArgumentTypeError("TCP port must be in 1..65535")
+    return host, port
+
+
+def add_common_server_args(sub: argparse.ArgumentParser) -> None:
+    sub.add_argument("--port", default=DEFAULT_PORT, help="Serial port, e.g. COM7 on Windows or /dev/ttyUSB1 on Linux")
+    sub.add_argument("--baud", type=int, default=DEFAULT_BAUD)
+    sub.add_argument("--socket", default=str(DEFAULT_SOCKET_PATH), help="Unix socket path, Linux/WSL only")
+    sub.add_argument("--no-unix-socket", action="store_true", help="Disable Unix socket listener")
+    sub.add_argument("--no-tcp", action="store_true", help="Disable TCP listener")
+    sub.add_argument("--tcp", default=None, help=f"Enable TCP listener HOST:PORT, e.g. 0.0.0.0:{DEFAULT_TCP_PORT}")
+    sub.add_argument("--tcp-host", default=None, help="Enable TCP listener on this host/interface")
+    sub.add_argument("--tcp-port", type=int, default=None, help="Enable TCP listener on this port")
+    sub.add_argument("--pid-file", default=str(DEFAULT_PID_PATH))
+    sub.add_argument("--runtime-log", default=str(DEFAULT_RUNTIME_LOG))
+    sub.add_argument("--daemon-log", default=str(DEFAULT_DAEMON_LOG))
+    sub.add_argument("--read-timeout", type=float, default=DEFAULT_READ_TIMEOUT)
+    sub.add_argument("--write-timeout", type=float, default=DEFAULT_WRITE_TIMEOUT)
+    sub.add_argument("--encoding", default="utf-8")
+    sub.add_argument("--exclusive", action="store_true", help="Open serial port exclusively where supported")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -642,25 +740,35 @@ def build_parser() -> argparse.ArgumentParser:
 
     for name in ("start", "run"):
         sub = subparsers.add_parser(name)
-        sub.add_argument("--port", default=DEFAULT_PORT)
-        sub.add_argument("--baud", type=int, default=DEFAULT_BAUD)
-        sub.add_argument("--socket", default=str(DEFAULT_SOCKET_PATH))
-        sub.add_argument("--pid-file", default=str(DEFAULT_PID_PATH))
-        sub.add_argument("--runtime-log", default=str(DEFAULT_RUNTIME_LOG))
-        sub.add_argument("--daemon-log", default=str(DEFAULT_DAEMON_LOG))
-        sub.add_argument("--read-timeout", type=float, default=DEFAULT_READ_TIMEOUT)
-        sub.add_argument("--write-timeout", type=float, default=DEFAULT_WRITE_TIMEOUT)
-        sub.add_argument("--encoding", default="utf-8")
-        sub.add_argument("--exclusive", action="store_true")
+        add_common_server_args(sub)
 
     stop_parser = subparsers.add_parser("stop")
-    stop_parser.add_argument("--socket", default=str(DEFAULT_SOCKET_PATH))
+    transport = stop_parser.add_mutually_exclusive_group()
+    transport.add_argument("--socket", default=None)
+    transport.add_argument("--tcp", default=None)
+
     status_parser = subparsers.add_parser("status")
-    status_parser.add_argument("--socket", default=str(DEFAULT_SOCKET_PATH))
+    transport = status_parser.add_mutually_exclusive_group()
+    transport.add_argument("--socket", default=None)
+    transport.add_argument("--tcp", default=None)
     return parser
 
 
+def resolve_tcp_args(args: argparse.Namespace) -> tuple[str | None, int | None]:
+    if getattr(args, "no_tcp", False):
+        return None, None
+    if getattr(args, "tcp", None):
+        return parse_tcp_endpoint(args.tcp)
+    host = getattr(args, "tcp_host", None)
+    port = getattr(args, "tcp_port", None)
+    if host is not None or port is not None:
+        return (host if host is not None else DEFAULT_TCP_HOST, port if port is not None else DEFAULT_TCP_PORT)
+    return DEFAULT_TCP_HOST, DEFAULT_TCP_PORT
+
+
 def daemon_config_from_args(args: argparse.Namespace) -> DaemonConfig:
+    tcp_host, tcp_port = resolve_tcp_args(args)
+    enable_unix_socket = not args.no_unix_socket and os.name != "nt"
     return DaemonConfig(
         port=args.port,
         baud=args.baud,
@@ -672,18 +780,40 @@ def daemon_config_from_args(args: argparse.Namespace) -> DaemonConfig:
         write_timeout=args.write_timeout,
         encoding=args.encoding,
         exclusive=args.exclusive,
+        tcp_host=tcp_host,
+        tcp_port=tcp_port,
+        enable_unix_socket=enable_unix_socket,
     )
 
 
-def ping_socket(socket_path: Path) -> dict[str, Any] | None:
-    if not socket_path.exists():
-        return None
+def connect_control(socket_path: Path | None = None, tcp: str | None = None, timeout: float = 3.0) -> socket.socket:
+    if tcp:
+        host, port = parse_tcp_endpoint(tcp)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect((host, port))
+        sock.settimeout(None)
+        return sock
+    path = socket_path if socket_path is not None else DEFAULT_SOCKET_PATH
+    if not hasattr(socket, "AF_UNIX"):
+        raise UartDaemonError("Unix socket transport is not available. Use --tcp HOST:PORT.")
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.settimeout(timeout)
+    sock.connect(str(path))
+    sock.settimeout(None)
+    return sock
+
+
+def ping_control(socket_path: Path | None = None, tcp: str | None = None) -> dict[str, Any] | None:
+    if tcp is None:
+        path = socket_path if socket_path is not None else DEFAULT_SOCKET_PATH
+        if not path.exists():
+            return None
     try:
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-            sock.connect(str(socket_path))
+        with connect_control(socket_path=socket_path, tcp=tcp) as sock:
             sock.sendall(b'{"action":"status"}\n')
             data = sock.recv(4096)
-    except OSError:
+    except (OSError, UartDaemonError):
         return None
     if not data:
         return None
@@ -691,10 +821,13 @@ def ping_socket(socket_path: Path) -> dict[str, Any] | None:
 
 
 def start_daemon(args: argparse.Namespace) -> int:
+    tcp_host, tcp_port = resolve_tcp_args(args)
+    tcp_endpoint = f"{tcp_host}:{tcp_port}" if tcp_host is not None and tcp_port is not None else None
     socket_path = Path(args.socket)
-    status = ping_socket(socket_path)
+
+    status = ping_control(socket_path=None if os.name == "nt" else socket_path, tcp=tcp_endpoint)
     if status is not None and status.get("ok"):
-        print(f"uartd already running on {status.get('port')} ({status.get('socket')})")
+        print(f"uartd already running on {status.get('port')} (tcp={status.get('tcp')} socket={status.get('socket')})")
         return 0
 
     cmd = [
@@ -720,45 +853,58 @@ def start_daemon(args: argparse.Namespace) -> int:
         "--encoding",
         args.encoding,
     ]
+    if args.no_unix_socket:
+        cmd.append("--no-unix-socket")
+    if args.no_tcp:
+        cmd.append("--no-tcp")
+    if args.tcp:
+        cmd.extend(["--tcp", args.tcp])
+    else:
+        if args.tcp_host is not None:
+            cmd.extend(["--tcp-host", args.tcp_host])
+        if args.tcp_port is not None:
+            cmd.extend(["--tcp-port", str(args.tcp_port)])
     if args.exclusive:
         cmd.append("--exclusive")
 
     Path(args.daemon_log).parent.mkdir(parents=True, exist_ok=True)
     with Path(args.daemon_log).open("a", encoding="utf-8") as handle:
-        subprocess.Popen(
-            cmd,
-            cwd=REPO_ROOT,
-            stdout=handle,
-            stderr=handle,
-            start_new_session=True,
-        )
+        popen_kwargs: dict[str, Any] = {
+            "cwd": str(REPO_ROOT),
+            "stdout": handle,
+            "stderr": handle,
+        }
+        if os.name == "nt":
+            popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+        else:
+            popen_kwargs["start_new_session"] = True
+        subprocess.Popen(cmd, **popen_kwargs)
 
     deadline = time.time() + 5
     while time.time() < deadline:
-        status = ping_socket(socket_path)
+        status = ping_control(socket_path=None if os.name == "nt" else socket_path, tcp=tcp_endpoint)
         if status is not None and status.get("ok"):
-            print(f"uartd started pid={status.get('pid')} socket={status.get('socket')}")
+            print(f"uartd started pid={status.get('pid')} tcp={status.get('tcp')} socket={status.get('socket')}")
             return 0
         time.sleep(0.1)
     raise UartDaemonError("uartd did not become ready in time")
 
 
-def stop_daemon(socket_path: Path) -> int:
-    response = send_request(socket_path, {"action": "stop"})
-    if not response.get("ok"):
-        raise UartDaemonError(response.get("error", "failed to stop uartd"))
-    print("uartd stopping")
-    return 0
-
-
-def send_request(socket_path: Path, payload: dict[str, Any]) -> dict[str, Any]:
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-        sock.connect(str(socket_path))
+def send_request(socket_path: Path | None, tcp: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+    with connect_control(socket_path=socket_path, tcp=tcp) as sock:
         sock.sendall((json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8"))
         data = sock.recv(65536)
     if not data:
         raise UartDaemonError("no response from uartd")
     return json.loads(data.decode("utf-8"))
+
+
+def stop_daemon(socket_path: Path | None = None, tcp: str | None = None) -> int:
+    response = send_request(socket_path, tcp, {"action": "stop"})
+    if not response.get("ok"):
+        raise UartDaemonError(response.get("error", "failed to stop uartd"))
+    print("uartd stopping")
+    return 0
 
 
 def main() -> int:
@@ -773,15 +919,19 @@ def main() -> int:
             daemon.start()
             return 0
         if args.command == "stop":
-            return stop_daemon(Path(args.socket))
+            socket_path = Path(args.socket) if args.socket else None
+            tcp = args.tcp or (DEFAULT_TCP if os.name == "nt" and args.socket is None else None)
+            return stop_daemon(socket_path=socket_path, tcp=tcp)
         if args.command == "status":
-            status = ping_socket(Path(args.socket))
+            socket_path = Path(args.socket) if args.socket else None
+            tcp = args.tcp or (DEFAULT_TCP if os.name == "nt" and args.socket is None else None)
+            status = ping_control(socket_path=socket_path, tcp=tcp)
             if status is None:
                 print("uartd not running")
                 return 1
             print(json.dumps(status, ensure_ascii=False, indent=2))
             return 0
-    except UartDaemonError as exc:
+    except (UartDaemonError, json.JSONDecodeError) as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1
 

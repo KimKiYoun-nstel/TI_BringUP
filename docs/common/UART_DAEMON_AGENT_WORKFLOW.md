@@ -19,13 +19,14 @@
   - UART port owner daemon
   - `/dev/ttyUSB*`를 계속 열고 유지한다.
   - 모든 UART 출력을 `logs/runtime_log`에 append한다.
-  - local Unix domain socket으로 제어 인터페이스를 제공한다.
+  - local Unix domain socket과 TCP 제어 인터페이스를 제공할 수 있다.
 - `uartctl.py`
   - daemon client CLI
   - `status`, `send`, `expect`, `command`, `tail`, `attach`, `watch`, `stop` 같은 제어를 수행한다.
+  - 기본 transport는 target profile 기반 TCP다.
 - `uart-mcp-server.py`
   - Agent가 사용하는 MCP adapter
-  - UART를 직접 열지 않고 `uartd.sock`을 통해 daemon JSON API만 호출한다.
+  - UART를 직접 열지 않고 target profile이 가리키는 daemon JSON API만 호출한다.
 
 ## 언제 daemon 모델을 써야 하는가
 
@@ -44,9 +45,10 @@ daemon 기본 경로는 다음과 같다.
 
 ```text
 logs/runtime_log   UART output append log
-logs/uartd.sock    local Unix socket control channel
+logs/uartd.sock    local Unix socket control channel (fallback)
 logs/uartd.pid     daemon pid file
 logs/uartd.log     daemon internal log
+tools/uart/targets.json  target name -> TCP/Unix endpoint profile
 ```
 
 ## 기본 사용 순서
@@ -61,12 +63,21 @@ logs/uartd.log     daemon internal log
 
 - UART port를 daemon이 점유한다.
 - 이후 모든 UART 출력은 `logs/runtime_log`에 append된다.
+- Linux/WSL에서는 기본적으로 Unix socket과 TCP `127.0.0.1:17001`이 함께 열린다.
 - 다른 프로세스는 serial port를 직접 열지 말고 `uartctl.py`로 접근한다.
 
 ### 2. 상태 확인
 
 ```bash
 ./tools/uart/uartctl.py status
+```
+
+기본 target은 `tools/uart/targets.json`의 `default_target`이며 현재는 `sk`다. 즉 인자를 생략하면 기본적으로 TCP `127.0.0.1:17001`로 접속한다.
+
+다른 target 예시:
+
+```bash
+./tools/uart/uartctl.py --target custom status
 ```
 
 예상 정보:
@@ -227,6 +238,7 @@ terminal B:
 - 장시간 세션 중 예상 밖 동작이 보이면 `runtime_log`, `uartd.log`, `status` 정보를 함께 본다.
 - 제어 자동화에서는 backlog-aware `expect`보다 `command --expect` 또는 `expect --fresh`를 우선 사용한다.
 - 현재 프롬프트가 불확실하면 먼저 empty newline을 보내고(`send "" --newline`), 그 뒤 원하는 프롬프트를 fresh mode로 확인한다.
+- 커스텀 보드 target은 원격 host에서 daemon이 실행될 수 있으므로, 원격 host의 `logs/runtime_log` 파일 자체를 local filesystem 증적으로 직접 참조할 수 있다고 가정하지 않는다.
 
 ## 운영 주의사항
 
@@ -253,15 +265,18 @@ terminal B:
 
 Agent는 `tools/uart/uart-mcp-server.py`를 통해 UART daemon에 접근할 수 있다.
 
+기본 운용은 generic `uart` MCP 하나를 사용하고, tool argument의 `target`으로 `sk` 또는 `custom`을 선택하는 방식이다.
+
 기본 구조:
 
 ```text
 opencode Agent
   -> MCP stdio
   -> uart-mcp-server.py
-  -> uartd.sock JSON API
+  -> target profile (`sk`, `custom`)
+  -> tcp://127.0.0.1:17001 or target-specific endpoint
   -> uartd.py
-  -> /dev/ttyUSBx
+  -> /dev/ttyUSBx or remote host serial port
 ```
 
 초기 MCP tool은 다음 5개를 기준으로 한다.
@@ -278,3 +293,4 @@ opencode Agent
 - UART owner는 항상 `uartd.py` 하나다.
 - 사람이 `attach` 중이어도 MCP write는 차단하지 않는다.
 - MCP command 중에도 attach 입력은 차단하지 않는다.
+- target 선택은 별도 MCP alias가 아니라 tool argument의 `target`으로 수행한다.

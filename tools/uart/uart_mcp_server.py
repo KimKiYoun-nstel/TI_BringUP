@@ -12,9 +12,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from uart_endpoint import DEFAULT_TARGETS_FILE
+from uart_endpoint import Endpoint
+from uart_endpoint import EndpointConfigError
+from uart_endpoint import available_targets
+from uart_endpoint import default_target_name
+from uart_endpoint import endpoint_from_options
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SOCKET = Path(os.environ.get("UARTD_SOCKET", REPO_ROOT / "logs" / "uartd.sock"))
 DEFAULT_TIMEOUT = float(os.environ.get("UART_MCP_DEFAULT_TIMEOUT", "10"))
 DEFAULT_NEWLINE = os.environ.get("UART_MCP_DEFAULT_NEWLINE", "crlf")
 PROTOCOL_VERSION = "2024-11-05"
@@ -26,16 +32,31 @@ class UartMcpError(Exception):
 
 @dataclass
 class UartdClient:
-    socket_path: Path
+    endpoint: Endpoint
 
     def request(self, payload: dict[str, Any], timeout: float | None = None) -> dict[str, Any]:
         effective_timeout = timeout if timeout is not None else DEFAULT_TIMEOUT + 3
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+        with self._connect(effective_timeout) as sock:
             sock.settimeout(effective_timeout)
-            sock.connect(str(self.socket_path))
             sock.sendall((json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8"))
             response = self._recv_json(sock)
         return response
+
+    def _connect(self, timeout: float) -> socket.socket:
+        if self.endpoint.kind == "tcp":
+            assert self.endpoint.host is not None and self.endpoint.port is not None
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout)
+            sock.connect((self.endpoint.host, self.endpoint.port))
+            return sock
+
+        if not hasattr(socket, "AF_UNIX"):
+            raise UartMcpError("Unix socket transport is not available on this platform. Use TCP target profiles instead.")
+        assert self.endpoint.socket_path is not None
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect(str(self.endpoint.socket_path))
+        return sock
 
     def _recv_json(self, sock: socket.socket) -> dict[str, Any]:
         buffer = ""
@@ -53,7 +74,11 @@ class UartdClient:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="UART MCP stdio adapter")
-    parser.add_argument("--socket", default=str(DEFAULT_SOCKET))
+    transport = parser.add_mutually_exclusive_group()
+    transport.add_argument("--socket", default=None)
+    transport.add_argument("--tcp", default=None)
+    parser.add_argument("--target", default=None, help="Named UART target from tools/uart/targets.json")
+    parser.add_argument("--targets-file", default=str(DEFAULT_TARGETS_FILE), help="UART target profile JSON path")
     parser.add_argument("--default-timeout", type=float, default=DEFAULT_TIMEOUT)
     parser.add_argument("--default-newline", default=DEFAULT_NEWLINE)
     return parser
@@ -74,12 +99,24 @@ def detect_state_hint(text: str) -> str:
     return "unknown"
 
 
-def tool_definitions() -> list[dict[str, Any]]:
+def target_input_schema(default_target: str, targets: list[str]) -> dict[str, Any]:
+    schema: dict[str, Any] = {
+        "type": "string",
+        "description": f"UART target name. Default: {default_target}.",
+        "default": default_target,
+    }
+    if targets:
+        schema["enum"] = targets
+    return schema
+
+
+def tool_definitions(default_target: str, targets: list[str]) -> list[dict[str, Any]]:
+    target_schema = target_input_schema(default_target, targets)
     return [
         {
             "name": "uart_status",
             "description": "Check the persistent UART daemon status, including serial port, baudrate, active clients, current RX offset, and recent writer metadata. Use this before interacting with a real board over UART.",
-            "inputSchema": {"type": "object", "properties": {}},
+            "inputSchema": {"type": "object", "properties": {"target": target_schema}},
         },
         {
             "name": "uart_tail",
@@ -87,6 +124,7 @@ def tool_definitions() -> list[dict[str, Any]]:
             "inputSchema": {
                 "type": "object",
                 "properties": {
+                    "target": target_schema,
                     "lines": {"type": "integer", "default": 120, "minimum": 1, "maximum": 1000}
                 },
             },
@@ -97,6 +135,7 @@ def tool_definitions() -> list[dict[str, Any]]:
             "inputSchema": {
                 "type": "object",
                 "properties": {
+                    "target": target_schema,
                     "line": {"type": "string"},
                     "newline": {"type": "string", "enum": ["lf", "crlf", "cr", "none"], "default": DEFAULT_NEWLINE},
                 },
@@ -109,6 +148,7 @@ def tool_definitions() -> list[dict[str, Any]]:
             "inputSchema": {
                 "type": "object",
                 "properties": {
+                    "target": target_schema,
                     "pattern": {"type": "string"},
                     "timeout": {"type": "number", "default": DEFAULT_TIMEOUT},
                     "from": {"type": "string", "enum": ["now", "buffer"], "default": "now"},
@@ -122,6 +162,7 @@ def tool_definitions() -> list[dict[str, Any]]:
             "inputSchema": {
                 "type": "object",
                 "properties": {
+                    "target": target_schema,
                     "line": {"type": "string"},
                     "expect": {"type": "string"},
                     "timeout": {"type": "number", "default": DEFAULT_TIMEOUT},
@@ -132,10 +173,11 @@ def tool_definitions() -> list[dict[str, Any]]:
         },
         {
             "name": "uart_reboot_to_uboot",
-            "description": "From a Linux shell or login prompt, reboot the board and stop at the U-Boot prompt using a single managed flow over uartd.sock. Use this when you need reliable self-reboot to U-Boot entry without manually chaining separate send/expect steps.",
+            "description": "From a Linux shell or login prompt, reboot the board and stop at the U-Boot prompt using a single managed flow over the persistent UART daemon. Use this when you need reliable self-reboot to U-Boot entry without manually chaining separate send/expect steps.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
+                    "target": target_schema,
                     "login_user": {"type": "string", "default": "root"},
                     "shell_prompt": {"type": "string", "default": "# "},
                     "login_prompt": {"type": "string", "default": "login:"},
@@ -165,7 +207,7 @@ def make_tool_result(payload: dict[str, Any], text: str, is_error: bool = False)
 
 def summarize_status(data: dict[str, Any]) -> str:
     return (
-        f"uartd port={data.get('port')} baud={data.get('baud')} clients={data.get('clients')} "
+        f"uartd target={data.get('target')} endpoint={data.get('endpoint')} port={data.get('port')} baud={data.get('baud')} clients={data.get('clients')} "
         f"attach_clients={data.get('attach_clients', data.get('attached_clients', 0))} offset={data.get('offset')}"
     )
 
@@ -174,6 +216,8 @@ def normalize_tail(data: dict[str, Any]) -> dict[str, Any]:
     text = data.get("text", "")
     return {
         "ok": data.get("ok", False),
+        "target": data.get("target"),
+        "endpoint": data.get("endpoint"),
         "lines": data.get("lines"),
         "offset": data.get("offset"),
         "state_hint": detect_state_hint(text),
@@ -186,6 +230,8 @@ def normalize_expect(data: dict[str, Any], elapsed_ms: int) -> dict[str, Any]:
         return {
             "ok": True,
             "matched": True,
+            "target": data.get("target"),
+            "endpoint": data.get("endpoint"),
             "pattern": data.get("pattern", data.get("expect", data.get("matched"))),
             "output": data.get("output", ""),
             "start_offset": data.get("start_offset"),
@@ -194,6 +240,8 @@ def normalize_expect(data: dict[str, Any], elapsed_ms: int) -> dict[str, Any]:
         }
     return {
         "ok": False,
+        "target": data.get("target"),
+        "endpoint": data.get("endpoint"),
         "error": data.get("error", "timeout"),
         "matched": False,
         "pattern": data.get("pattern", data.get("expect")),
@@ -210,6 +258,8 @@ def normalize_command(data: dict[str, Any], elapsed_ms: int) -> dict[str, Any]:
         return {
             "ok": True,
             "matched": True,
+            "target": data.get("target"),
+            "endpoint": data.get("endpoint"),
             "state_hint": detect_state_hint(text),
             "sent": data.get("sent", ""),
             "expect": data.get("expect", data.get("pattern", data.get("matched"))),
@@ -222,6 +272,8 @@ def normalize_command(data: dict[str, Any], elapsed_ms: int) -> dict[str, Any]:
         }
     return {
         "ok": False,
+        "target": data.get("target"),
+        "endpoint": data.get("endpoint"),
         "error": data.get("error", "timeout"),
         "matched": False,
         "expect": data.get("expect", data.get("pattern")),
@@ -239,6 +291,8 @@ def normalize_command(data: dict[str, Any], elapsed_ms: int) -> dict[str, Any]:
 def normalize_reboot_flow(data: dict[str, Any], elapsed_ms: int) -> dict[str, Any]:
     return {
         "ok": data.get("ok", False),
+        "target": data.get("target"),
+        "endpoint": data.get("endpoint"),
         "state_before": data.get("state_before"),
         "steps": data.get("steps", []),
         "final_prompt": data.get("final_prompt"),
@@ -246,16 +300,42 @@ def normalize_reboot_flow(data: dict[str, Any], elapsed_ms: int) -> dict[str, An
     }
 
 
-def handle_tool_call(client: UartdClient, name: str, arguments: dict[str, Any], default_timeout: float, default_newline: str) -> dict[str, Any]:
+def attach_endpoint_metadata(payload: dict[str, Any], endpoint: Endpoint) -> dict[str, Any]:
+    data = dict(payload)
+    data.setdefault("target", endpoint.target)
+    data.setdefault("endpoint", endpoint.description)
+    return data
+
+
+def client_from_request(args: argparse.Namespace, arguments: dict[str, Any]) -> UartdClient:
+    target = arguments.get("target")
+    if target is not None and not isinstance(target, str):
+        raise UartMcpError("tool field 'target' must be a string")
+    if target and (args.socket or args.tcp):
+        raise UartMcpError("MCP server is pinned to an explicit endpoint; per-call target override is unavailable")
+    try:
+        endpoint = endpoint_from_options(
+            tcp=args.tcp,
+            socket_path=args.socket,
+            target=target or args.target,
+            targets_file=args.targets_file,
+        )
+    except EndpointConfigError as exc:
+        raise UartMcpError(str(exc)) from exc
+    return UartdClient(endpoint=endpoint)
+
+
+def handle_tool_call(args: argparse.Namespace, name: str, arguments: dict[str, Any], default_timeout: float, default_newline: str) -> dict[str, Any]:
     start = time.monotonic()
+    client = client_from_request(args, arguments)
 
     if name == "uart_status":
-        raw = client.request({"action": "status"}, timeout=default_timeout + 3)
+        raw = attach_endpoint_metadata(client.request({"action": "status"}, timeout=default_timeout + 3), client.endpoint)
         return make_tool_result(raw, summarize_status(raw), is_error=not raw.get("ok"))
 
     if name == "uart_tail":
         lines = int(arguments.get("lines", 120))
-        raw = client.request({"action": "tail_once", "lines": lines}, timeout=default_timeout + 3)
+        raw = attach_endpoint_metadata(client.request({"action": "tail_once", "lines": lines}, timeout=default_timeout + 3), client.endpoint)
         normalized = normalize_tail(raw)
         return make_tool_result(normalized, normalized.get("text", ""), is_error=not normalized.get("ok"))
 
@@ -264,7 +344,7 @@ def handle_tool_call(client: UartdClient, name: str, arguments: dict[str, Any], 
         if not isinstance(line, str):
             raise UartMcpError("uart_sendline requires string field 'line'")
         newline = arguments.get("newline", default_newline)
-        raw = client.request({"action": "send", "text": line, "newline": newline}, timeout=default_timeout + 3)
+        raw = attach_endpoint_metadata(client.request({"action": "send", "text": line, "newline": newline}, timeout=default_timeout + 3), client.endpoint)
         return make_tool_result(raw, f"sent {raw.get('sent', '')!r}", is_error=not raw.get("ok"))
 
     if name == "uart_expect":
@@ -273,7 +353,7 @@ def handle_tool_call(client: UartdClient, name: str, arguments: dict[str, Any], 
             raise UartMcpError("uart_expect requires string field 'pattern'")
         timeout = float(arguments.get("timeout", default_timeout))
         from_mode = arguments.get("from", "now")
-        raw = client.request({"action": "expect", "pattern": pattern, "timeout": timeout, "from": from_mode}, timeout=timeout + 3)
+        raw = attach_endpoint_metadata(client.request({"action": "expect", "pattern": pattern, "timeout": timeout, "from": from_mode}, timeout=timeout + 3), client.endpoint)
         normalized = normalize_expect(raw, int((time.monotonic() - start) * 1000))
         return make_tool_result(normalized, normalized.get("output", normalized.get("error", "")), is_error=not normalized.get("ok"))
 
@@ -284,10 +364,10 @@ def handle_tool_call(client: UartdClient, name: str, arguments: dict[str, Any], 
             raise UartMcpError("uart_command requires string fields 'line' and 'expect'")
         timeout = float(arguments.get("timeout", default_timeout))
         newline = arguments.get("newline", default_newline)
-        raw = client.request(
+        raw = attach_endpoint_metadata(client.request(
             {"action": "send_expect", "text": line, "expect": expect, "timeout": timeout, "newline": newline},
             timeout=timeout + 3,
-        )
+        ), client.endpoint)
         normalized = normalize_command(raw, int((time.monotonic() - start) * 1000))
         return make_tool_result(normalized, normalized.get("output", normalized.get("output_since_command", normalized.get("error", ""))), is_error=not normalized.get("ok"))
 
@@ -317,17 +397,17 @@ def handle_tool_call(client: UartdClient, name: str, arguments: dict[str, Any], 
             if not isinstance(value, str):
                 raise UartMcpError(f"uart_reboot_to_uboot requires string field '{label}'")
 
-        tail = normalize_tail(client.request({"action": "tail_once", "lines": 40}, timeout=default_timeout + 3))
+        tail = normalize_tail(attach_endpoint_metadata(client.request({"action": "tail_once", "lines": 40}, timeout=default_timeout + 3), client.endpoint))
         state_before = tail.get("state_hint", "unknown")
         steps: list[dict[str, Any]] = []
 
         if state_before == "password_prompt":
-            raw = client.request({"action": "send_expect", "text": "", "expect": login_prompt, "timeout": shell_timeout, "newline": newline, "from": "fresh"}, timeout=shell_timeout + 3)
+            raw = attach_endpoint_metadata(client.request({"action": "send_expect", "text": "", "expect": login_prompt, "timeout": shell_timeout, "newline": newline, "from": "fresh"}, timeout=shell_timeout + 3), client.endpoint)
             steps.append({"name": "password_to_login", **normalize_command(raw, int((time.monotonic() - start) * 1000))})
             state_before = "linux_login"
 
         if state_before == "linux_login":
-            raw = client.request({"action": "send_expect", "text": login_user, "expect": shell_prompt, "timeout": shell_timeout, "newline": newline, "from": "fresh"}, timeout=shell_timeout + 3)
+            raw = attach_endpoint_metadata(client.request({"action": "send_expect", "text": login_user, "expect": shell_prompt, "timeout": shell_timeout, "newline": newline, "from": "fresh"}, timeout=shell_timeout + 3), client.endpoint)
             normalized = normalize_command(raw, int((time.monotonic() - start) * 1000))
             steps.append({"name": "login_to_shell", **normalized})
             if not normalized.get("ok"):
@@ -338,18 +418,18 @@ def handle_tool_call(client: UartdClient, name: str, arguments: dict[str, Any], 
         if state_before != "linux_root":
             raise UartMcpError(f"uart_reboot_to_uboot requires Linux shell/login state, got '{state_before}'")
 
-        raw = client.request({"action": "send_expect", "text": reboot_command, "expect": autoboot_prompt, "timeout": reboot_timeout, "newline": newline, "from": "fresh"}, timeout=reboot_timeout + 3)
+        raw = attach_endpoint_metadata(client.request({"action": "send_expect", "text": reboot_command, "expect": autoboot_prompt, "timeout": reboot_timeout, "newline": newline, "from": "fresh"}, timeout=reboot_timeout + 3), client.endpoint)
         normalized = normalize_command(raw, int((time.monotonic() - start) * 1000))
         steps.append({"name": "reboot_to_autoboot", **normalized})
         if not normalized.get("ok"):
             result = normalize_reboot_flow({"ok": False, "state_before": state_before, "steps": steps, "final_prompt": None}, int((time.monotonic() - start) * 1000))
             return make_tool_result(result, normalized.get("output_since_command", normalized.get("error", "")), is_error=True)
 
-        raw = client.request({"action": "send_expect", "text": "", "expect": uboot_prompt, "timeout": uboot_timeout, "newline": newline, "from": "fresh"}, timeout=uboot_timeout + 3)
+        raw = attach_endpoint_metadata(client.request({"action": "send_expect", "text": "", "expect": uboot_prompt, "timeout": uboot_timeout, "newline": newline, "from": "fresh"}, timeout=uboot_timeout + 3), client.endpoint)
         normalized = normalize_command(raw, int((time.monotonic() - start) * 1000))
         steps.append({"name": "interrupt_to_uboot", **normalized})
 
-        result = normalize_reboot_flow({"ok": normalized.get("ok", False), "state_before": "linux_root", "steps": steps, "final_prompt": uboot_prompt if normalized.get("ok") else None}, int((time.monotonic() - start) * 1000))
+        result = normalize_reboot_flow({"ok": normalized.get("ok", False), "target": client.endpoint.target, "endpoint": client.endpoint.description, "state_before": "linux_root", "steps": steps, "final_prompt": uboot_prompt if normalized.get("ok") else None}, int((time.monotonic() - start) * 1000))
         text = normalized.get("output", normalized.get("output_since_command", normalized.get("error", "")))
         return make_tool_result(result, text, is_error=not normalized.get("ok"))
 
@@ -384,7 +464,8 @@ def make_error_response(message_id: Any, code: int, message: str) -> dict[str, A
 
 
 def serve(args: argparse.Namespace) -> int:
-    client = UartdClient(Path(args.socket))
+    known_targets = available_targets(Path(args.targets_file))
+    default_target = args.target or default_target_name(Path(args.targets_file))
 
     while True:
         message = read_message(sys.stdin)
@@ -418,7 +499,7 @@ def serve(args: argparse.Namespace) -> int:
                 continue
 
             if method == "tools/list":
-                write_message(sys.stdout, make_success_response(message_id, {"tools": tool_definitions()}))
+                write_message(sys.stdout, make_success_response(message_id, {"tools": tool_definitions(default_target, known_targets)}))
                 continue
 
             if method == "tools/call":
@@ -428,12 +509,12 @@ def serve(args: argparse.Namespace) -> int:
                     raise UartMcpError("tools/call requires string param 'name'")
                 if not isinstance(arguments, dict):
                     raise UartMcpError("tools/call requires object param 'arguments'")
-                result = handle_tool_call(client, name, arguments, args.default_timeout, args.default_newline)
+                result = handle_tool_call(args, name, arguments, args.default_timeout, args.default_newline)
                 write_message(sys.stdout, make_success_response(message_id, result))
                 continue
 
             write_message(sys.stdout, make_error_response(message_id, -32601, f"Method not found: {method}"))
-        except (UartMcpError, OSError, json.JSONDecodeError, socket.timeout) as exc:
+        except (EndpointConfigError, UartMcpError, OSError, json.JSONDecodeError, socket.timeout) as exc:
             if message_id is None:
                 continue
             write_message(sys.stdout, make_error_response(message_id, -32000, str(exc)))

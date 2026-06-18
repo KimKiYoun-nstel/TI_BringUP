@@ -2,6 +2,7 @@
 
 ## 현재
 
+- [ ] UART 단일 MCP + target(`sk`/`custom`) 운용을 실제 새 세션에서 재검증
 - [x] SK-AM64B SBL OSPI Linux LPDDR4 reginit delta를 workspace-base asset/note로 정리
 - [x] SK-AM64B SBL OSPI Linux 기본 dual-boot 경로 OSPI write 및 Linux boot 재검증
 - [ ] SK-AM64B SBL OSPI Linux dual boot 이후 Linux attach / RPMsg 검증
@@ -26,6 +27,7 @@
 
 ## 완료
 
+- [x] UART daemon/client/MCP를 target profile 기반 TCP 기본 경로와 단일 generic MCP 구조로 정리
 - [x] R5F early boot task-unit-1 inventory 문서화 및 repo skeleton 정리
 - [x] Ubuntu 22.04 WSL 준비
 - [x] `TI_BringUP` GitHub repo 생성
