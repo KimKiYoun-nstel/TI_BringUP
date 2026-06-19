@@ -6,7 +6,14 @@
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0034, PIN_INPUT, 7) /* (K17) GPIO0_13 net=GPIO_OSPI_RSTN TODO: review flag */
 			AM64X_IOPAD(0x0038, PIN_INPUT, 7) /* (L17) GPIO0_14 net=OSPI_INTN TODO: review flag */
+			AM64X_IOPAD(0x00b8, PIN_INPUT, 7) /* (Y7) GPIO0_45 net=VSEL_SD_SWITCH TODO: review flag */
+			AM64X_IOPAD(0x00d0, PIN_INPUT, 7) /* (AA7) GPIO0_51 net=PMIC_STBY TODO: review flag */
 			AM64X_IOPAD(0x00f4, PIN_INPUT, 7) /* (Y9) GPIO0_60 net=TEST_LED1 TODO: review flag */
+		>;
+	};
+	gpio1_pins_default: gpio1-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0278, PIN_INPUT, 7) /* (C19) GPIO1_70 net=N15985259 TODO: review flag */
 		>;
 	};
 	gpmc0_pins_default: gpmc0-pins-default {
@@ -69,9 +76,7 @@
 	};
 	pru_icssg1_pru0_pins_default: pru-icssg1-pru0-pins-default {
 		pinctrl-single,pins = <
-			AM64X_IOPAD(0x00b8, PIN_INPUT, 0) /* (Y7) PRG1_PRU0_GPO0 net=VSEL_SD_SWITCH TODO: review flag */
 			AM64X_IOPAD(0x00cc, PIN_INPUT, 0) /* (V13) PRG1_PRU0_GPO5 net=CPSW_RGMII1_RX_CTRL TODO: review flag */
-			AM64X_IOPAD(0x00d0, PIN_INPUT, 0) /* (AA7) PRG1_PRU0_GPO6 net=PMIC_STBY TODO: review flag */
 			AM64X_IOPAD(0x00d8, PIN_INPUT, 0) /* (W13) PRG1_PRU0_GPO8 net=CPSW_RGMII1_RX_CLK TODO: review flag */
 			AM64X_IOPAD(0x00e0, PIN_INPUT, 0) /* (U14) PRG1_PRU0_GPO10 net=CPSW_RGMII1_TX_CLK TODO: review flag */
 		>;
@@ -118,7 +123,7 @@
 	};
 };
 
-&mcu_pmx0 {
+&wkup_pmx0 {
 	mcu_gpio0_pins_default: mcu-gpio0-pins-default {
 		pinctrl-single,pins = <
 			AM64X_MCU_IOPAD(0x0014, PIN_INPUT, 7) /* (A7) MCU_GPIO0_5 net=TEST_LED2 TODO: review flag */

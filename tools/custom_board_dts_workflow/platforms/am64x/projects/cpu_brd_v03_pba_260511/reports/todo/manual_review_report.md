@@ -1,12 +1,15 @@
 # Manual Review Report
 
-이 파일은 facts/candidates/base 출력만으로 확정할 수 없는 항목을 모은다.
+이 파일은 stage1 lookup 기준으로 facts/candidates/base 출력만으로 확정할 수 없는 항목을 모은다.
+`board_dts_decisions.yaml`로 explicit override된 항목은 다음 regenerate부터 이 보고서에서 해소될 수 있다.
+반대로 `generated/*/final/`에서만 수동 편집하고 decision YAML로 back-annotate하지 않은 항목은 이 보고서에 다시 남을 수 있다.
 
 - unmatched soc pins: 0
 - out-of-scope non-mux pins: 146
 - conflicting DB lookups: 0
-- non-pinctrl or pre-Linux hardware facts: 69
+- non-pinctrl or pre-Linux hardware facts: 68
 - alternate function or GPIO review items: 15
+- explicit board mux decisions loaded: 9
 
 ## Non-Pinctrl / Pre-Linux Hardware Facts
 ### Clock / Reference Input
@@ -67,7 +70,7 @@
 - N5 DDR0_DQ8 source=`U1-N5 AM6412-DDR0_DQ8 PASSIVE` note=soc_pin_name:DDR0_DQ8; pre-Linux controller or PHY domain
 
 ### Manual Review Required
-- count: 15
+- count: 14
 - A12 TDO source=`U1-A12 AM6412-TDO OUTPUT` note=soc_pin_name:TDO; system/reset/debug/clock hardware fact
 - A20 MCU_SAFETY_ERRORn source=`U1-A20 AM6412-MCU_SAFETY_ERRORN PASSIVE` note=soc_pin_name:MCU_SAFETY_ERRORN; system/reset/debug/clock hardware fact
 - B11 TCK source=`U1-B11 AM6412-TCK INPUT` note=soc_pin_name:TCK; system/reset/debug/clock hardware fact
@@ -76,7 +79,6 @@
 - B21 MCU_PORz source=`U1-B21 AM6412-MCU_PORZ PASSIVE` note=soc_pin_name:MCU_PORZ; system/reset/debug/clock hardware fact
 - C11 TDI source=`U1-C11 AM6412-TDI INPUT` note=soc_pin_name:TDI; system/reset/debug/clock hardware fact
 - C12 TMS source=`U1-C12 AM6412-TMS PASSIVE` note=soc_pin_name:TMS; system/reset/debug/clock hardware fact
-- C19 EXTINTn source=`U1-C19 AM6412-EXTINTN PASSIVE` note=soc_pin_name:EXTINTN; system/reset/debug/clock hardware fact
 - D10 EMU0 source=`U1-D10 AM6412-EMU0 PASSIVE` note=soc_pin_name:EMU0; system/reset/debug/clock hardware fact
 - D11 TRSTn source=`U1-D11 AM6412-TRSTN PASSIVE` note=soc_pin_name:TRSTN; system/reset/debug/clock hardware fact
 - E10 EMU1 source=`U1-E10 AM6412-EMU1 PASSIVE` note=soc_pin_name:EMU1; system/reset/debug/clock hardware fact

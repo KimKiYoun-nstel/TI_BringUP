@@ -155,6 +155,12 @@ platforms/<soc>/projects/<board-project>/reports/todo/
 - pinctrl로 확정할 수 없는 board-only 배선
 - address, polarity, phy-mode처럼 추가 판단이 필요한 항목
 
+주의:
+
+- `manual_review_report.md`는 stage1 lookup 기준 보고서다.
+- `docs/board_dts_decisions.yaml`에 반영된 mux 판단은 다음 regenerate부터 이 보고서에서 해소될 수 있다.
+- 반대로 `generated/*/final/`에만 수동 수정하고 decision YAML에 back-annotate하지 않으면, stage1 regenerate 시 같은 항목이 다시 review 대상으로 남을 수 있다.
+
 이 보고서를 읽은 뒤에는 `docs/review_checklist.md` 순서대로 검토를 진행한다.
 
 ## board decision YAML을 쓰는 시점

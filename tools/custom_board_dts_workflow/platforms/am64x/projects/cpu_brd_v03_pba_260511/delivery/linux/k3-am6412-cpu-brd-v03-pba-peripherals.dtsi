@@ -143,6 +143,19 @@
 	};
 };
 
+&gpmc0 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpmc0_fpga_pins_default>;
+	/*
+	 * FPGA Bank15 is wired as an async non-multiplexed 16-bit NOR-style bus.
+	 * Keep the controller disabled until the register map, timings, address
+	 * window, and Linux-vs-R5F ownership are fixed.
+	 */
+	/* TODO: add ranges once the FPGA address window is fixed. */
+	/* TODO: add the FPGA child node once register map and Linux driver model are defined. */
+};
+
 &cpsw3g {
 	status = "okay";
 	pinctrl-names = "default";

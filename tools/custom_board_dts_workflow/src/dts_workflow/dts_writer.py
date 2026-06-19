@@ -433,7 +433,7 @@ def write_outputs(
     _write_device_stubs(config, netlist_data, grouped, interface_map, part_map, soc_reference, board_decisions)
     _write_maximal_dts(config, grouped, interface_map, soc_reference)
     _write_peripheral_inventory(config, grouped, interface_map)
-    _write_todo_report(config, lookup_results, soc_reference, board_reference)
+    _write_todo_report(config, lookup_results, soc_reference, board_reference, board_decisions)
     _write_uboot_spl_outputs(config, grouped, lookup_results, interface_map, soc_reference, board_reference)
 
 
@@ -1044,6 +1044,7 @@ def _write_todo_report(
     results: list[LookupResult],
     soc_reference: SocReference,
     board_reference: BoardReference,
+    board_decisions: BoardDecisions,
 ) -> None:
     path = config.todo_report_path
     unmatched = [result for result in results if result.classification == "UNMATCHED_OR_CONFLICT" and result.status == "UNMATCHED"]
@@ -1051,15 +1052,19 @@ def _write_todo_report(
     conflicts = [result for result in results if result.status == "CONFLICT"]
     non_pinctrl = [result for result in results if result.classification in {"NON_PINCTRL_HW", "PRE_LINUX_CONFIG", "CONTROLLER_DTS"}]
     alt_reviews = [result for result in results if result.classification in {"ALT_FUNCTION_REVIEW", "GPIO_CANDIDATE"}]
+    explicit_mux_decisions = len(board_decisions.raw.get("mux_decisions", []) or [])
 
     lines = ["# Manual Review Report", ""]
-    lines.append("이 파일은 facts/candidates/base 출력만으로 확정할 수 없는 항목을 모은다.")
+    lines.append("이 파일은 stage1 lookup 기준으로 facts/candidates/base 출력만으로 확정할 수 없는 항목을 모은다.")
+    lines.append("`board_dts_decisions.yaml`로 explicit override된 항목은 다음 regenerate부터 이 보고서에서 해소될 수 있다.")
+    lines.append("반대로 `generated/*/final/`에서만 수동 편집하고 decision YAML로 back-annotate하지 않은 항목은 이 보고서에 다시 남을 수 있다.")
     lines.append("")
     lines.append(f"- unmatched soc pins: {len(unmatched)}")
     lines.append(f"- out-of-scope non-mux pins: {len(out_of_scope)}")
     lines.append(f"- conflicting DB lookups: {len(conflicts)}")
     lines.append(f"- non-pinctrl or pre-Linux hardware facts: {len(non_pinctrl)}")
     lines.append(f"- alternate function or GPIO review items: {len(alt_reviews)}")
+    lines.append(f"- explicit board mux decisions loaded: {explicit_mux_decisions}")
     lines.append("")
 
     if unmatched:

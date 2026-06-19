@@ -188,6 +188,100 @@ mux_decisions:
     sysconfig_validation_required:
       - "Check L17 supports GPIO0_14 or intended GPIO mux function."
 
+  - id: vsel_sd_switch_gpio_on_prg1_pru0_gpo0
+    status: derived_from_schematic
+    soc_ref: U1
+    schematic_unit: U1L
+    ball: Y7
+    symbol_pin_name: PRG1_PRU0_GPO0
+    net: VSEL_SD_SWITCH
+    selected_function: GPIO0_45
+    dts_usage: pinctrl
+    linux_target: pmic_vsel_sd_switch_candidate
+    active_level: active_high
+    evidence:
+      - page: 16
+        title: "SoC PRG (RGMII)"
+        notes:
+          - "Page exposes VSEL_SD_SWITCH from the PRG page."
+          - "U1L lists PRG1_PRU0_GPO0 at ball Y7."
+      - page: 39
+        title: "POWER 5V PMIC"
+        notes:
+          - "PMIC control context shows VSEL_SD/VSEL_DDR and VSEL_SD_SWITCH relationship."
+      - page: 1
+        title: "Design Summary"
+        notes:
+          - "Index ties PMIC control path to power pages."
+    policy_required:
+      - "Confirm whether Linux owns this PMIC voltage-select control or whether it remains fixed by hardware/firmware policy."
+    sysconfig_validation_required:
+      - "Check Y7 supports GPIO0_45 and use the validated mux mode/pad offset if Linux control is adopted."
+
+  - id: pmic_stby_gpio_on_prg1_pru0_gpo6
+    status: derived_from_schematic
+    soc_ref: U1
+    schematic_unit: U1L
+    ball: AA7
+    symbol_pin_name: PRG1_PRU0_GPO6
+    net: PMIC_STBY
+    selected_function: GPIO0_51
+    dts_usage: pinctrl
+    linux_target: pmic_standby_candidate
+    active_level: active_high
+    evidence:
+      - page: 16
+        title: "SoC PRG (RGMII)"
+        notes:
+          - "Page exposes PMIC_STBY from the PRG page."
+          - "U1L lists PRG1_PRU0_GPO6 at ball AA7."
+      - page: 39
+        title: "POWER 5V PMIC"
+        notes:
+          - "PMIC control context includes standby control."
+    policy_required:
+      - "Confirm whether Linux should actively drive PMIC standby or whether the signal belongs to boot/power sequencing outside Linux."
+    sysconfig_validation_required:
+      - "Check AA7 supports GPIO0_51 and use the validated mux mode/pad offset if Linux control is adopted."
+
+  - id: extintn_gpio1_70_for_pmic_rgmii_aggregation
+    status: needs_hw_confirmation
+    soc_ref: U1
+    schematic_unit: U1M
+    ball: C19
+    symbol_pin_name: EXTINTN
+    net: RGMII_INTN
+    selected_function: GPIO1_70
+    dts_usage: pinctrl
+    linux_target: interrupt_aggregation_input_candidate
+    active_level: active_low
+    evidence:
+      - page: 16
+        title: "SoC PRG (RGMII)"
+        notes:
+          - "RGMII INTERRUPT Pin setting note points to Block C / C19 / EXTINTN."
+      - page: 19
+        title: "SoC SYSTEM & I2C & UART"
+        notes:
+          - "EXTINTN C19 is annotated as GPIO1_70 for RGMII & PMIC interrupt setting."
+      - page: 27
+        title: "ETHERNET PHY1"
+        notes:
+          - "PHY1 interrupt is named CPSW_RGMII1_INTn/RGMII_INTn."
+      - page: 28
+        title: "ETHERNET PHY2"
+        notes:
+          - "PHY2 interrupt is named CPSW_RGMII2_INTn."
+      - page: 39
+        title: "POWER 5V PMIC"
+        notes:
+          - "PMIC_INTn is part of the same interrupt aggregation context."
+    policy_required:
+      - "Confirm the exact aggregation model for PMIC_INTn, CPSW_RGMII1_INTn, and CPSW_RGMII2_INTn before Linux interrupt wiring is generated."
+      - "Confirm whether GPIO1_70 is the intended Linux-facing function, rather than dedicated EXTINTn handling outside the GPIO controller path."
+    sysconfig_validation_required:
+      - "Check C19 supports GPIO1_70 and use the validated mux mode/pad offset if Linux GPIO interrupt handling is adopted."
+
 controller_decisions:
   - id: mmc0_emmc_8bit
     status: confirmed_by_schematic

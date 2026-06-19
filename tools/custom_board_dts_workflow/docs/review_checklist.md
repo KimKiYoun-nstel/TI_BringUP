@@ -9,6 +9,7 @@
 - helper가 만든 `facts`는 재검증보다 활용이 우선이다.
 - `manual_review_report.md`에 남은 항목만 사람이 판단한다.
 - 판단 결과는 다음 실행에서도 재사용할 수 있도록 문서나 `board_dts_decisions.yaml`로 남긴다.
+- `generated/*/final/`에만 수동 반영한 항목은 regenerate 시 review 대상으로 되돌아올 수 있으므로, 반복 사용할 판단은 `board_dts_decisions.yaml`로 back-annotate한다.
 
 ## 먼저 확인할 파일
 
@@ -54,6 +55,7 @@
 - net 이름만 보고 alt function으로 오판한 항목은 없는가
 - GPIO candidate가 실제 GPIO 소비자(node, polarity, default state)로 이어지는가
 - 확인된 항목은 `board_dts_decisions.yaml`에 남겼는가
+- final/delivery에서 이미 수동 반영한 pinctrl가 있으면, 그 근거가 `board_dts_decisions.yaml`에도 기록됐는가
 
 ### 5. Controller candidate 검토
 

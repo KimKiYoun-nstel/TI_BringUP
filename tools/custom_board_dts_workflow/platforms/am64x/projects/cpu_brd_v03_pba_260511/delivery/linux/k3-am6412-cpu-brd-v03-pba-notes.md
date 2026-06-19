@@ -29,6 +29,9 @@
 	- PHY 두 개, MDIO address, 기본 RX delay는 회로도와 `inputs/schematic/hardware_db/03_interfaces.yaml`, SK reference로 맞출 수 있었다.
 8. memory / reserved-memory baseline
 	- LPDDR4 2GB 정보와 `hardware_db/02_memory_and_reserved.yaml` 기준으로 memory node를 추가했고, reserved-memory는 SK-AM64B baseline 후보를 같이 넘겼다.
+9. GPMC-FPGA disabled skeleton
+	- schematic page 16의 `GPMC0_A[10:1]`, page 17의 `GPMC0_AD[15:0]`, page 33의 FPGA Bank15 매핑을 하나의 GPMC-FPGA bus로 묶어 handoff DTS의 단일 pinctrl 섹션으로 정리했다.
+	- 다만 `register map`, `gpmc timings`, `address window`, `Linux vs R5F ownership`이 아직 결정되지 않아 `&gpmc0`는 `disabled`로 유지했다.
 
 ## main_uart2 정리
 
@@ -47,6 +50,8 @@
    - 다만 SERDES0를 USB3/PCIe/FPGA/VITA 중 어디에 쓸지는 아직 남아 있다.
 4. memory / reserved-memory / regulator / PMIC
 	- memory node는 반영했지만 regulator/PMIC binding과 reserved-memory 최종 정책은 여전히 review 대상이다.
+5. GPMC-FPGA child node
+	- 회로 연결 사실과 pin map은 포함했지만 실제 `ranges`와 FPGA child node는 아직 정책 미확정이라 보류했다.
 
 ## 전달받은 사람이 우선 검토할 항목
 
@@ -56,3 +61,4 @@
 4. SERDES0 protocol
 5. LPDDR4 memory size와 reserved-memory 정책
 6. TPS6522053 Linux binding과 regulator 모델
+7. GPMC0 address window, timings, FPGA register map, ownership policy

@@ -30,6 +30,44 @@
 		>;
 	};
 
+	/* Combined GPMC-FPGA bus pin group from schematic pages 16, 17, and 33. */
+	gpmc0_fpga_pins_default: gpmc0-fpga-pins-default {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x003c, PIN_INPUT, 0) /* (T20) GPMC0_AD0 */
+			AM64X_IOPAD(0x0040, PIN_INPUT, 0) /* (U21) GPMC0_AD1 */
+			AM64X_IOPAD(0x0044, PIN_INPUT, 0) /* (T18) GPMC0_AD2 */
+			AM64X_IOPAD(0x0048, PIN_INPUT, 0) /* (U20) GPMC0_AD3 */
+			AM64X_IOPAD(0x004c, PIN_INPUT, 0) /* (U18) GPMC0_AD4 */
+			AM64X_IOPAD(0x0050, PIN_INPUT, 0) /* (U19) GPMC0_AD5 */
+			AM64X_IOPAD(0x0054, PIN_INPUT, 0) /* (V20) GPMC0_AD6 */
+			AM64X_IOPAD(0x0058, PIN_INPUT, 0) /* (V21) GPMC0_AD7 */
+			AM64X_IOPAD(0x005c, PIN_INPUT, 0) /* (V19) GPMC0_AD8 */
+			AM64X_IOPAD(0x0060, PIN_INPUT, 0) /* (T17) GPMC0_AD9 */
+			AM64X_IOPAD(0x0064, PIN_INPUT, 0) /* (R16) GPMC0_AD10 */
+			AM64X_IOPAD(0x0068, PIN_INPUT, 0) /* (W20) GPMC0_AD11 */
+			AM64X_IOPAD(0x006c, PIN_INPUT, 0) /* (W21) GPMC0_AD12 */
+			AM64X_IOPAD(0x0070, PIN_INPUT, 0) /* (V18) GPMC0_AD13 */
+			AM64X_IOPAD(0x0074, PIN_INPUT, 0) /* (Y21) GPMC0_AD14 */
+			AM64X_IOPAD(0x0078, PIN_INPUT, 0) /* (Y20) GPMC0_AD15 */
+			AM64X_IOPAD(0x0170, PIN_OUTPUT, 9) /* (AA2) PRG0_PRU0_GPO4.GPMC0_A1 */
+			AM64X_IOPAD(0x0180, PIN_OUTPUT, 9) /* (T2) PRG0_PRU0_GPO8.GPMC0_A2 */
+			AM64X_IOPAD(0x0198, PIN_OUTPUT, 9) /* (V4) PRG0_PRU0_GPO14.GPMC0_A3 */
+			AM64X_IOPAD(0x01a0, PIN_OUTPUT, 9) /* (U4) PRG0_PRU0_GPO16.GPMC0_A4 */
+			AM64X_IOPAD(0x01a8, PIN_OUTPUT, 9) /* (V1) PRG0_PRU0_GPO18.GPMC0_A5 */
+			AM64X_IOPAD(0x01ac, PIN_OUTPUT, 9) /* (W1) PRG0_PRU0_GPO19.GPMC0_A6 */
+			AM64X_IOPAD(0x01e0, PIN_OUTPUT, 9) /* (Y4) PRG0_PRU1_GPO12.GPMC0_A7 */
+			AM64X_IOPAD(0x01e4, PIN_OUTPUT, 9) /* (T6) PRG0_PRU1_GPO13.GPMC0_A8 */
+			AM64X_IOPAD(0x01e8, PIN_OUTPUT, 9) /* (U6) PRG0_PRU1_GPO14.GPMC0_A9 */
+			AM64X_IOPAD(0x01ec, PIN_OUTPUT, 9) /* (U5) PRG0_PRU1_GPO15.GPMC0_A10 */
+			AM64X_IOPAD(0x007c, PIN_OUTPUT, 0) /* (R17) GPMC0_CLK */
+			AM64X_IOPAD(0x00a8, PIN_OUTPUT, 0) /* (R19) GPMC0_CSn0 */
+			AM64X_IOPAD(0x0090, PIN_INPUT, 0) /* (P17) GPMC0_BE0n_CLE */
+			AM64X_IOPAD(0x0094, PIN_INPUT, 0) /* (T19) GPMC0_BE1n */
+			AM64X_IOPAD(0x0088, PIN_OUTPUT, 0) /* (R18) GPMC0_OEn_REn */
+			AM64X_IOPAD(0x008c, PIN_OUTPUT, 0) /* (T21) GPMC0_WEn */
+		>;
+	};
+
 	mdio1_pins_default: mdio1-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x01fc, PIN_OUTPUT, 4) /* (R2) PRG0_PRU1_GPO19.MDIO0_MDC */
@@ -154,6 +192,19 @@
 		/* Initial safe profile: keep single SPI fallback until octal/DQS bring-up root cause is resolved. */
 		/* TODO: confirm Macronix-specific timing, partitions, reset-gpios, interrupt-gpios, and later octal profile. */
 	};
+};
+
+&gpmc0 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpmc0_fpga_pins_default>;
+	/*
+	 * FPGA Bank15 is wired as an async non-multiplexed 16-bit NOR-style bus.
+	 * This skeleton intentionally stays disabled until address window, timings,
+	 * register map, and Linux-vs-R5F ownership are decided.
+	 */
+	/* TODO: add ranges once the FPGA address window is fixed. */
+	/* TODO: add the FPGA child node once register map and Linux driver model are defined. */
 };
 
 &cpsw3g {
