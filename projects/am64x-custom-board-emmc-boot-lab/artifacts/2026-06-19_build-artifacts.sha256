@@ -1,0 +1,5 @@
+746bbb8349fb349e158029ca9e32af9db36e0f2b0bcbdb51749b9ba6a343f6ac  out/u-boot-custom-board/cpu_brd_v03_pba_260511/bringup-default/artifacts/tiboot3.bin
+711e34df7cce11027ceb5431323720cab4a9a0cdefd5be43dd2dbeb2f7f24dd8  out/u-boot-custom-board/cpu_brd_v03_pba_260511/bringup-default/artifacts/tispl.bin
+a8d2eb82d6363297570f00873f059c424cb068bdd1060814bfee25fc1a8c11b7  out/u-boot-custom-board/cpu_brd_v03_pba_260511/bringup-default/artifacts/u-boot.img
+9d708e3401d591b9f7bc636674a4592e475871eee6a80aebe7b48cab01a7b671  out/kernel-custom-board/cpu_brd_v03_pba_260511/bringup-default/artifacts/Image
+3b340aad889b691eaea521d904c141d44279ac75352f55e7888af6f4ca172990  out/kernel-custom-board/cpu_brd_v03_pba_260511/bringup-default/artifacts/k3-am6412-cpu-brd-v03-pba.dtb

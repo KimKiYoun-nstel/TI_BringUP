@@ -17,7 +17,7 @@ source workflow final:
 - `sdhci0` eMMC 8-bit 사용, `sdhci1` disable
 - Linux boot source 기본 정책은 eMMC-first
 - OSPI는 single-SPI safe fallback profile 유지
-- USB0는 `USB2-only + OTG` 초기 bring-up 정책
+- CPSW dual RGMII만 우선 유지하고, unresolved `USB/SERDES`, `ICSSG/PRUSS`, `remoteproc`, `SA2UL`은 bringup-default에서 disable
 - dual CPSW RGMII PHY 기본 연결
 
 남은 TODO:
@@ -27,6 +27,7 @@ source workflow final:
 - CPSW reset/interrupt provider
 - SERDES0 최종 routing policy
 - TPM `U15`와 `U21` 정책
+- disabled한 `USB/SERDES`, `ICSSG/PRUSS`, `remoteproc`, `SA2UL` 재활성화 조건 정리
 
 workspace projection:
 

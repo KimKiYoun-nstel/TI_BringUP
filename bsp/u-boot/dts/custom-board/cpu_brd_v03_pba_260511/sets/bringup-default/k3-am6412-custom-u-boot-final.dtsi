@@ -8,6 +8,15 @@
 	};
 };
 
+/*
+ * The custom R5/SPL wrapper reuses the projected board top-level DTS.
+ * Mark the DDR memory node as pre-reloc data so SPL dram_init_banksize()
+ * can see it before relocating, instead of failing with -EINVAL.
+ */
+&{/memory@80000000} {
+	bootph-pre-ram;
+};
+
 &main_timer0 {
 	clock-frequency = <200000000>;
 };
@@ -37,6 +46,7 @@
 	bootph-all;
 	bus-width = <8>;
 	non-removable;
+	/* MMC0/eMMC is a controller-only path on this SoC, so no padconfig is expected here. */
 };
 
 &sdhci1 {

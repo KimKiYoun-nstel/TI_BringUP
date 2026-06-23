@@ -62,3 +62,37 @@
 };
 
 #include "k3-am64-ti-ipc-firmware.dtsi"
+
+/*
+ * k3-am64-ti-ipc-firmware.dtsi re-enables remoteproc/M4 nodes late in the
+ * include chain. Keep them disabled for bringup-default until their memory,
+ * firmware, and ownership policy is validated on this board.
+ */
+
+&main_r5fss0 {
+	status = "disabled";
+};
+
+&main_r5fss0_core0 {
+	status = "disabled";
+};
+
+&main_r5fss0_core1 {
+	status = "disabled";
+};
+
+&main_r5fss1 {
+	status = "disabled";
+};
+
+&main_r5fss1_core0 {
+	status = "disabled";
+};
+
+&main_r5fss1_core1 {
+	status = "disabled";
+};
+
+&mcu_m4fss {
+	status = "disabled";
+};

@@ -17,12 +17,14 @@ source workflow final:
 - `k3-am64x-binman.dtsi` include 유지
 - Linux handoff 기본 정책은 eMMC-first로 본다.
 - 4MiB eMMC boot partition 기준 small raw layout candidate를 사용한다.
+- SPL wrapper가 재사용하는 top-level memory node에 `bootph-pre-ram`을 U-Boot DTS 쪽에서 다시 부여한다.
 
 남은 TODO:
 
 - LPDDR4 timing/training include chain
 - octal/DQS profile 재전환 시점
 - SERDES0 / USB3 / PCIe 정책
+- eMMC boot 재시도 시 `dram_init_banksize()` 경고와 MMC init 연동 여부 재확인
 
 workspace projection:
 

@@ -195,18 +195,63 @@
 };
 
 &usbss0 {
-	status = "okay";
-	ti,vbus-divider;
-	ti,usb2-only;
+	status = "disabled";
 };
 
 &usb0 {
-	status = "okay";
-	dr_mode = "otg";
-	maximum-speed = "high-speed";
-	pinctrl-names = "default";
-	pinctrl-0 = <&main_usb0_pins_default>;
-	/* Initial policy: use USB2 OTG only, keep SERDES0/USB3 disabled until product routing policy is fixed. */
+	status = "disabled";
+};
+
+&serdes_ln_ctrl {
+	status = "disabled";
+};
+
+&serdes_wiz0 {
+	status = "disabled";
+};
+
+&serdes0 {
+	status = "disabled";
+};
+
+&icssg0 {
+	status = "disabled";
+};
+
+&icssg1 {
+	status = "disabled";
+};
+
+&crypto {
+	status = "disabled";
+};
+
+&main_r5fss0 {
+	status = "disabled";
+};
+
+&main_r5fss0_core0 {
+	status = "disabled";
+};
+
+&main_r5fss0_core1 {
+	status = "disabled";
+};
+
+&main_r5fss1 {
+	status = "disabled";
+};
+
+&main_r5fss1_core0 {
+	status = "disabled";
+};
+
+&main_r5fss1_core1 {
+	status = "disabled";
+};
+
+&mcu_m4fss {
+	status = "disabled";
 };
 
 /* TODO: SERDES0 remains unresolved between PCIe/USB3/FPGA/VITA routing policies. */

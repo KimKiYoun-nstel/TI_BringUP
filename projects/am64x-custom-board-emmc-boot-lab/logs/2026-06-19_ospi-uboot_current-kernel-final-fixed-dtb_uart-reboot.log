@@ -1,0 +1,17 @@
+reboot -f
+Password: 
+Login timed out after 60 seconds.
+[!p]104\[0m[?7h[1G[0J[6n[32766;32766H[6n[46;1H[!p]104\[0m[?7h[1G[0J[6n[32766;32766H[6n[!p]104\[0m[?7h[1G[0J[6n[32766;32766H[6n[46;155H]3008;start=2d81d818bb994391bd74dc5c251b98fe;user=root;hostname=am64xx-evm;machineid=68b52cdbbb8e4e3dbd77cab51c72575a;bootid=13bad27471994b4a95c8664ae0257fe2;pid=793;pidfdid=794;comm=(agetty);servicename=serial-getty@ttyS2.service;invocationid=6fa74cc7988f448caa595688a08a7aff;type=service\P+q6E616D65\
+ _____                    _____           _         _   
+|  _  |___ ___ ___ ___   |  _  |___ ___  |_|___ ___| |_ 
+|     |  _| .'| . | . |  |   __|  _| . | | | -_|  _|  _|
+|__|__|_| |__,|_  |___|  |__|  |_| |___|_| |___|___|_|  
+              |___|                    |___|            
+
+Arago Project am64xx-evm ttyS2
+
+Arago 2025.01 am64xx-evm ttyS2
+
+Type 'root' to login with superuser privileges (no password will be asked).
+
+am64xx-evm login: 
