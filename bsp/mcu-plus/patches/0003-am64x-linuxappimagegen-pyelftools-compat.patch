@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TI_Bringup Workspace Base <noreply@example.com>
+Date: Wed, 24 Jun 2026 11:10:00 +0900
+Subject: [PATCH] am64x: linuxAppimageGen: support pyelftools 0.26 iter_segments API
+
+The MCU+ `genimage_am64x.py` path currently assumes a newer pyelftools API
+that accepts `iter_segments(type='PT_LOAD')`. The host bring-up environment
+uses pyelftools 0.26 where `iter_segments()` takes no keyword arguments.
+
+Keep the filtering logic local so `linux.mcelf.hs_fs` rebuild remains
+repeatable on the current host without downgrading or replacing Python
+packages globally.
+---
+ .../tools/boot/multicore-elf/modules_am64/multicoreelf.py   | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/tools/boot/multicore-elf/modules_am64/multicoreelf.py b/tools/boot/multicore-elf/modules_am64/multicoreelf.py
+--- a/tools/boot/multicore-elf/modules_am64/multicoreelf.py
++++ b/tools/boot/multicore-elf/modules_am64/multicoreelf.py
+@@ -83,7 +83,9 @@ class MultiCoreELFImageGen(object):
+             elf_fp = open(fname, 'rb')
+             elf_o = ELFFile(elf_fp)
+             self.eplist[core_id] = elf_o.header['e_entry']
+-            for segment in elf_o.iter_segments(type='PT_LOAD'):
++            for segment in elf_o.iter_segments():
++                if segment.header['p_type'] != 'PT_LOAD':
++                    continue
+                 if (segment.header['p_filesz'] != 0) and self.__check_range(segment.header):
+                     elf_obj.add_segment_from_elf(segment, context=core_id)
+             elf_fp.close()
+-- 
+2.43.0

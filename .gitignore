@@ -8,6 +8,7 @@ Thumbs.db
 # logs that are too large; curated logs should be committed as markdown
 *.log
 *.tmp
+!/projects/*/logs/**/*.log
 !/logs/**/*.log
 /logs/runtime_log
 

@@ -12,6 +12,10 @@ fi
 
 source "$ENV_FILE"
 
+if [ -n "${UBOOT_SRC_OVERRIDE:-}" ]; then
+    UBOOT_SRC="$UBOOT_SRC_OVERRIDE"
+fi
+
 VERIFY_SCRIPT="$BRINGUP_ROOT/tools/prepare/verify-workspace-state.sh"
 
 if [ ! -x "$VERIFY_SCRIPT" ]; then
@@ -21,12 +25,14 @@ fi
 
 ACTION="${1:-all}"
 
-BUILD_BASE="$BRINGUP_ROOT/out/u-boot"
+BUILD_BASE="${UBOOT_BUILD_BASE:-$BRINGUP_ROOT/out/u-boot}"
 R5_OUT="$BUILD_BASE/r5"
 A53_OUT="$BUILD_BASE/a53"
 ARTIFACTS="$BUILD_BASE/artifacts"
 LOG_DIR="$BUILD_BASE/logs"
 PREBUILT_DIR="$PREBUILT_IMAGES/am64xx-evm"
+BL31_INPUT="${BL31_BIN:-$PREBUILT_DIR/bl31.bin}"
+TEE_INPUT="${TEE_BIN:-$PREBUILT_DIR/bl32.bin}"
 UBOOT_WATCHDOG_CONFIG_FRAGMENT="$BRINGUP_ROOT/bsp/u-boot/configs/am64x-watchdog.config"
 
 sanitize_standalone_env() {
@@ -115,13 +121,16 @@ find_libgcc() {
 
 ensure_inputs() {
     require_dir "$UBOOT_SRC" "U-Boot workspace"
-    require_dir "$UBOOT_SRC/.git" "U-Boot workspace git repository"
+    if [ ! -d "$UBOOT_SRC/.git" ] && [ ! -f "$UBOOT_SRC/.git" ]; then
+        echo "[ERROR] Missing U-Boot workspace git repository: $UBOOT_SRC/.git" >&2
+        exit 1
+    fi
     require_dir "$LINUX_DEVKIT" "linux-devkit"
     require_dir "$K3R5_DEVKIT" "k3r5-devkit"
     require_dir "$PREBUILT_IMAGES" "prebuilt-images directory"
     require_dir "$PREBUILT_DIR" "AM64x prebuilt image directory"
-    require_file "$PREBUILT_DIR/bl31.bin" "BL31 binary"
-    require_file "$PREBUILT_DIR/bl32.bin" "BL32 binary"
+    require_file "$BL31_INPUT" "BL31 binary"
+    require_file "$TEE_INPUT" "BL32 binary"
     require_file "$UBOOT_SRC/scripts/config" "U-Boot config helper"
 
     if [ "$UBOOT_SRC" = "$UBOOT_SDK_SRC" ]; then
@@ -193,8 +202,8 @@ run_a53() {
     make -C "$UBOOT_SRC" \
         ARCH=arm CROSS_COMPILE="$CROSS_COMPILE_AARCH64" \
         PYTHON=/usr/bin/python3 \
-        BL31="$PREBUILT_DIR/bl31.bin" \
-        TEE="$PREBUILT_DIR/bl32.bin" \
+        BL31="$BL31_INPUT" \
+        TEE="$TEE_INPUT" \
         O="$A53_OUT" \
         BINMAN_INDIRS="$PREBUILT_DIR" \
         PLATFORM_LIBGCC="$LIBGCC_FILE" \
@@ -238,6 +247,8 @@ generate_manifest() {
         printf 'R5_OUT: %s\n' "$R5_OUT"
         printf 'A53_OUT: %s\n' "$A53_OUT"
         printf 'PREBUILT_DIR: %s\n' "$PREBUILT_DIR"
+        printf 'BL31_INPUT: %s\n' "$BL31_INPUT"
+        printf 'TEE_INPUT: %s\n' "$TEE_INPUT"
         printf 'BUILD_COMMAND: %s\n' "./tools/build/build-u-boot.sh $ACTION"
         printf '\n[artifact sizes]\n'
         stat -c '%n %s bytes' "$ARTIFACTS/tiboot3.bin" "$ARTIFACTS/tispl.bin" "$ARTIFACTS/u-boot.img"

@@ -6,6 +6,14 @@ BRINGUP_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 source "$BRINGUP_ROOT/tools/env/sdk-12.00.00.07.04.env"
 
+if [ -n "${UBOOT_SRC_OVERRIDE:-}" ]; then
+    UBOOT_SRC="$UBOOT_SRC_OVERRIDE"
+fi
+
+if [ -n "${KERNEL_SRC_OVERRIDE:-}" ]; then
+    KERNEL_SRC="$KERNEL_SRC_OVERRIDE"
+fi
+
 status=0
 
 check_git_workspace() {
@@ -14,7 +22,7 @@ check_git_workspace() {
     local series="$3"
     local allow_dirty="${ALLOW_DIRTY_WORKSPACE:-0}"
 
-    if [ ! -d "$path/.git" ]; then
+    if [ ! -d "$path/.git" ] && [ ! -f "$path/.git" ]; then
         echo "[ERROR] Missing workspace git repo: $name ($path)" >&2
         status=1
         return

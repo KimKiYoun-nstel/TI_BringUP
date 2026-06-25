@@ -11,7 +11,7 @@
 
 ```text
 task-unit-1 : closeout 완료
-task-unit-2 : LPDDR4 reginit + 기본 dual-boot OSPI Linux boot 성공
+task-unit-2 : local-fullchain canonical profile 확정 + OSPI Linux boot 재확인
 task-unit-3 : 후속 behavior 정합성만 남음
 ```
 
@@ -29,12 +29,13 @@ task-unit-3 : 후속 behavior 정합성만 남음
 - heartbeat SHM ABI draft
 - heartbeat first draft source
 - heartbeat local buildable draft 확인
-- R5F/ Linux local image generation path 확인
+- R5F / Linux local image generation path 확인
 - Linux appimage input inventory
 - SPL naming / staging mapping
 - linux appimage staging dry-run helper
 - LPDDR4 DDR reginit root-cause 정리
-- 첫 OSPI Linux success log 확보
+- local-fullchain canonical build profile 정리
+- current OSPI success log 확보
 
 실행 순서 정리 문서:
 
@@ -91,9 +92,15 @@ current-source appimage를 clean reflashing 하자 M1 SHM checker가 PASS로 전
 중요:
 
 ```text
-boot-chain 자체는 현재 세션 기준으로 닫혔다.
+boot-chain 자체는 현재 local-fullchain profile 기준으로 다시 닫혔다.
 남은 것은 firmware/application behavior 정합성 후속 작업이다.
 ```
+
+현재 canonical build/flash 기준:
+
+- `docs/sbl-ospi-linux-local-fullchain-profile.md`
+- `bsp/mcu-plus/configs/sbl_ospi_linux_sk-am64b_local-fullchain.cfg`
+- `tools/build/build-sk-am64b-sbl-ospi-linux-local-fullchain.sh`
 
 ## repo-wide reusable assets
 

@@ -5,8 +5,8 @@
 이 문서는 `task-unit-2` 실행 전 준비 자산을
 실제 작업 순서 기준으로 한 장에 묶는 checklist 이다.
 
-현재 단계는 documentation organizer 단계를 지나,
-`LPDDR4 DDR reginit` 반영으로 A53-only OSPI Linux first boot를 확보한 상태다.
+현재 단계는 `LPDDR4 clean base`와 `local-fullchain` provenance correction 이후,
+OSPI Linux boot를 다시 확인한 상태다.
 
 ## 범위
 
@@ -14,16 +14,15 @@ Phase2의 현재 범위는 다음과 같다.
 
 ```text
 LPDDR4 DDR reginit 적용
-A53-only OSPI Linux first boot 확보
-원본 sbl_ospi_linux dual boot 복구 준비
+canonical local-fullchain build profile 고정
+원본 sbl_ospi_linux dual boot 재확인
 R5F early-boot heartbeat / RPMsg 다음 단계 준비
 ```
 
 이 문서는 다음을 아직 하지 않는다.
 
-- 원본 `sbl_ospi_linux` 흐름 복구 완료 판정
-- R5F/A53 동시 부팅 완료 판정
-- Linux attach / RPMsg 완료 판정
+- own RPMsg endpoint completion 판정
+- custom app protocol completion 판정
 
 ## 1. 현재 Phase2 상태 확인
 
@@ -34,7 +33,8 @@ R5F early-boot heartbeat / RPMsg 다음 단계 준비
 - project working surface: `projects/sk-am64b-r5f-early-boot/`
 - heartbeat first draft source 존재
 - linux appimage input inventory / SPL mapping / staging policy 존재
-- LPDDR4 reginit 기반 first success log 존재
+- LPDDR4 reginit 기반 success log 존재
+- current local-fullchain success log 존재
 
 참조:
 
@@ -42,6 +42,7 @@ R5F early-boot heartbeat / RPMsg 다음 단계 준비
 - `docs/gates.md`
 - `docs/task1-inventory-result.md`
 - `/home/nstel/ti/TI_Bringup/docs/bringup-logs/2026-06-11_SK-AM64B_sbl-ospi-linux-lp4-first-success.md`
+- `/home/nstel/ti/TI_Bringup/docs/bringup-logs/2026-06-24_SK-AM64B_sbl-ospi-linux-local-fullchain-success.md`
 
 ## 2. authoritative input 문서 확인
 
@@ -88,7 +89,7 @@ Phase2 작업 전에 다음 문서를 한 번씩 확인한다.
 ### helper
 
 ```bash
-./tools/build/gen-linux-appimage-for-sbl.sh --print
+./tools/build/gen-linux-appimage-for-sbl.sh --print --profile local-fullchain
 ```
 
 ### 기대 확인 항목
@@ -120,14 +121,14 @@ Phase2 작업 전에 다음 문서를 한 번씩 확인한다.
 
 ## 6. 현재 성공 자산 확인
 
-현재 first success 기준 자산은 다음 두 축으로 정리한다.
+현재 실행 기준 자산은 다음처럼 정리한다.
 
-- SBL: LPDDR4 reginit 적용 local `sbl_ospi_linux_a53only`
-- linux appimage: local BL31/BL32/SPL chain
+- SBL / R5F / U-Boot / linux appimage는 `local-fullchain` profile 기준으로 rebuild 한다.
+- flash offset source of truth는 `bsp/mcu-plus/configs/sbl_ospi_linux_sk-am64b_local-fullchain.cfg` 이다.
 
 기준 log:
 
-- `/home/nstel/ti/TI_Bringup/docs/bringup-logs/2026-06-11_SK-AM64B_sbl-ospi-linux-lp4-first-success.md`
+- `/home/nstel/ti/TI_Bringup/docs/bringup-logs/2026-06-24_SK-AM64B_sbl-ospi-linux-local-fullchain-success.md`
 
 기준 note:
 
@@ -162,18 +163,18 @@ buildable draft로 넘어가기 전에 다음 질문에 모두 답할 수 있어
 현재 checklist 기준으로 다음 실질 작업은 다음 순서가 적절하다.
 
 ```text
-1. LPDDR4 reginit delta를 repo-managed asset로 정리
-2. `A53-only` 제거
-3. 원본 `sbl_ospi_linux`에서 R5F/A53 동시 부팅 복구
-4. Linux attach / RPMsg 확인
+1. local-fullchain build profile 유지
+2. M1 SHM heartbeat 재확인
+3. M2 own RPMsg endpoint bring-up
+4. M3 own app protocol 정합성 확인
 ```
 
 board-side 최종 경계는 `docs/phase2-completion-boundary.md`를 따른다.
 
 ## 9. 현재 단계에서 하지 않는 것
 
-- 이미 종료한 marker/A53-only/BL32 trial을 다시 canonical 기준으로 간주
-- legacy cfg/doc를 active 실행 기준으로 사용
+- 과거 failed trial을 active 실행 기준으로 다시 가져오지 않음
+- canonical profile 밖의 cfg/doc를 active 실행 기준으로 사용하지 않음
 
 ## 10. guide-aligned write 원칙
 

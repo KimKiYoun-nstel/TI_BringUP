@@ -53,6 +53,10 @@ SBL early boot
 ## 빠른 시작
 
 - 계획/진행 개요: `docs/plan.md`
+- project asset map: `docs/project-asset-map.md`
+- source bootstrap chain: `docs/source-bootstrap-chain.md`
+- canonical build profile: `docs/sbl-ospi-linux-local-fullchain-profile.md`
+- runtime dependency map: `docs/runtime-boot-dependency-map.md`
 - 통신 단계 계획: `docs/communication-plan.md`
 - gate 상태: `docs/gates.md`
 - M1 SHM checker 시도 결과: `docs/m1-shm-checker-attempt.md`
@@ -69,6 +73,7 @@ SBL early boot
 - expected output: `out/sk-am64b-r5f-early-boot/a53/sk_am64b_r5f_early_boot_check`
 - first success log: `/home/nstel/ti/TI_Bringup/docs/bringup-logs/2026-06-11_SK-AM64B_sbl-ospi-linux-lp4-first-success.md`
 - dual-boot success log: `/home/nstel/ti/TI_Bringup/docs/bringup-logs/2026-06-12_SK-AM64B_sbl-ospi-linux-lp4-dual-boot-success.md`
+- current local-fullchain success log: `/home/nstel/ti/TI_Bringup/docs/bringup-logs/2026-06-24_SK-AM64B_sbl-ospi-linux-local-fullchain-success.md`
 
 ## 관련 repo-wide 자산
 
@@ -79,7 +84,14 @@ SBL early boot
 - appimage staging policy: `/home/nstel/ti/TI_Bringup/bsp/mcu-plus/notes/sbl_ospi_linux_appimage_staging_policy.md`
 - LPDDR4 alignment note: `/home/nstel/ti/TI_Bringup/bsp/mcu-plus/notes/sbl_ospi_linux_lpddr4_alignment.md`
 
-## Legacy
+## 현재 실행 기준
 
-초기 phase2 실험 문서와 marker/A53-only/BL32 trial 기록은 `docs/legacy/` 아래로 이동했다.
-현재 실행 기준은 legacy 문서가 아니라 이 README와 `docs/plan.md`, `docs/gates.md`, success log, LPDDR4 alignment note다.
+현재 active 기준은 다음 네 개다.
+
+- 이 `README.md`
+- `docs/project-asset-map.md`
+- `docs/plan.md`
+- `docs/gates.md`
+- `docs/sbl-ospi-linux-local-fullchain-profile.md`
+
+초기 failed trial 정리 문서는 project surface에서 제거했다.

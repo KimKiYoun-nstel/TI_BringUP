@@ -36,6 +36,8 @@ working checklist:
 - `dual-boot` 기준 `U-Boot SPL -> U-Boot -> Linux` 진입 성공
 - 원인 핵심이 MCU+ SDK 기본 `DDR4 board_ddrReginit.h`였음을 확인
 - clean replay 자산으로 LPDDR4 standalone asset + syscfg delta 정리 완료
+- `local-fullchain` linux appimage provenance와 `ATF_LOAD_ADDR=0x701c0000` 교정 기준을 canonical profile로 고정 완료
+- board-side readback hash와 host artifact hash가 다시 일치하는 OSPI set 확인 완료
 
 후속으로 남겨 둔 것:
 
@@ -51,6 +53,7 @@ local image generation provenance:
 
 - `/home/nstel/ti/TI_Bringup/logs/provenance/r5f-early-boot/2026-06-04_phase2_local-image-generation.md`
 - `/home/nstel/ti/TI_Bringup/docs/bringup-logs/2026-06-11_SK-AM64B_sbl-ospi-linux-lp4-first-success.md`
+- `/home/nstel/ti/TI_Bringup/docs/bringup-logs/2026-06-24_SK-AM64B_sbl-ospi-linux-local-fullchain-success.md`
 
 ## Gate 3
 

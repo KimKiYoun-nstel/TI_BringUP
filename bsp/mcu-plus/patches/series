@@ -4,3 +4,4 @@
 # workspace flow. Direct edits to the external SDK original are forbidden.
 0001-am64x-boardcfg-route-mcu-gpiomux-output-to-main-0-r5-1.patch
 0002-am64x-sbl-ospi-linux-keep-lp4-dual-boot-workspace-base.patch
+0003-am64x-linuxappimagegen-pyelftools-compat.patch
