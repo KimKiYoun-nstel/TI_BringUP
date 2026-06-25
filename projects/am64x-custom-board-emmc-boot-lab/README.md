@@ -25,6 +25,8 @@
   - `logs/2026-06-19_ospi-uboot_current-kernel-final-fixed-dtb_uart-reboot.log`
 - 세션 요약:
   - `docs/2026-06-19_session-summary.md`
+- workspace 정리 기록:
+  - `docs/2026-06-25_workspace-cleanup.md`
 - build artifact hash 목록:
   - `artifacts/2026-06-19_build-artifacts.sha256`
 
@@ -51,3 +53,4 @@
 1. restore 상태를 baseline으로 보고 eMMC bootloader 재검증 전략을 다시 세운다.
 2. current custom kernel/DTB/modules를 다시 적용할 때는 이 프로젝트 문서 기준으로 단계별로 분리 검증한다.
 3. `USB/SERDES`, `ICSSG/PRUSS`, `remoteproc`, `SA2UL` 재활성화는 별도 실험 단위로 다룬다.
+4. workspace에 custom board local injection이 다시 필요하면 `docs/2026-06-25_workspace-cleanup.md`의 projection/integration 메모를 기준으로 최소 파일만 재투영한다.

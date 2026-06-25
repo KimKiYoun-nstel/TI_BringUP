@@ -1,0 +1,12 @@
+board_id: cpu_brd_v03_pba_260511
+display_name: Custom Board cpu_brd_v03_pba_260511
+ssh:
+  user: root
+  hostname: am64xx-evm
+management:
+  primary_interface: eth0
+  primary_ip: null
+  last_observed_primary_ip: 192.168.0.154
+notes:
+  - 현재 관리 IP는 실험 시점에 따라 달라질 수 있어 last_observed 값만 우선 기록함
+  - 실제 active IP가 바뀌면 이 profile을 먼저 갱신함
