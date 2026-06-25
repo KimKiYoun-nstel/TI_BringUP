@@ -1,0 +1,13 @@
+[Unit]
+Description=Re-apply TMDS TSN DSCP PCP network profile after boot
+After=systemd-networkd.service multi-user.target
+Wants=systemd-networkd.service
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 3
+ExecStart=/bin/sh /usr/local/sbin/ti-tsn-dscp-pcp-tmds-apply.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

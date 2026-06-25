@@ -1,0 +1,11 @@
+[Match]
+Name=eth2
+KernelCommandLine=!root=/dev/nfs
+
+[Link]
+RequiredForOnline=no
+
+[Network]
+DHCP=no
+LinkLocalAddressing=no
+IPv6AcceptRA=no
