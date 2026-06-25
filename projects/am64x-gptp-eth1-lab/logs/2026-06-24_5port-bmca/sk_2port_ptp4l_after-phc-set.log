@@ -1,0 +1,24 @@
+Warning: Permanently added '192.168.0.110' (RSA) to the list of known hosts.
+ptp4l[19161.716]: selected /dev/ptp0 as PTP clock
+ptp4l[19161.751]: port 1 (eth0): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[19161.809]: port 2 (eth1): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[19161.810]: port 0 (/var/run/ptp4l): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[19161.810]: port 0 (/var/run/ptp4lro): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[19168.228]: port 1 (eth0): new foreign master 98038a.fffe.77ced6-2
+ptp4l[19168.229]: port 2 (eth1): new foreign master 98038a.fffe.77ced6-2
+ptp4l[19168.256]: port 2 (eth1): LISTENING to MASTER on ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES
+ptp4l[19168.256]: selected local clock 28b5e8.fffe.cc2a3f as best master
+ptp4l[19168.256]: port 2 (eth1): assuming the grand master role
+ptp4l[19168.290]: port 1 (eth0): new foreign master 70ff76.fffe.20229a-1
+ptp4l[19168.291]: port 2 (eth1): new foreign master 70ff76.fffe.20229a-1
+ptp4l[19168.968]: port 1 (eth0): new foreign master 98038a.fffe.77ced6-1
+ptp4l[19168.968]: port 2 (eth1): new foreign master 98038a.fffe.77ced6-1
+ptp4l[19169.389]: port 1 (eth0): LISTENING to MASTER on ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES
+ptp4l[19169.389]: port 1 (eth0): assuming the grand master role
+ptp4l[19169.389]: port 2 (eth1): assuming the grand master role
+ptp4l[19172.228]: selected best master clock 98038a.fffe.77ced6
+ptp4l[19172.228]: port 1 (eth0): assuming the grand master role
+ptp4l[19172.228]: port 2 (eth1): assuming the grand master role
+ptp4l[19172.228]: selected best master clock 98038a.fffe.77ced6
+ptp4l[19172.229]: port 1 (eth0): assuming the grand master role
+ptp4l[19172.229]: port 2 (eth1): assuming the grand master role

@@ -1,0 +1,63 @@
+Warning: Permanently added '192.168.0.220' (RSA) to the list of known hosts.
+== TMDS CPSW PORT_DATA_SET ==
+sending: GET PORT_DATA_SET
+	98038a.fffe.77ced6-1 seq 0 RESPONSE MANAGEMENT PORT_DATA_SET 
+		portIdentity            98038a.fffe.77ced6-1
+		portState               UNCALIBRATED
+		logMinDelayReqInterval  0
+		peerMeanPathDelay       0
+		logAnnounceInterval     1
+		announceReceiptTimeout  3
+		logSyncInterval         0
+		delayMechanism          2
+		logMinPdelayReqInterval 0
+		versionNumber           2
+	98038a.fffe.77ced6-2 seq 0 RESPONSE MANAGEMENT PORT_DATA_SET 
+		portIdentity            98038a.fffe.77ced6-2
+		portState               PASSIVE
+		logMinDelayReqInterval  0
+		peerMeanPathDelay       0
+		logAnnounceInterval     1
+		announceReceiptTimeout  3
+		logSyncInterval         0
+		delayMechanism          2
+		logMinPdelayReqInterval 0
+		versionNumber           2
+
+== TMDS CPSW TIME_STATUS_NP ==
+sending: GET TIME_STATUS_NP
+	98038a.fffe.77ced6-0 seq 0 RESPONSE MANAGEMENT TIME_STATUS_NP 
+		master_offset              0
+		ingress_time               1782292636119559108
+		cumulativeScaledRateOffset +0.000000000
+		scaledLastGmPhaseChange    0
+		gmTimeBaseIndicator        0
+		lastGmPhaseChange          0x0000'0000000000000000.0000
+		gmPresent                  true
+		gmIdentity                 28b5e8.fffe.cc2a3f
+
+== TMDS ETH2 PORT_DATA_SET ==
+sending: GET PORT_DATA_SET
+	70ff76.fffe.20229a-1 seq 0 RESPONSE MANAGEMENT PORT_DATA_SET 
+		portIdentity            70ff76.fffe.20229a-1
+		portState               UNCALIBRATED
+		logMinDelayReqInterval  0
+		peerMeanPathDelay       0
+		logAnnounceInterval     1
+		announceReceiptTimeout  3
+		logSyncInterval         0
+		delayMechanism          2
+		logMinPdelayReqInterval 0
+		versionNumber           2
+
+== TMDS ETH2 TIME_STATUS_NP ==
+sending: GET TIME_STATUS_NP
+	70ff76.fffe.20229a-0 seq 0 RESPONSE MANAGEMENT TIME_STATUS_NP 
+		master_offset              0
+		ingress_time               1782292636118418050
+		cumulativeScaledRateOffset +0.000000000
+		scaledLastGmPhaseChange    0
+		gmTimeBaseIndicator        0
+		lastGmPhaseChange          0x0000'0000000000000000.0000
+		gmPresent                  true
+		gmIdentity                 28b5e8.fffe.cc2a3f

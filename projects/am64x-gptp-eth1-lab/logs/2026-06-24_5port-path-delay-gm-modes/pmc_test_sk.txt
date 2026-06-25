@@ -1,0 +1,37 @@
+Warning: Permanently added '192.168.0.110' (RSA) to the list of known hosts.
+== SK PORT_DATA_SET ==
+sending: GET PORT_DATA_SET
+	28b5e8.fffe.cc2a3f-1 seq 0 RESPONSE MANAGEMENT PORT_DATA_SET 
+		portIdentity            28b5e8.fffe.cc2a3f-1
+		portState               MASTER
+		logMinDelayReqInterval  0
+		peerMeanPathDelay       0
+		logAnnounceInterval     1
+		announceReceiptTimeout  3
+		logSyncInterval         0
+		delayMechanism          2
+		logMinPdelayReqInterval 0
+		versionNumber           2
+	28b5e8.fffe.cc2a3f-2 seq 0 RESPONSE MANAGEMENT PORT_DATA_SET 
+		portIdentity            28b5e8.fffe.cc2a3f-2
+		portState               MASTER
+		logMinDelayReqInterval  0
+		peerMeanPathDelay       0
+		logAnnounceInterval     1
+		announceReceiptTimeout  3
+		logSyncInterval         0
+		delayMechanism          2
+		logMinPdelayReqInterval 0
+		versionNumber           2
+
+== SK TIME_STATUS_NP ==
+sending: GET TIME_STATUS_NP
+	28b5e8.fffe.cc2a3f-0 seq 0 RESPONSE MANAGEMENT TIME_STATUS_NP 
+		master_offset              0
+		ingress_time               0
+		cumulativeScaledRateOffset +0.000000000
+		scaledLastGmPhaseChange    0
+		gmTimeBaseIndicator        0
+		lastGmPhaseChange          0x0000'0000000000000000.0000
+		gmPresent                  false
+		gmIdentity                 28b5e8.fffe.cc2a3f

@@ -1,0 +1,17 @@
+Warning: Permanently added '192.168.0.220' (RSA) to the list of known hosts.
+ptp4l[6354.943]: selected /dev/ptp2 as PTP clock
+ptp4l[6354.965]: port 1 (eth2): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[6354.965]: port 0 (/var/run/ptp4l-eth2): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[6354.966]: port 0 (/var/run/ptp4lro-eth2): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[6361.186]: port 1 (eth2): new foreign master 98038a.fffe.77ced6-2
+ptp4l[6361.213]: port 1 (eth2): new foreign master 28b5e8.fffe.cc2a3f-2
+ptp4l[6361.245]: port 1 (eth2): LISTENING to MASTER on ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES
+ptp4l[6361.245]: selected local clock 70ff76.fffe.20229a as best master
+ptp4l[6361.245]: port 1 (eth2): assuming the grand master role
+ptp4l[6361.923]: port 1 (eth2): new foreign master 98038a.fffe.77ced6-1
+ptp4l[6362.346]: port 1 (eth2): new foreign master 28b5e8.fffe.cc2a3f-1
+ptp4l[6365.184]: selected best master clock 98038a.fffe.77ced6
+ptp4l[6365.184]: port 1 (eth2): assuming the grand master role
+ptp4l[6365.213]: selected best master clock 28b5e8.fffe.cc2a3f
+ptp4l[6365.213]: port 1 (eth2): MASTER to UNCALIBRATED on RS_SLAVE
+ptp4l[6366.346]: selected best master clock 28b5e8.fffe.cc2a3f

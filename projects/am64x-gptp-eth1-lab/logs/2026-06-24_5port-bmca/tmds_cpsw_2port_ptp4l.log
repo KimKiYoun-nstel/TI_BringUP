@@ -1,0 +1,21 @@
+Warning: Permanently added '192.168.0.220' (RSA) to the list of known hosts.
+ptp4l[6212.586]: selected /dev/ptp0 as PTP clock
+ptp4l[6212.625]: port 1 (eth0): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[6212.645]: port 2 (eth1): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[6212.646]: port 0 (/var/run/ptp4l): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[6212.646]: port 0 (/var/run/ptp4lro): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[6218.758]: port 1 (eth0): new foreign master 28b5e8.fffe.cc2a3f-1
+ptp4l[6218.759]: port 2 (eth1): new foreign master 28b5e8.fffe.cc2a3f-1
+ptp4l[6218.955]: port 1 (eth0): LISTENING to MASTER on ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES
+ptp4l[6218.955]: selected local clock 98038a.fffe.77ced6 as best master
+ptp4l[6218.955]: port 1 (eth0): assuming the grand master role
+ptp4l[6219.183]: port 2 (eth1): LISTENING to MASTER on ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES
+ptp4l[6219.183]: port 1 (eth0): assuming the grand master role
+ptp4l[6219.183]: port 2 (eth1): assuming the grand master role
+ptp4l[6219.193]: port 1 (eth0): new foreign master 28b5e8.fffe.cc2a3f-2
+ptp4l[6219.194]: port 2 (eth1): new foreign master 28b5e8.fffe.cc2a3f-2
+ptp4l[6219.452]: port 1 (eth0): new foreign master 70ff76.fffe.20229a-1
+ptp4l[6219.452]: port 2 (eth1): new foreign master 70ff76.fffe.20229a-1
+ptp4l[6222.759]: selected best master clock 28b5e8.fffe.cc2a3f
+ptp4l[6222.759]: port 1 (eth0): MASTER to UNCALIBRATED on RS_SLAVE
+ptp4l[6222.759]: port 2 (eth1): MASTER to PASSIVE on RS_PASSIVE

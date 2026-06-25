@@ -1,0 +1,8 @@
+Warning: Permanently added '192.168.0.220' (RSA) to the list of known hosts.
+ptp4l[10264.147]: selected /dev/ptp0 as PTP clock
+ptp4l[10264.178]: port 1 (eth1): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[10264.180]: port 0 (/var/run/ptp4l): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[10264.181]: port 0 (/var/run/ptp4lro): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[10265.934]: port 1 (eth1): new foreign master 28b5e8.fffe.cc2a3f-1
+ptp4l[10270.351]: selected best master clock 28b5e8.fffe.cc2a3f
+ptp4l[10270.351]: port 1 (eth1): LISTENING to UNCALIBRATED on RS_SLAVE

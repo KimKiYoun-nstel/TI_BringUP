@@ -1,0 +1,10 @@
+Warning: Permanently added '192.168.0.110' (RSA) to the list of known hosts.
+ptp4l[23070.942]: selected /dev/ptp0 as PTP clock
+ptp4l[23070.979]: port 1 (eth0): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[23070.979]: uds: removed existing /var/run/ptp4l
+ptp4l[23070.979]: port 0 (/var/run/ptp4l): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[23070.980]: uds: removed existing /var/run/ptp4lro
+ptp4l[23070.980]: port 0 (/var/run/ptp4lro): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[23077.381]: port 1 (eth0): LISTENING to MASTER on ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES
+ptp4l[23077.381]: selected local clock 28b5e8.fffe.cc2a3f as best master
+ptp4l[23077.381]: port 1 (eth0): assuming the grand master role
