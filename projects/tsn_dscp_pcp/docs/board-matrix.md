@@ -28,3 +28,21 @@
 - direct links:
   - `TMDS eth1 <-> SK eth0`
   - `TMDS eth2 <-> SK eth1`
+
+## 최신 검증된 Test B 역할
+
+아래는 `PCP preservation`을 실제로 확인한 최신 시험 역할이다.
+
+| Board | Port | Latest Validated Role | Notes |
+|---|---|---|---|
+| TMDS64EVM | eth2 | ICSSG sender | `ep2`, `eth2.301`, `dport 5001 -> p7`, `dport 5002 -> p6` |
+| SK-AM64B | eth1 | CPSW ingress | `br-tsn` slave, `switch_mode=true`, `vlan_filtering=1` |
+| SK-AM64B | eth0 | CPSW egress | `br-tsn` slave, `switch_mode=true`, `vlan_filtering=1` |
+| TMDS64EVM | eth1 | final receiver | `ep1`, `eth1.301`, final wire에서 `p7/p6` 확인 |
+
+## 재시험 시 기억할 점
+
+- baseline control 환경은 여전히 `TMDS eth0` + `Host -> TMDS -> SK` 구조다.
+- Test B 검증 상태는 baseline bridge control 상태와 별개의 **runtime switchdev/QoS test state**다.
+- TMDS 쪽 VLAN device를 다시 만들면 `eth2.301 egress-qos-map`을 반드시 다시 넣어야 한다.
+- SK local `tcpdump -i eth0`, `tcpdump -i eth1`는 switchdev hardware offload 상태에서 `0 packets captured`가 나올 수 있다.

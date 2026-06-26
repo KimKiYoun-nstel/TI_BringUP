@@ -8,6 +8,28 @@
 - TMDS `eth1`은 `10.50.0.1/24`로 SK control/test port 역할을 맡고, `eth2`는 no-IP endpoint/capture port로 유지한다.
 - bridge forwarding은 `TMDS eth1`에서 발생한 broadcast ARP가 `SK bridge`를 거쳐 `TMDS eth2`에서 관측되는 것으로 확인했다.
 - optional 준비 항목으로 `SK ptp4l -i eth0 -i eth1` multi-interface 실행도 시작 가능한 것을 확인했다.
+- namespace 기반 endpoint 분리(`ep1`, `ep2`)로 Level 1~6 DSCP/PCP 실험을 수행했다.
+- DSCP `0x00`, `0x28`, `0x88`, `0xb8`는 SK bridge를 지나 그대로 보존되었다.
+- 초기 DSCP/PCP 실험에서는 VLAN tag와 DSCP는 유지되었지만, CPSW sender path의 PCP는 계속 `0`으로 보였다.
+- 이후 source 조사로 `RX_REMAP_VLAN` 패치는 이미 local TI SDK 12 kernel source에 들어 있고 enable되어 있음이 확인되었다.
+- 추가 runtime 검증에서 문제의 핵심은 patch 부재보다 **CPSW QoS prerequisite 미충족** 쪽에 더 가까웠다.
+- 실제로 `p0-rx-ptype-rrobin off` + `mqprio hw 1 mode channel` + `VLAN egress-qos-map` + `tc skbedit priority` 조건을 맞추자, SK direct sender는 다음을 실제 wire에 emit했다.
+  - `SK eth1 -> TMDS eth2`: `vlan 301, p 7` / `vlan 301, p 6`
+  - `SK eth0 -> TMDS eth1`: sender-side capture 기준 `vlan 300, p 7` / `vlan 300, p 6`
+- 즉 **CPSW endpoint direct sender PCP emission 자체는 official QoS prerequisite 적용 후 정상 동작**했다.
+- 같은 날 Test B 재검증에서 `TMDS ep2 eth2.301` 재구성 시 빠졌던 `egress-qos-map`을 복구한 뒤 다시 확인하자, `TMDS eth2(ICSSG) -> SK switchdev -> TMDS eth1` 경로의 final receiver capture에서도 `vlan 301, p 7` / `vlan 301, p 6`가 확인되었다.
+- 즉 최신 기준으로는 **SK CPSW switchdev forwarding path의 end-to-end PCP preservation도 동작**한다.
+- 다만 SK local `tcpdump -i eth1`, `tcpdump -i eth0`는 switchdev hardware offload 상태에서 둘 다 `0 packets captured`로 남아, SK 내부 ingress/egress frame을 host tcpdump로 직접 보는 방식은 이번 세션에서 유효하지 않았다.
+- 따라서 latest maintained 판단은 다음과 같다.
+  - CPSW direct sender PCP emission: 동작
+  - ICSSG -> SK switchdev -> receiver PCP preservation: 동작
+  - SK 내부 포트 local tcpdump visibility: 미확보
+- 최신 상세 보고서는 다음 두 문서를 함께 본다.
+  - `docs/2026-06-26_am64x-cpsw-qos-runtime-prerequisite-validation.md`
+  - `docs/2026-06-26_testB-revalidation.md`
+- SK `tc -s qdisc`와 `ethtool -S` 카운터는 traffic 전후 증가를 보여 queue/stat 관찰이 가능했다.
+- `mqprio`, `taprio`, `cls_flower`, `act_skbedit` module load가 가능했고, SK `eth1`에 software mode `mqprio` qdisc 적용도 성공했다.
+- background UDP 혼잡 조건에서 DSCP-only 우선순위 효과는 명확히 입증되지 않았으며, 다음 단계는 explicit `skb priority`/`tc`/`mqprio` mapping이다.
 
 ## 1. Topology
 

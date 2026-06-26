@@ -23,11 +23,18 @@ DSCP/PCP 확인을 위한 사전 환경 구성과 후속 실험을 관리하기 
 - `docs/board-matrix.md`: 포트 역할, PHC, 현재 토폴로지
 - `docs/results.md`: 확인 결과와 판정
 - `docs/issues.md`: 실패/주의사항 기록
+- `docs/2026-06-25_dscp-pcp-level1-6.md`: DSCP/PCP/qdisc/scheduler readiness 확인 결과
+- `docs/2026-06-25_vlan-pcp-dscp-mapping-investigation.md`: TI SDK reference 기반 VLAN PCP emission 조사 보고서
+- `docs/2026-06-26_am64x-cpsw-qos-runtime-prerequisite-validation.md`: CPSW QoS prerequisite 적용 후 direct sender / switchdev forwarding 검증 보고서
+- `docs/2026-06-26_testB-revalidation.md`: Test B 재검증 기록
+- `docs/2026-06-26_testb-replay-guide.md`: 언제든지 다시 시험할 수 있는 재현 가이드
 
 ## 적용 자산
 
 - host-side one-shot apply:
   - `board/apply_tsn_env.sh`
+- Test B TMDS namespace/helper:
+  - `board/setup_testb_tmds_netns.sh`
 - persistent rootfs overlay:
   - `rootfs/overlays/tmds64evm-tsn-dscp-pcp/`
   - `rootfs/overlays/sk-am64b-tsn-dscp-pcp/`
@@ -55,6 +62,33 @@ DSCP/PCP 확인을 위한 사전 환경 구성과 후속 실험을 관리하기 
 - bootstrap 단계에서는 SK reachable IP가 없어서 UART로 `eth0` 임시 IP를 부여한 뒤 TMDS 경유 SSH를 열었다.
 - 현재 SK는 `br-tsn` Linux bridge를 사용하고, control IP는 `br-tsn`에 `10.50.0.2/24`로 올려 두었다.
 - 현재 TMDS는 `eth1 = 10.50.0.1/24`, `eth2 = no IP` 상태로 endpoint/control test용으로 둔다.
+
+## 현재 결론
+
+- `RX_REMAP_VLAN` patch 부재가 핵심 문제는 아니었다. 이 patch는 local TI SDK 12 source에 이미 포함되어 있었다.
+- direct sender에서 계속 `p0`가 보였던 핵심 이유는 source patch 누락보다 **runtime QoS prerequisite 미충족** 쪽이었다.
+- 실제로 다음 조건을 맞추자 SK CPSW direct sender는 실제 wire에 `vlan p7/p6`를 emit했다.
+  - `p0-rx-ptype-rrobin off`
+  - `mqprio hw 1 mode channel`
+  - VLAN subinterface `egress-qos-map`
+  - `tc skbedit priority`
+- 같은 구성 계열에서 `TMDS eth2(ICSSG)`가 만든 `p7/p6`는 `SK switchdev`를 지나 `TMDS eth1` final receiver에서도 유지되었다.
+- 즉 현재까지의 1차 결론은 **SK-AM64B CPSW를 switch candidate처럼 사용하면서 PCP-preserving forwarding을 확인했다**는 것이다.
+- 다만 SK local `tcpdump -i eth0/eth1`는 switchdev hardware offload 상태에서 `0 packets captured`로 남아, SK 내부 포트의 host-side packet visibility는 별도 한계로 남는다.
+
+## 확보한 TSN 목표
+
+이번 단계에서 확보한 것은 다음과 같다.
+
+1. `802.1Q VLAN PCP`를 endpoint에서 의도적으로 주입할 수 있다.
+2. SK-AM64B CPSW를 `switch_mode=true` 기반의 L2 switch candidate로 운용할 수 있다.
+3. ICSSG endpoint가 넣은 PCP를 SK를 거쳐 다른 endpoint까지 보존시키는 forwarding 경로를 확보했다.
+4. 이후 `mqprio`, `CBS`, `taprio`, TSN class separation, queue mapping 검증을 **PCP 기반**으로 진행할 수 있다.
+
+주의:
+
+- 이번 완료는 `PCP emission/preservation` 기준의 1차 완료다.
+- 아직 `gPTP/802.1AS`, `802.1Qbv time-aware schedule`, strict TSN conformance 전체를 끝낸 것은 아니다.
 
 ## Persistence 정리
 
