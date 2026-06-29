@@ -1,0 +1,27 @@
+ptp4l[21107.107]: selected /dev/ptp0 as PTP clock
+ptp4l[21107.138]: port 1 (eth1): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[21107.139]: port 0 (/var/run/ptp4l): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[21107.140]: port 0 (/var/run/ptp4lro): INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[21114.723]: port 1 (eth1): new foreign master 28b5e8.fffe.cc2a3f-1
+ptp4l[21115.132]: port 1 (eth1): LISTENING to MASTER on ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES
+ptp4l[21115.132]: selected local clock 70ff76.fffe.202299 as best master
+ptp4l[21115.132]: port 1 (eth1): assuming the grand master role
+ptp4l[21118.723]: selected best master clock 28b5e8.fffe.cc2a3f
+ptp4l[21118.723]: port 1 (eth1): MASTER to UNCALIBRATED on RS_SLAVE
+ptp4l[21120.723]: rms 15899645419 max 15899649375 freq  +3955 +/- 3955 delay   417 +/-   0
+ptp4l[21121.723]: port 1 (eth1): UNCALIBRATED to SLAVE on MASTER_CLOCK_SELECTED
+ptp4l[21122.723]: rms 2211 max 3127 freq  +5877 +/- 1093 delay   418 +/-   0
+ptp4l[21124.723]: rms  943 max  947 freq  +8057 +/- 138 delay   418 +/-   0
+ptp4l[21126.723]: rms  540 max  662 freq  +8159 +/-  41 delay   418 +/-   0
+ptp4l[21128.724]: rms  128 max  174 freq  +7990 +/-  35 delay   418 +/-   0
+ptp4l[21130.724]: rms    8 max    8 freq  +7920 +/-   7 delay   418 +/-   0
+ptp4l[21132.724]: rms    6 max    8 freq  +7913 +/-   3 delay   418 +/-   0
+ptp4l[21134.724]: rms    6 max    7 freq  +7908 +/-   0 delay   418 +/-   0
+ptp4l[21136.725]: rms    6 max    7 freq  +7913 +/-   5 delay   418 +/-   0
+ptp4l[21138.725]: rms    7 max    8 freq  +7921 +/-   0 delay   418 +/-   0
+ptp4l[21140.725]: rms    9 max   12 freq  +7926 +/-   3 delay   417 +/-   0
+ptp4l[21142.726]: rms    3 max    3 freq  +7918 +/-   1 delay   417 +/-   0
+ptp4l[21144.726]: rms    7 max   10 freq  +7913 +/-   4 delay   417 +/-   0
+ptp4l[21146.726]: rms    4 max    6 freq  +7913 +/-   3 delay   417 +/-   0
+ptp4l[21148.726]: rms    9 max   12 freq  +7921 +/-   6 delay   417 +/-   0
+ptp4l[21150.727]: rms    6 max    8 freq  +7925 +/-   3 delay   417 +/-   0
