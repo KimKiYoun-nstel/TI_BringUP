@@ -11,6 +11,7 @@
 | Phase 4 | 완료 | selective gate schedule로 receiver burst pattern 변화 확인 |
 | Phase 5 | 진행 중 | BMCA/UNCALIBRATED 및 PHC-based base-time까지 확인, stable SLAVE 미확보 |
 | Phase A | 완료 | endpoint egress Qbv closeout 완료, direct 3경로의 SW/HW taprio 및 coexistence matrix 정리 |
+| Phase B | 진행 중 | `500 us`/`8 ms` fixed-cycle 기준으로 B0/B1/B3/B6 완료, B2 single-flow 근거 확보. B4/B5는 여러 계측 강화 후에도 closeout용 strong proof 미확보 |
 
 ## 현재 판정
 
@@ -65,6 +66,30 @@ Phase A `endpoint egress 우회 경로`는 closeout 되었다.
 - `TMDS eth1 -> SK eth0`는 현재 TMDS `eth0` control-port 유지 조건 때문에 Phase A closeout 범위에서 제외했다.
 - canonical closeout 문서: `docs/phaseA-endpoint-egress-qbv.md`
 - canonical replay guide: `docs/phaseA-replay-guide.md`
+
+Phase B `endpoint egress timing validation`은 진행 중이다.
+
+- reference path는 `SK eth0 -> TMDS eth1` direct CPSW path로 고정했다.
+- `B0`, `B1`:
+  - `500 us`, `8 ms` 두 cycle 모두 hardware `taprio(flags 2)` apply는 성립했다.
+  - 단, CPSW EST cycle 변경 시에는 `replace` 대신 `tc qdisc del ... ; tc qdisc add ...` 절차가 필요했다.
+- 이번 실행 중 Phase B 문서의 runtime 함정도 확인했다.
+  - `5001 -> skbedit priority 7`, `5002 -> skbedit priority 6` 조합은 현재 `taprio map 0 0 1 2 ...`와 timing 검증 기준으로 맞지 않았다.
+  - 실제 검증은 `5001 -> priority 3`, `5002 -> priority 2`, `egress-qos-map 2:6 3:7`으로 교정한 뒤 수행했다.
+- `B2`:
+  - single-flow 기준으로 `500 us`, `8 ms` 모두 cycle-correlated burst timing을 확인했다.
+- `B3`:
+  - high-offer load에서 receiver 평균 처리율 제한과 burst/gap 반복을 확인했다.
+- `B6`:
+  - `TC0 always-open` safe schedule에서 `500 us`, `8 ms` 모두 TMDS `eth1`이 `MASTER -> UNCALIBRATED -> SLAVE`로 수렴했다.
+  - `FAULTY`, `tx timestamp timeout`, `send peer delay request failed`는 보지 못했다.
+- `B4`, `B5`:
+  - 여러 계측 강화에도 schedule inversion causality와 future `base-time` phase shift를 closeout 수준으로 증명하지 못했다.
+  - `B4`는 inversion 방향성은 보였지만 leakage/phase separation 문제 때문에 strong proof가 부족했다.
+  - `B5`는 future `base-time accepted`는 확인했지만, 현재 두 보드/현재 계측 경로에서는 PHC raw hardware tx timestamp를 직접 확보하지 못해 phase proof가 부족했다.
+- 따라서 현재 실무 판정은 `Phase B closeout 보류`다.
+
+상세 진행 기록: `docs/2026-06-30_phaseB-endpoint-egress-qbv-timing-validation-progress.md`
 
 ## Phase 0 결과 요약
 
