@@ -2,7 +2,9 @@
 
 ## 현재
 
-- [ ] UART 단일 MCP + target(`sk`/`custom`) 운용을 실제 새 세션에서 재검증
+- [ ] UART 단일 MCP + target(`sk`/`tmds`/`custom`) 운용을 실제 새 세션에서 재검증
+- [ ] TMDS64EVM C Case 후속 검증: forwarding/gPTP end-to-end 검증과 반복 reboot 회귀 확인
+- [ ] TMDS64EVM C Case 후속 안정화: RM ownership fix 이후 MDIO probe 정합성과 `.icss_mem/.enet_dma_mem` donor parity 필요성 재검토
 - [x] SK-AM64B SBL OSPI Linux LPDDR4 reginit delta를 workspace-base asset/note로 정리
 - [x] SK-AM64B SBL OSPI Linux 기본 dual-boot 경로 OSPI write 및 Linux boot 재검증
 - [ ] SK-AM64B SBL OSPI Linux dual boot 이후 Linux attach / RPMsg 검증
@@ -16,6 +18,7 @@
 - [ ] RootFS-only deploy loop 설계 및 검증
 - [ ] U-Boot FDT fixup 관찰 절차 정리
 - [ ] boot-flow 변경 이력 관리 규칙 정착
+- [ ] TMDS64EVM C Case temporary U-Boot override를 장기 boot path로 승격할지 결정
 
 ## 이후
 
@@ -28,6 +31,17 @@
 ## 완료
 
 - [x] UART daemon/client/MCP를 target profile 기반 TCP 기본 경로와 단일 generic MCP 구조로 정리
+- [x] TMDS64EVM C Case C0 example inventory 작성
+- [x] TMDS64EVM C Case C1 baseline Linux 상태 수집
+- [x] TMDS64EVM C Case C1 dualmac overlay 기반 eth1/eth2 ICSSG dual-port Linux 검증
+- [x] TMDS64EVM C Case C2 ownership 분리 overlay 초안 작성 및 compile 확인
+- [x] TMDS64EVM C Case C2 ownership 분리 live boot 시뮬레이션 검증
+- [x] TMDS64EVM C Case C4 정적 remoteproc loadability 분석
+- [x] TMDS64EVM C Case C4 adaptation 경로 결정 (`remoteproc-ready scaffold 이식`)
+- [x] TMDS64EVM C Case C4 Path B skeleton source integration 및 remoteproc-friendly ELF link
+- [x] TMDS64EVM C Case C5 boot-time remoteproc firmware override 실검증
+- [x] TMDS64EVM C Case C5 ICSSG_1 PKTDMA RM ownership fix로 Path B `EnetUdma_openRxCh` blocker 해소 및 gPTP task start 확인
+- [x] TMDS64EVM TSN C Case 1차 정리: patch/provenance 자산 승격과 성공 범위 고정
 - [x] R5F early boot task-unit-1 inventory 문서화 및 repo skeleton 정리
 - [x] Ubuntu 22.04 WSL 준비
 - [x] `TI_BringUP` GitHub repo 생성

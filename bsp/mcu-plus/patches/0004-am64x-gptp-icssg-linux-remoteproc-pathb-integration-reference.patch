@@ -1,0 +1,973 @@
+Path B integration reference diff
+Generated: 2026-07-01
+Workspace root: workspace/mcu_plus_sdk_am64x_12_00_00_27
+Note: workspace/ is git-ignored in the parent repo, so this artifact uses git diff --no-index.
+
+=== scaffold -> integration: main.c ===
+diff --git a/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/main.c b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/main.c
+index f78ac67..fbecfdd 100644
+--- a/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/main.c
++++ b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/main.c
+@@ -34,6 +34,7 @@
+ #include <kernel/dpl/DebugP.h>
+ #include "ti_drivers_config.h"
+ #include "ti_board_config.h"
++#include "rproc_trace_status.h"
+ #include "FreeRTOS.h"
+ #include "task.h"
+ 
+@@ -57,10 +58,14 @@ void freertos_main(void *args)
+ 
+ int main(void)
+ {
++    RPROC_TRACE_INFO("boot", "enter", 0, "main start");
++
+     /* init SOC specific modules */
+     System_init();
+     Board_init();
+ 
++    RPROC_TRACE_OK("boot", "system and board init complete");
++
+     /* This task is created at highest priority, it should create more tasks and then delete itself */
+     gMainTask = xTaskCreateStatic( freertos_main,   /* Pointer to the function that implements the task. */
+                                   "freertos_main", /* Text name for the task.  This is to facilitate debugging only. */
+@@ -71,9 +76,13 @@ int main(void)
+                                   &gMainTaskObj ); /* pointer to statically allocated task object memory */
+     configASSERT(gMainTask != NULL);
+ 
++    RPROC_TRACE_OK("boot", "main task created");
++
+     /* Start the scheduler to start the tasks executing. */
+     vTaskStartScheduler();
+ 
++    RPROC_TRACE_ERR("boot", -1, "scheduler returned unexpectedly");
++
+     /* The following line should never be reached because vTaskStartScheduler()
+     will only return if there was not enough FreeRTOS heap memory available to
+     create the Idle and (if configured) Timer tasks.  Heap management, and
+
+=== scaffold -> integration: ipc_rpmsg_echo.c ===
+diff --git a/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/ipc_rpmsg_echo.c b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/ipc_rpmsg_echo.c
+index ce3c107..870ada0 100644
+--- a/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/ipc_rpmsg_echo.c
++++ b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/ipc_rpmsg_echo.c
+@@ -1,420 +1,23 @@
+ /*
+- *  Copyright (C) 2021-2024 Texas Instruments Incorporated
++ * Remoteproc-friendly integration wrapper for the ICSSG gPTP scaffold.
+  *
+- *  Redistribution and use in source and binary forms, with or without
+- *  modification, are permitted provided that the following conditions
+- *  are met:
+- *
+- *    Redistributions of source code must retain the above copyright
+- *    notice, this list of conditions and the following disclaimer.
+- *
+- *    Redistributions in binary form must reproduce the above copyright
+- *    notice, this list of conditions and the following disclaimer in the
+- *    documentation and/or other materials provided with the
+- *    distribution.
+- *
+- *    Neither the name of Texas Instruments Incorporated nor the names of
+- *    its contributors may be used to endorse or promote products derived
+- *    from this software without specific prior written permission.
+- *
+- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+- *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+- *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+- *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+- *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+- *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+- *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+- *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+- *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+- */
+-#include <stdio.h>
+-#include <string.h>
+-#include <inttypes.h>
+-#include <kernel/dpl/ClockP.h>
+-#include <kernel/dpl/DebugP.h>
+-#include <kernel/dpl/TaskP.h>
+-#include <drivers/ipc_notify.h>
+-#include <drivers/ipc_rpmsg.h>
+-#include "ti_drivers_open_close.h"
+-#include "ti_board_open_close.h"
+-#include "FreeRTOS.h"
+-#include "task.h"
+-
+-
+-/* This example shows message exchange between Linux and RTOS/NORTOS cores.
+- * This example also does message exchange between the RTOS/NORTOS cores themselves.
+- *
+- * The Linux core initiates IPC with other core's by sending it a message.
+- * The other cores echo the same message to the Linux core.
+- *
+- * At the same time all RTOS/NORTOS cores, also send messages to each others
+- * and reply back to each other. i.e all CPUs send and recevive messages from each other
+- *
+- * This example can very well have been NORTOS based, however for convinience
+- * of creating two tasks to talk to two clients on linux side, we use FreeRTOS
+- * for the same.
++ * This keeps the scaffold's entry point name so the copied CCS build files need
++ * only minimal changes while the implementation shifts from RPMsg echo to the
++ * ICSSG gPTP application flow.
+  */
+ 
+-/*
+- * Remote core service end point
+- *
+- * Pick any unique value on that core between 0..RPMESSAGE_MAX_LOCAL_ENDPT-1.
+- * The value need not be unique across cores.
+- *
+- * The service names MUST match what linux is expecting
+- */
+-/* This is used to run the echo test with linux kernel */
+-#define IPC_RPMESSAGE_SERVICE_PING        "rpmsg-client-sample"
+-#define IPC_RPMESSAGE_ENDPT_PING          (13U)
+-
+-/* This is used to run the echo test with user space kernel */
+-#define IPC_RPMESSAGE_SERVICE_CHRDEV      "rpmsg_chrdev"
+-#define IPC_RPMESSAGE_ENDPT_CHRDEV_PING   (14U)
+-
+-/* Use by this to receive ACK messages that it sends to other RTOS cores */
+-#define IPC_RPMESSAGE_RNDPT_ACK_REPLY     (11U)
+-
+-/* Maximum size that message can have in this example
+- * RPMsg maximum size is 512 bytes in linux including the header of 16 bytes.
+- * Message payload size without the header is 512 - 16 = 496
+- */
+-#define IPC_RPMESSAGE_MAX_MSG_SIZE        (496u)
+-
+-/*
+- * Number of RP Message ping "servers" we will start,
+- * - one for ping messages for linux kernel "sample ping" client
+- * - and another for ping messages from linux "user space" client using "rpmsg char"
+- */
+-#define IPC_RPMESSAGE_NUM_RECV_TASKS         (2u)
+-
+-/**
+- * \brief Client ID used for remoteproc (RP_MBOX) related messages,  this client ID should not be used by other users
+- */
+-#define IPC_NOTIFY_CLIENT_ID_RP_MBOX  (15U)
+-
+-/**
+- * \brief Various messages sent by remote proc kernel driver.
+- *
+- * Client ID for this will always be 15 \ref IPC_NOTIFY_CLIENT_ID_RP_MBOX
+- */
+-#define IPC_NOTIFY_RP_MBOX_READY		    (0x0FFFFF00)
+-#define IPC_NOTIFY_RP_MBOX_PENDING_MSG	    (0x0FFFFF01)
+-#define IPC_NOTIFY_RP_MBOX_CRASH		    (0x0FFFFF02)
+-#define IPC_NOTIFY_RP_MBOX_ECHO_REQUEST	    (0x0FFFFF03)
+-#define IPC_NOTIFY_RP_MBOX_ECHO_REPLY	    (0x0FFFFF04)
+-#define IPC_NOTIFY_RP_MBOX_ABORT_REQUEST	(0x0FFFFF05)
+-#define IPC_NOTIFY_RP_MBOX_SUSPEND_AUTO	    (0x0FFFFF10)
+-#define IPC_NOTIFY_RP_MBOX_SUSPEND_SYSTEM	(0x0FFFFF11)
+-#define IPC_NOTIFY_RP_MBOX_SUSPEND_ACK	    (0x0FFFFF12)
+-#define IPC_NOTIFY_RP_MBOX_SUSPEND_CANCEL	(0x0FFFFF13)
+-#define IPC_NOTIFY_RP_MBOX_SHUTDOWN     	(0x0FFFFF14)
+-#define IPC_NOTIFY_RP_MBOX_SHUTDOWN_ACK     (0x0FFFFF15)
+-#define IPC_NOTIFY_RP_MBOX_END_MSG		    (0x0FFFFF16)
+-
+-/* RPMessage object used to recvice messages */
+-RPMessage_Object gIpcRecvMsgObject[IPC_RPMESSAGE_NUM_RECV_TASKS];
+-
+-/* RPMessage object used to send messages to other non-Linux remote cores */
+-RPMessage_Object gIpcAckReplyMsgObject;
+-
+-/* Task priority, stack, stack size and task objects, these MUST be global's */
+-#define IPC_RPMESSAGE_TASK_PRI         (8U)
+-#define IPC_RPMESSAGE_TASK_STACK_SIZE  (8*1024U)
+-uint8_t gIpcTaskStack[IPC_RPMESSAGE_NUM_RECV_TASKS][IPC_RPMESSAGE_TASK_STACK_SIZE] __attribute__((aligned(32)));
+-TaskP_Object gIpcTask[IPC_RPMESSAGE_NUM_RECV_TASKS];
+-
+-/* number of iterations of message exchange to do */
+-uint32_t gMsgEchoCount = 100000u;
+-/* non-Linux cores that exchange messages among each other */
+-#if defined (SOC_AM64X)
+-uint32_t gRemoteCoreId[] = {
+-    CSL_CORE_ID_R5FSS0_0,
+-    CSL_CORE_ID_R5FSS0_1,
+-    CSL_CORE_ID_R5FSS1_0,
+-    CSL_CORE_ID_R5FSS1_1,
+-    CSL_CORE_ID_M4FSS0_0,
+-    CSL_CORE_ID_MAX /* this value indicates the end of the array */
+-};
+-#endif
+-
+-#if defined (SOC_AM65X)
+-uint32_t gRemoteCoreId[] = {
+-    CSL_CORE_ID_R5FSS0_0,
+-    CSL_CORE_ID_R5FSS0_1,
+-    CSL_CORE_ID_MAX /* this value indicates the end of the array */
+-};
+-#endif
+-
+-#if defined (SOC_AM62X)
+-uint32_t gRemoteCoreId[] = {
+-    CSL_CORE_ID_M4FSS0_0,
+-    CSL_CORE_ID_MAX /* this value indicates the end of the array */
+-};
+-#endif
+-
+-volatile uint8_t gShutdown = 0u;
+-volatile uint8_t gShutdownRemotecoreID = 0u;
+-volatile uint8_t gIpcAckReplyMsgObjectPending = 0u;
+-
+-void ipc_recv_task_main(void *args)
+-{
+-    int32_t status;
+-    char recvMsg[IPC_RPMESSAGE_MAX_MSG_SIZE+1]; /* +1 for NULL char in worst case */
+-    uint16_t recvMsgSize, remoteCoreId, remoteCoreEndPt;
+-    RPMessage_Object *pRpmsgObj = (RPMessage_Object *)args;
+-
+-    DebugP_log("[IPC RPMSG ECHO] Remote Core waiting for messages at end point %d ... !!!\r\n",
+-        RPMessage_getLocalEndPt(pRpmsgObj)
+-        );
+-
+-    /* wait for messages forever in a loop */
+-    while(1)
+-    {
+-        /* set 'recvMsgSize' to size of recv buffer,
+-        * after return `recvMsgSize` contains actual size of valid data in recv buffer
+-        */
+-        recvMsgSize = IPC_RPMESSAGE_MAX_MSG_SIZE;
+-        status = RPMessage_recv(pRpmsgObj,
+-            recvMsg, &recvMsgSize,
+-            &remoteCoreId, &remoteCoreEndPt,
+-            SystemP_WAIT_FOREVER);
+-
+-        if (gShutdown == 1u)
+-        {
+-            break;
+-        }
+-
+-        DebugP_assert(status==SystemP_SUCCESS);
+-
+-        /* echo the same message string as reply */
+-        #if 0 /* not logging this so that this does not add to the latency of message exchange */
+-        recvMsg[recvMsgSize] = 0; /* add a NULL char at the end of message */
+-        DebugP_log("%s\r\n", recvMsg);
+-        #endif
+-
+-        /* send ack to sender CPU at the sender end point */
+-        status = RPMessage_send(
+-            recvMsg, recvMsgSize,
+-            remoteCoreId, remoteCoreEndPt,
+-            RPMessage_getLocalEndPt(pRpmsgObj),
+-            SystemP_WAIT_FOREVER);
+-        DebugP_assert(status==SystemP_SUCCESS);
+-    }
+-
+-    DebugP_log("[IPC RPMSG ECHO] Closing all drivers and going to WFI ... !!!\r\n");
+-
+-    /* Close the drivers */
+-    Drivers_close();
+-
+-    /* ACK the suspend message */
+-    IpcNotify_sendMsg(gShutdownRemotecoreID, IPC_NOTIFY_CLIENT_ID_RP_MBOX, IPC_NOTIFY_RP_MBOX_SHUTDOWN_ACK, 1u);
+-
+-    /* Disable interrupts */
+-    HwiP_disable();
+-#if (__ARM_ARCH_PROFILE == 'R') ||  (__ARM_ARCH_PROFILE == 'M')
+-    /* For ARM R and M cores*/
+-    __asm__ __volatile__ ("wfi"   "\n\t": : : "memory");
+-#endif
+-#if defined(BUILD_C7X)
+-    asm("    IDLE");
+-#endif
+-    vTaskDelete(NULL);
+-}
+-
+-void ipc_rpmsg_send_messages(void)
+-{
+-    RPMessage_CreateParams createParams;
+-    uint32_t msg, i, numRemoteCores;
+-    uint64_t curTime;
+-    char msgBuf[IPC_RPMESSAGE_MAX_MSG_SIZE];
+-    int32_t status;
+-    uint16_t remoteCoreId, remoteCoreEndPt, msgSize;
+-
+-    RPMessage_CreateParams_init(&createParams);
+-    createParams.localEndPt = IPC_RPMESSAGE_RNDPT_ACK_REPLY;
+-    status = RPMessage_construct(&gIpcAckReplyMsgObject, &createParams);
+-    DebugP_assert(status==SystemP_SUCCESS);
+-
+-    numRemoteCores = 0;
+-    for(i=0; gRemoteCoreId[i]!=CSL_CORE_ID_MAX; i++)
+-    {
+-        if(gRemoteCoreId[i] != IpcNotify_getSelfCoreId()) /* dont count self */
+-        {
+-            numRemoteCores++;
+-        }
+-    }
+-
+-    DebugP_log("[IPC RPMSG ECHO] Message exchange started with RTOS cores !!!\r\n");
+-
+-    curTime = ClockP_getTimeUsec();
+-
+-    for(msg=0; msg<gMsgEchoCount; msg++)
+-    {
+-        snprintf(msgBuf, IPC_RPMESSAGE_MAX_MSG_SIZE-1, "%d", msg);
+-        msgBuf[IPC_RPMESSAGE_MAX_MSG_SIZE-1] = 0;
+-        msgSize = strlen(msgBuf) + 1; /* count the terminating char as well */
+-
+-        /* send the same messages to all cores */
+-        for(i=0; gRemoteCoreId[i]!=CSL_CORE_ID_MAX; i++ )
+-        {
+-            if(gRemoteCoreId[i] != IpcNotify_getSelfCoreId()) /* dont send message to self */
+-            {
+-                status = RPMessage_send(
+-                    msgBuf, msgSize,
+-                    gRemoteCoreId[i], IPC_RPMESSAGE_ENDPT_CHRDEV_PING,
+-                    RPMessage_getLocalEndPt(&gIpcAckReplyMsgObject),
+-                    SystemP_WAIT_FOREVER);
+-                DebugP_assert(status==SystemP_SUCCESS);
+-            }
+-        }
+-        /* wait for response from all cores */
+-        for(i=0; gRemoteCoreId[i]!=CSL_CORE_ID_MAX; i++ )
+-        {
+-            if(gRemoteCoreId[i] != IpcNotify_getSelfCoreId()) /* dont send message to self */
+-            {
+-                /* set 'msgSize' to size of recv buffer,
+-                * after return `msgSize` contains actual size of valid data in recv buffer
+-                */
+-                msgSize = sizeof(msgBuf);
+-
+-                gIpcAckReplyMsgObjectPending = 1;
+-                status = RPMessage_recv(&gIpcAckReplyMsgObject,
+-                    msgBuf, &msgSize,
+-                    &remoteCoreId, &remoteCoreEndPt,
+-                    SystemP_WAIT_FOREVER);
+-                if (gShutdown == 1u)
+-                {
+-                    break;
+-                }
+-                DebugP_assert(status==SystemP_SUCCESS);
+-                gIpcAckReplyMsgObjectPending = 0;
+-
+-            }
+-        }
+-        if (gShutdown == 1u)
+-        {
+-            break;
+-        }
+-    }
+-    gIpcAckReplyMsgObjectPending = 0;
+-
+-    curTime = ClockP_getTimeUsec() - curTime;
+-
+-    DebugP_log("[IPC RPMSG ECHO] All echoed messages received by main core from %d remote cores !!!\r\n", numRemoteCores);
+-    DebugP_log("[IPC RPMSG ECHO] Messages sent to each core = %d \r\n", gMsgEchoCount);
+-    DebugP_log("[IPC RPMSG ECHO] Number of remote cores = %d \r\n", numRemoteCores);
+-    DebugP_log("[IPC RPMSG ECHO] Total execution time = %" PRId64 " usecs\r\n", curTime);
+-    DebugP_log("[IPC RPMSG ECHO] One way message latency = %" PRId32 " nsec\r\n",
+-        (uint32_t)(curTime*1000u/(gMsgEchoCount*numRemoteCores*2)));
+-
+-    RPMessage_destruct(&gIpcAckReplyMsgObject);
+-}
+-
+-void ipc_rpmsg_create_recv_tasks(void)
+-{
+-    int32_t status;
+-    RPMessage_CreateParams createParams;
+-    TaskP_Params taskParams;
+-
+-    RPMessage_CreateParams_init(&createParams);
+-    createParams.localEndPt = IPC_RPMESSAGE_ENDPT_PING;
+-    status = RPMessage_construct(&gIpcRecvMsgObject[0], &createParams);
+-    DebugP_assert(status==SystemP_SUCCESS);
+-
+-    RPMessage_CreateParams_init(&createParams);
+-    createParams.localEndPt = IPC_RPMESSAGE_ENDPT_CHRDEV_PING;
+-    status = RPMessage_construct(&gIpcRecvMsgObject[1], &createParams);
+-    DebugP_assert(status==SystemP_SUCCESS);
+-
+-    /* We need to "announce" to Linux client else Linux does not know a service exists on this CPU
+-     * This is not mandatory to do for RTOS clients
+-     */
+-    status = RPMessage_announce(CSL_CORE_ID_A53SS0_0, IPC_RPMESSAGE_ENDPT_PING, IPC_RPMESSAGE_SERVICE_PING);
+-    DebugP_assert(status==SystemP_SUCCESS);
+-
+-    status = RPMessage_announce(CSL_CORE_ID_A53SS0_0, IPC_RPMESSAGE_ENDPT_CHRDEV_PING, IPC_RPMESSAGE_SERVICE_CHRDEV);
+-    DebugP_assert(status==SystemP_SUCCESS);
+-
+-    /* Create the tasks which will handle the ping service */
+-    TaskP_Params_init(&taskParams);
+-    taskParams.name = "RPMESSAGE_PING";
+-    taskParams.stackSize = IPC_RPMESSAGE_TASK_STACK_SIZE;
+-    taskParams.stack = gIpcTaskStack[0];
+-    taskParams.priority = IPC_RPMESSAGE_TASK_PRI;
+-    /* we use the same task function for echo but pass the appropiate rpmsg handle to it, to echo messages */
+-    taskParams.args = &gIpcRecvMsgObject[0];
+-    taskParams.taskMain = ipc_recv_task_main;
+-
+-    status = TaskP_construct(&gIpcTask[0], &taskParams);
+-    DebugP_assert(status == SystemP_SUCCESS);
+-
+-    TaskP_Params_init(&taskParams);
+-    taskParams.name = "RPMESSAGE_CHAR_PING";
+-    taskParams.stackSize = IPC_RPMESSAGE_TASK_STACK_SIZE;
+-    taskParams.stack = gIpcTaskStack[1];
+-    taskParams.priority = IPC_RPMESSAGE_TASK_PRI;
+-    /* we use the same task function for echo but pass the appropiate rpmsg handle to it, to echo messages */
+-    taskParams.args = &gIpcRecvMsgObject[1];
+-    taskParams.taskMain = ipc_recv_task_main;
+-
+-    status = TaskP_construct(&gIpcTask[1], &taskParams);
+-    DebugP_assert(status == SystemP_SUCCESS);
+-}
++#include <kernel/dpl/DebugP.h>
+ 
+-void ipc_rp_mbox_callback(uint32_t remoteCoreId, uint16_t clientId, uint32_t msgValue, int32_t crcStatus, void *args)
+-{
+-    if (clientId == IPC_NOTIFY_CLIENT_ID_RP_MBOX)
+-    {
+-        if (msgValue == IPC_NOTIFY_RP_MBOX_SHUTDOWN)
+-        {
+-            /* Suspend request from the remotecore */
+-            gShutdown = 1u;
+-            gShutdownRemotecoreID = remoteCoreId;
+-            RPMessage_unblock(&gIpcRecvMsgObject[0]);
+-            RPMessage_unblock(&gIpcRecvMsgObject[1]);
++#include "rproc_trace_status.h"
+ 
+-            if (gIpcAckReplyMsgObjectPending == 1u)
+-                RPMessage_unblock(&gIpcAckReplyMsgObject);
+-        }
+-    }
+-}
++void EnetApp_mainTask(void *args);
+ 
+ void ipc_rpmsg_echo_main(void *args)
+ {
+-    int32_t status;
+-
+-    Drivers_open();
+-    Board_driversOpen();
+-
+-    DebugP_log("[IPC RPMSG ECHO] %s %s\r\n", __DATE__, __TIME__);
+-
+-    /* This API MUST be called by applications when its ready to talk to Linux */
+-    status = RPMessage_waitForLinuxReady(SystemP_WAIT_FOREVER);
+-    DebugP_assert(status==SystemP_SUCCESS);
+-
+-    /* Register a callback for the RP_MBOX messages from the Linux remoteproc driver*/
+-    IpcNotify_registerClient(IPC_NOTIFY_CLIENT_ID_RP_MBOX, &ipc_rp_mbox_callback, NULL);
+-
+-    /* create message receive tasks, these tasks always run and never exit */
+-    ipc_rpmsg_create_recv_tasks();
+-
+-    /* wait for all non-Linux cores to be ready, this ensure that when we send messages below
+-     * they wont be lost due to rpmsg end point not created at remote core
+-     */
+-    IpcNotify_syncAll(SystemP_WAIT_FOREVER);
++    RPROC_TRACE_OK("boot", "remoteproc scaffold entry");
++    RPROC_TRACE_OK("enet_init", "dispatching into EnetApp_mainTask");
+ 
+-    /* Due to below "if" condition only one non-Linux core sends messages to all other non-Linux Cores
+-     * This is done mainly to show deterministic latency measurement
+-     */
+-    if( IpcNotify_getSelfCoreId() == CSL_CORE_ID_R5FSS0_0 )
+-    {
+-        ipc_rpmsg_send_messages();
+-    }
+-    /* exit from this task, vTaskDelete() is called outside this function, so simply return */
++    EnetApp_mainTask(args);
+ 
+-    Board_driversClose();
+-    /* We dont close drivers since threads are running in background */
+-    /* Drivers_close(); */
++    RPROC_TRACE_ERR("boot", -1, "EnetApp_mainTask returned unexpectedly");
+ }
+
+=== scaffold -> integration: example.syscfg ===
+diff --git a/examples/drivers/ipc/ipc_rpmsg_echo_linux/am64x-evm/r5fss0-0_freertos/example.syscfg b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/example.syscfg
+index 8e57628..b0488f2 100644
+--- a/examples/drivers/ipc/ipc_rpmsg_echo_linux/am64x-evm/r5fss0-0_freertos/example.syscfg
++++ b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/example.syscfg
+@@ -37,6 +37,22 @@ const section8        = section.addInstance();
+ const section9        = section.addInstance();
+ const section10       = section.addInstance();
+ const section11       = section.addInstance();
++const eeprom          = scripting.addModule("/board/eeprom/eeprom", {}, false);
++const eeprom0         = eeprom.addInstance();
++const gpio            = scripting.addModule("/drivers/gpio/gpio", {}, false);
++const gpio0           = gpio.addInstance();
++const i2c             = scripting.addModule("/drivers/i2c/i2c", {}, false);
++const i2c0            = i2c.addInstance();
++const i2c1            = i2c.addInstance();
++const pruicss         = scripting.addModule("/drivers/pruicss/pruicss", {}, false);
++const pruicss1        = pruicss.addInstance();
++const enet_icss       = scripting.addModule("/networking/enet_icss/enet_icss", {}, false);
++const enet_icss0      = enet_icss.addInstance();
++const ethphy_cpsw_icssg  = scripting.addModule("/board/ethphy_cpsw_icssg/ethphy_cpsw_icssg", {}, false);
++const ethphy_cpsw_icssg0 = ethphy_cpsw_icssg.addInstance({}, false);
++const ethphy_cpsw_icssg1 = ethphy_cpsw_icssg.addInstance({}, false);
++const udma            = scripting.addModule("/drivers/udma/udma", {}, false);
++const udma0           = udma.addInstance({}, false);
+ 
+ /**
+  * Write custom configuration values to the imported modules.
+@@ -260,3 +276,99 @@ section11.output_section.create(1);
+ section11.output_section[0].$name      = ".resource_table";
+ section11.output_section[0].alignment  = 4096;
+ section11.output_section[0].palignment = true;
++
++eeprom0.$name = "CONFIG_EEPROM0";
++
++gpio0.$name                    = "CONFIG_GPIO0";
++gpio0.pinDir                   = "OUTPUT";
++gpio0.useMcuDomainPeripherals  = true;
++gpio0.MCU_GPIO.$assign         = "MCU_GPIO0";
++gpio0.MCU_GPIO.gpioPin.$assign = "MCU_SPI1_CS0";
++
++i2c0.$name               = "CONFIG_I2C0";
++eeprom0.peripheralDriver = i2c0;
++i2c0.I2C.$assign         = "I2C0";
++i2c0.I2C.SCL.$assign     = "I2C0_SCL";
++i2c0.I2C.SDA.$assign     = "I2C0_SDA";
++
++i2c1.$name           = "CONFIG_I2C1";
++i2c1.I2C.$assign     = "I2C1";
++i2c1.I2C.SCL.$assign = "I2C1_SCL";
++i2c1.I2C.SDA.$assign = "I2C1_SDA";
++
++enet_icss0.$name                     = "CONFIG_ENET_ICSS0";
++enet_icss0.phyToMacInterfaceMode     = "RGMII";
++enet_icss0.QoS                       = 3;
++enet_icss0.mdioMode                  = "MDIO_MODE_MANUAL";
++enet_icss0.timesyncEnable            = true;
++enet_icss0.timesyncSyncOut_pwidth_WC = 625000;
++enet_icss0.useAddMacAddr             = true;
++enet_icss0.addMacAddrCnt             = 1;
++enet_icss0.txDmaChannel.create(2);
++enet_icss0.txDmaChannel[0].$name        = "ENET_DMA_TX_CH0";
++enet_icss0.txDmaChannel[0].PacketsCount = 8;
++enet_icss0.txDmaChannel[1].$name        = "ENET_DMA_TX_CH_PTP";
++enet_icss0.txDmaChannel[1].PacketsCount = 8;
++enet_icss0.rxDmaChannel.create(4);
++enet_icss0.rxDmaChannel[0].$name        = "ENET_DMA_RX_CH0";
++enet_icss0.rxDmaChannel[0].PacketsCount = 8;
++enet_icss0.rxDmaChannel[1].$name        = "ENET_DMA_RX_CH0_PTP";
++enet_icss0.rxDmaChannel[1].macAddrCount = 0;
++enet_icss0.rxDmaChannel[1].PacketsCount = 8;
++enet_icss0.rxDmaChannel[2].$name        = "ENET_DMA_RX_CH1";
++enet_icss0.rxDmaChannel[2].macAddrCount = 0;
++enet_icss0.rxDmaChannel[2].chIdx        = 1;
++enet_icss0.rxDmaChannel[2].PacketsCount = 8;
++enet_icss0.rxDmaChannel[3].$name        = "ENET_DMA_RX_CH1_PTP";
++enet_icss0.rxDmaChannel[3].macAddrCount = 0;
++enet_icss0.rxDmaChannel[3].chIdx        = 1;
++enet_icss0.rxDmaChannel[3].PacketsCount = 8;
++enet_icss0.PRU_ICSSG1_RGMII1.$assign    = "PRU_ICSSG1_RGMII1";
++
++ethphy_cpsw_icssg0.$name = "CONFIG_ENET_ETHPHY0";
++enet_icss0.ethphy2       = ethphy_cpsw_icssg0;
++ethphy_cpsw_icssg1.$name = "CONFIG_ENET_ETHPHY1";
++enet_icss0.ethphy3       = ethphy_cpsw_icssg1;
++
++enet_icss0.icss                          = pruicss1;
++pruicss1.$name                           = "CONFIG_PRU_ICSS1";
++pruicss1.AdditionalICSSSettings[0].$name = "CONFIG_PRU_ICSS_IO0";
++pruicss1.intcMapping.create(1);
++pruicss1.intcMapping[0].$name            = "CONFIG_ICSS1_INTC_MAPPING0";
++pruicss1.intcMapping[0].event            = "41";
++pruicss1.intcMapping[0].channel          = "7";
++pruicss1.intcMapping[0].host             = "8";
++
++enet_icss0.udmaDrv = udma0;
++
++enet_icss0.PRU_ICSSG1_MDIO.$suggestSolution              = "PRU_ICSSG1_MDIO0";
++enet_icss0.PRU_ICSSG1_MDIO.MDC.$suggestSolution          = "PRG1_MDIO0_MDC";
++enet_icss0.PRU_ICSSG1_MDIO.MDIO.$suggestSolution         = "PRG1_MDIO0_MDIO";
++enet_icss0.PRU_ICSSG1_IEP.$suggestSolution               = "PRU_ICSSG1_IEP0";
++enet_icss0.PRU_ICSSG1_IEP.EDC_LATCH_IN0.$suggestSolution = "PRG1_PRU0_GPO18";
++enet_icss0.PRU_ICSSG1_IEP.EDC_SYNC_OUT0.$suggestSolution = "PRG1_PRU0_GPO19";
++enet_icss0.PRU_ICSSG1_RGMII1.RD0.$suggestSolution        = "PRG1_PRU0_GPO0";
++enet_icss0.PRU_ICSSG1_RGMII1.RD1.$suggestSolution        = "PRG1_PRU0_GPO1";
++enet_icss0.PRU_ICSSG1_RGMII1.RD2.$suggestSolution        = "PRG1_PRU0_GPO2";
++enet_icss0.PRU_ICSSG1_RGMII1.RD3.$suggestSolution        = "PRG1_PRU0_GPO3";
++enet_icss0.PRU_ICSSG1_RGMII1.RXC.$suggestSolution        = "PRG1_PRU0_GPO6";
++enet_icss0.PRU_ICSSG1_RGMII1.RX_CTL.$suggestSolution     = "PRG1_PRU0_GPO4";
++enet_icss0.PRU_ICSSG1_RGMII1.TD0.$suggestSolution        = "PRG1_PRU0_GPO11";
++enet_icss0.PRU_ICSSG1_RGMII1.TD1.$suggestSolution        = "PRG1_PRU0_GPO12";
++enet_icss0.PRU_ICSSG1_RGMII1.TD2.$suggestSolution        = "PRG1_PRU0_GPO13";
++enet_icss0.PRU_ICSSG1_RGMII1.TD3.$suggestSolution        = "PRG1_PRU0_GPO14";
++enet_icss0.PRU_ICSSG1_RGMII1.TXC.$suggestSolution        = "PRG1_PRU0_GPO16";
++enet_icss0.PRU_ICSSG1_RGMII1.TX_CTL.$suggestSolution     = "PRG1_PRU0_GPO15";
++enet_icss0.PRU_ICSSG1_RGMII2.$suggestSolution            = "PRU_ICSSG1_RGMII2";
++enet_icss0.PRU_ICSSG1_RGMII2.RD0.$suggestSolution        = "PRG1_PRU1_GPO0";
++enet_icss0.PRU_ICSSG1_RGMII2.RD1.$suggestSolution        = "PRG1_PRU1_GPO1";
++enet_icss0.PRU_ICSSG1_RGMII2.RD2.$suggestSolution        = "PRG1_PRU1_GPO2";
++enet_icss0.PRU_ICSSG1_RGMII2.RD3.$suggestSolution        = "PRG1_PRU1_GPO3";
++enet_icss0.PRU_ICSSG1_RGMII2.RXC.$suggestSolution        = "PRG1_PRU1_GPO6";
++enet_icss0.PRU_ICSSG1_RGMII2.RX_CTL.$suggestSolution     = "PRG1_PRU1_GPO4";
++enet_icss0.PRU_ICSSG1_RGMII2.TD0.$suggestSolution        = "PRG1_PRU1_GPO11";
++enet_icss0.PRU_ICSSG1_RGMII2.TD1.$suggestSolution        = "PRG1_PRU1_GPO12";
++enet_icss0.PRU_ICSSG1_RGMII2.TD2.$suggestSolution        = "PRG1_PRU1_GPO13";
++enet_icss0.PRU_ICSSG1_RGMII2.TD3.$suggestSolution        = "PRG1_PRU1_GPO14";
++enet_icss0.PRU_ICSSG1_RGMII2.TXC.$suggestSolution        = "PRG1_PRU1_GPO16";
++enet_icss0.PRU_ICSSG1_RGMII2.TX_CTL.$suggestSolution     = "PRG1_PRU1_GPO15";
+
+=== scaffold -> integration: Release/subdir_vars.mk ===
+diff --git a/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/subdir_vars.mk b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/subdir_vars.mk
+index 6c31a02..3789f41 100644
+--- a/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/subdir_vars.mk
++++ b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/subdir_vars.mk
+@@ -21,8 +21,14 @@ C_SRCS += \
+ ./syscfg/ti_enet_soc.c \
+ ./syscfg/ti_enet_lwipif.c \
+ ./syscfg/ti_usb_descriptor.c \
++../debug_log.c \
++../default_flow_cfg.c \
++../default_flow_icssg.c \
++../gptp_init.c \
+ ../ipc_rpmsg_echo.c \
+-../main.c 
++../main.c \
++../tsnapp_icssg_main.c \
++../tsninit.c 
+ 
+ GEN_CMDS += \
+ ./syscfg/linker.cmd 
+@@ -62,8 +68,14 @@ C_DEPS += \
+ ./syscfg/ti_enet_soc.d \
+ ./syscfg/ti_enet_lwipif.d \
+ ./syscfg/ti_usb_descriptor.d \
++./debug_log.d \
++./default_flow_cfg.d \
++./default_flow_icssg.d \
++./gptp_init.d \
+ ./ipc_rpmsg_echo.d \
+-./main.d 
++./main.d \
++./tsnapp_icssg_main.d \
++./tsninit.d 
+ 
+ OBJS += \
+ ./syscfg/ti_dpl_config.o \
+@@ -80,8 +92,14 @@ OBJS += \
+ ./syscfg/ti_enet_soc.o \
+ ./syscfg/ti_enet_lwipif.o \
+ ./syscfg/ti_usb_descriptor.o \
++./debug_log.o \
++./default_flow_cfg.o \
++./default_flow_icssg.o \
++./gptp_init.o \
+ ./ipc_rpmsg_echo.o \
+-./main.o 
++./main.o \
++./tsnapp_icssg_main.o \
++./tsninit.o 
+ 
+ GEN_MISC_FILES += \
+ ./syscfg/ti_dpl_config.h \
+@@ -114,8 +132,14 @@ OBJS__QUOTED += \
+ "syscfg/ti_enet_soc.o" \
+ "syscfg/ti_enet_lwipif.o" \
+ "syscfg/ti_usb_descriptor.o" \
++"debug_log.o" \
++"default_flow_cfg.o" \
++"default_flow_icssg.o" \
++"gptp_init.o" \
+ "ipc_rpmsg_echo.o" \
+-"main.o" 
++"main.o" \
++"tsnapp_icssg_main.o" \
++"tsninit.o" 
+ 
+ GEN_MISC_FILES__QUOTED += \
+ "syscfg/ti_dpl_config.h" \
+@@ -145,8 +169,14 @@ C_DEPS__QUOTED += \
+ "syscfg/ti_enet_soc.d" \
+ "syscfg/ti_enet_lwipif.d" \
+ "syscfg/ti_usb_descriptor.d" \
++"debug_log.d" \
++"default_flow_cfg.d" \
++"default_flow_icssg.d" \
++"gptp_init.d" \
+ "ipc_rpmsg_echo.d" \
+-"main.d" 
++"main.d" \
++"tsnapp_icssg_main.d" \
++"tsninit.d" 
+ 
+ GEN_FILES__QUOTED += \
+ "syscfg/ti_dpl_config.c" \
+@@ -183,7 +213,12 @@ C_SRCS__QUOTED += \
+ "./syscfg/ti_enet_soc.c" \
+ "./syscfg/ti_enet_lwipif.c" \
+ "./syscfg/ti_usb_descriptor.c" \
++"../debug_log.c" \
++"../default_flow_cfg.c" \
++"../default_flow_icssg.c" \
++"../gptp_init.c" \
+ "../ipc_rpmsg_echo.c" \
+-"../main.c" 
+-
++"../main.c" \
++"../tsnapp_icssg_main.c" \
++"../tsninit.c" 
+ 
+
+=== scaffold -> integration: Release/subdir_rules.mk ===
+diff --git a/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/subdir_rules.mk b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/subdir_rules.mk
+index c0c2cf2..edb5a9c 100644
+--- a/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/subdir_rules.mk
++++ b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/subdir_rules.mk
+@@ -6,7 +6,8 @@
+ build-295058038: ../example.syscfg
+ 	@echo 'Building file: "$<"'
+ 	@echo 'Invoking: SysConfig'
+-	"/home/nstel/ti/ccs2040/ccs/utils/sysconfig_1.26.0/sysconfig_cli.sh" -s "/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/.metadata/product.json" -p "ALV" -r "Default" --script "/home/nstel/ti/TI_Bringup/workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/example.syscfg" --context "r5fss0-0" -o "syscfg" --compiler ticlang
++	"/home/nstel/ti/ccs2040/ccs/utils/sysconfig_1.26.0/sysconfig_cli.sh" -s "/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/.metadata/product.json" -p "ALV" -r "Default" --script "/home/nstel/ti/TI_Bringup/workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/example.syscfg" --context "r5fss0-0" -o "syscfg" --compiler ticlang
++	sed -i 's/gIpcSharedMem\[\]/gIpcSharedMem[0]/g' syscfg/ti_drivers_config.c
+ 	@echo 'Finished building: "$<"'
+ 	@echo ' '
+ 
+@@ -41,15 +42,13 @@ syscfg: build-295058038
+ syscfg/%.o: ./syscfg/%.c $(GEN_OPTS) | $(GEN_FILES) $(GEN_MISC_FILES)
+ 	@echo 'Building file: "$<"'
+ 	@echo 'Invoking: Arm Compiler'
+-	"/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/bin/tiarmclang" -c -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mlittle-endian -mthumb -Os -I"/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/FreeRTOS-Kernel/include" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/config/am64x/r5f" -DSOC_AM64X -DOS_FREERTOS -g -Wall -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function -MMD -MP -MF"syscfg/$(basename $(<F)).d_raw" -MT"$(@)" -I"/home/nstel/ti/TI_Bringup/workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/syscfg"  $(GEN_OPTS__FLAG) -o"$@" "$(shell echo $<)"
++	"/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/bin/tiarmclang" -c -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mlittle-endian -mthumb -Os -I"/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/FreeRTOS-Kernel/include" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/config/am64x/r5f" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/board/ethphy/enet/rtos_drivers/include" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/board/ethphy/port" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core/utils" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core/utils/include" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core/utils/V3" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core/include" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core/include/phy" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core/include/core" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/soc/k3/am64x_am243x" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/hw_include" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/hw_include/mdio/V4" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/tsn_gptp" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/tsn_gptp/tilld" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/tsn_combase/tilld/sitara" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/tsn_gptp/gptpconf" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/tsn_uniconf" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/tsn_uniconf/yangs" -I"/home/nstel/ti/TI_Bringup/workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/syscfg" -I"/home/nstel/ti/TI_Bringup/workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang" -I"/home/nstel/ti/TI_Bringup/workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/nrt_flow" -DSOC_AM64X -DOS_FREERTOS -DPRINT_FORMAT_NO_WARNING -DSITARA -DGPTP_ENABLED=1 -g -Wall -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function --include tsn_buildconf/sitara_buildconf.h -MMD -MP -MF"syscfg/$(basename $(<F)).d_raw" -MT"$(@)" $(GEN_OPTS__FLAG) -o"$@" "$(shell echo $<)"
+ 	@echo 'Finished building: "$<"'
+ 	@echo ' '
+ 
+ %.o: ../%.c $(GEN_OPTS) | $(GEN_FILES) $(GEN_MISC_FILES)
+ 	@echo 'Building file: "$<"'
+ 	@echo 'Invoking: Arm Compiler'
+-	"/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/bin/tiarmclang" -c -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mlittle-endian -mthumb -Os -I"/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/FreeRTOS-Kernel/include" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/config/am64x/r5f" -DSOC_AM64X -DOS_FREERTOS -g -Wall -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function -MMD -MP -MF"$(basename $(<F)).d_raw" -MT"$(@)" -I"/home/nstel/ti/TI_Bringup/workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/syscfg"  $(GEN_OPTS__FLAG) -o"$@" "$(shell echo $<)"
++	"/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/bin/tiarmclang" -c -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mlittle-endian -mthumb -Os -I"/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/FreeRTOS-Kernel/include" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/config/am64x/r5f" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/board/ethphy/enet/rtos_drivers/include" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/board/ethphy/port" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core/utils" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core/utils/include" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core/utils/V3" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core/include" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core/include/phy" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/core/include/core" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/soc/k3/am64x_am243x" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/hw_include" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/hw_include/mdio/V4" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/tsn_gptp" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/tsn_gptp/tilld" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/tsn_combase/tilld/sitara" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/tsn_gptp/gptpconf" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/tsn_uniconf" -I"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/tsn_uniconf/yangs" -I"/home/nstel/ti/TI_Bringup/workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/syscfg" -I"/home/nstel/ti/TI_Bringup/workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang" -I"/home/nstel/ti/TI_Bringup/workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/nrt_flow" -DSOC_AM64X -DOS_FREERTOS -DPRINT_FORMAT_NO_WARNING -DSITARA -DGPTP_ENABLED=1 -g -Wall -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function --include tsn_buildconf/sitara_buildconf.h -MMD -MP -MF"$(basename $(<F)).d_raw" -MT"$(@)" $(GEN_OPTS__FLAG) -o"$@" "$(shell echo $<)"
+ 	@echo 'Finished building: "$<"'
+ 	@echo ' '
+-
+-
+
+=== scaffold -> integration: Release/makefile ===
+diff --git a/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/makefile b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/makefile
+index 3c055d0..3b630b5 100644
+--- a/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/makefile
++++ b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/Release/makefile
+@@ -22,12 +22,24 @@ ORDERED_OBJS += \
+ "./syscfg/ti_enet_soc.o" \
+ "./syscfg/ti_enet_lwipif.o" \
+ "./syscfg/ti_usb_descriptor.o" \
++"./debug_log.o" \
++"./default_flow_cfg.o" \
++"./default_flow_icssg.o" \
++"./gptp_init.o" \
+ "./ipc_rpmsg_echo.o" \
+ "./main.o" \
++"./tsnapp_icssg_main.o" \
++"./tsninit.o" \
+ $(GEN_CMDS__FLAG) \
+ -Wl,-lfreertos.am64x.r5f.ti-arm-clang.release.lib \
+ -Wl,-ldrivers.am64x.r5f.ti-arm-clang.freertos.release.lib \
++-Wl,-lenet-icssg.am64x.r5f.ti-arm-clang.freertos.release.lib \
+ -Wl,-lboard.am64x.r5f.ti-arm-clang.freertos.release.lib \
++-Wl,-ltsn_icssg_combase-freertos.am64x.r5f.ti-arm-clang.release.lib \
++-Wl,-ltsn_unibase-freertos.am64x.r5f.ti-arm-clang.release.lib \
++-Wl,-ltsn_icssg_gptp-freertos.am64x.r5f.ti-arm-clang.release.lib \
++-Wl,-ltsn_uniconf-freertos.am64x.r5f.ti-arm-clang.release.lib \
++-Wl,-lyangemb-freertos.am64x.r5f.ti-arm-clang.lib \
+ -Wl,-llibc.a \
+ -Wl,-llibsysbm.a \
+ 
+@@ -144,7 +156,7 @@ all: $(OBJS) $(GEN_CMDS)
+ ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang.out: $(OBJS) $(GEN_CMDS)
+ 	@echo 'Building target: "$@"'
+ 	@echo 'Invoking: Arm Linker'
+-	"/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/bin/tiarmclang" -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mlittle-endian -mthumb -Os -DSOC_AM64X -DOS_FREERTOS -g -Wall -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function -Wl,-m"ipc_rpmsg_echo_linux.Release.map" -Wl,-i"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/lib" -Wl,-i"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/drivers/lib" -Wl,-i"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/board/lib" -Wl,-i"/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib" -Wl,--reread_libs -Wl,--diag_suppress=10063 -Wl,--diag_wrap=off -Wl,--display_error_number -Wl,--warn_sections -Wl,--gen_xml_func_hash -Wl,--xml_link_info="ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang_linkInfo.xml" -Wl,--ram_model -o "ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang.out" $(ORDERED_OBJS)
++	"/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/bin/tiarmclang" -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mlittle-endian -mthumb -Os -DSOC_AM64X -DOS_FREERTOS -DPRINT_FORMAT_NO_WARNING -DSITARA -DGPTP_ENABLED=1 -g -Wall -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function -Wl,-m"ipc_rpmsg_echo_linux.Release.map" -Wl,-i"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/kernel/freertos/lib" -Wl,-i"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/drivers/lib" -Wl,-i"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/board/lib" -Wl,-i"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/enet/lib" -Wl,-i"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/lib" -Wl,-i"/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/source/networking/tsn/tsn-stack/license_lib" -Wl,-i"/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib" -Wl,--reread_libs -Wl,--diag_suppress=10063 -Wl,--diag_wrap=off -Wl,--display_error_number -Wl,--warn_sections -Wl,--gen_xml_func_hash -Wl,--xml_link_info="ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang_linkInfo.xml" -Wl,--ram_model -o "ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang.out" $(ORDERED_OBJS)
+ 	@echo 'Finished building target: "$@"'
+ 	@echo ' '
+ 	@$(MAKE) --no-print-directory post-build
+@@ -152,18 +164,17 @@ ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang.out: $(OBJS) $(GEN
+ # Other Targets
+ clean:
+ 	-$(RM) $(GEN_MISC_FILES__QUOTED)$(GEN_FILES__QUOTED)$(EXE_OUTPUTS__QUOTED)
+-	-$(RM) "syscfg/ti_dpl_config.o" "syscfg/ti_drivers_config.o" "syscfg/ti_drivers_open_close.o" "syscfg/ti_pinmux_config.o" "syscfg/ti_power_clock_config.o" "syscfg/ti_board_config.o" "syscfg/ti_board_open_close.o" "syscfg/ti_enet_config.o" "syscfg/ti_enet_init.o" "syscfg/ti_enet_dma_init.o" "syscfg/ti_enet_open_close.o" "syscfg/ti_enet_soc.o" "syscfg/ti_enet_lwipif.o" "syscfg/ti_usb_descriptor.o" "ipc_rpmsg_echo.o" "main.o" 
+-	-$(RM) "syscfg/ti_dpl_config.d" "syscfg/ti_drivers_config.d" "syscfg/ti_drivers_open_close.d" "syscfg/ti_pinmux_config.d" "syscfg/ti_power_clock_config.d" "syscfg/ti_board_config.d" "syscfg/ti_board_open_close.d" "syscfg/ti_enet_config.d" "syscfg/ti_enet_init.d" "syscfg/ti_enet_dma_init.d" "syscfg/ti_enet_open_close.d" "syscfg/ti_enet_soc.d" "syscfg/ti_enet_lwipif.d" "syscfg/ti_usb_descriptor.d" "ipc_rpmsg_echo.d" "main.d" 
++	-$(RM) "syscfg/ti_dpl_config.o" "syscfg/ti_drivers_config.o" "syscfg/ti_drivers_open_close.o" "syscfg/ti_pinmux_config.o" "syscfg/ti_power_clock_config.o" "syscfg/ti_board_config.o" "syscfg/ti_board_open_close.o" "syscfg/ti_enet_config.o" "syscfg/ti_enet_init.o" "syscfg/ti_enet_dma_init.o" "syscfg/ti_enet_open_close.o" "syscfg/ti_enet_soc.o" "syscfg/ti_enet_lwipif.o" "syscfg/ti_usb_descriptor.o" "debug_log.o" "default_flow_cfg.o" "default_flow_icssg.o" "gptp_init.o" "ipc_rpmsg_echo.o" "main.o" "tsnapp_icssg_main.o" "tsninit.o" 
++	-$(RM) "syscfg/ti_dpl_config.d" "syscfg/ti_drivers_config.d" "syscfg/ti_drivers_open_close.d" "syscfg/ti_pinmux_config.d" "syscfg/ti_power_clock_config.d" "syscfg/ti_board_config.d" "syscfg/ti_board_open_close.d" "syscfg/ti_enet_config.d" "syscfg/ti_enet_init.d" "syscfg/ti_enet_dma_init.d" "syscfg/ti_enet_open_close.d" "syscfg/ti_enet_soc.d" "syscfg/ti_enet_lwipif.d" "syscfg/ti_usb_descriptor.d" "debug_log.d" "default_flow_cfg.d" "default_flow_icssg.d" "gptp_init.d" "ipc_rpmsg_echo.d" "main.d" "tsnapp_icssg_main.d" "tsninit.d" 
+ 	-$(RMDIR) $(GEN_MISC_DIRS__QUOTED)
+ 	-@echo 'Finished clean'
+ 	-@echo ' '
+ 
+ post-build:
+-	-$(MAKE) -C /home/nstel/ti/TI_Bringup/workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects/ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang -f makefile_ccs_bootimage_gen OUTNAME=ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang PROFILE=Release MCU_PLUS_SDK_PATH=/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27 CG_TOOL_ROOT=/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS CCS_INSTALL_DIR=/home/nstel/ti/ccs2040/ccs/ CCS_IDE_MODE=desktop DEVICE=am64x
++	-$(MAKE) -C /home/nstel/ti/TI_Bringup/workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang -f makefile_ccs_bootimage_gen OUTNAME=ipc_rpmsg_echo_linux_am64x-evm_r5fss0-0_freertos_ti-arm-clang PROFILE=Release MCU_PLUS_SDK_PATH=/home/nstel/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27 CG_TOOL_ROOT=/home/nstel/ti/ccs2040/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS CCS_INSTALL_DIR=/home/nstel/ti/ccs2040/ccs/ CCS_IDE_MODE=desktop DEVICE=am64x
+ 	-@echo ' '
+ 
+ .PHONY: all clean dependents
+ .SECONDARY:
+ 
+ -include ../makefile.targets
+-
+
+=== donor -> integration: tsnapp_icssg_main.c ===
+diff --git a/source/networking/enet/core/examples/tsn/tsnapp_icssg_main.c b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/tsnapp_icssg_main.c
+index 81d04ac..36e4feb 100644
+--- a/source/networking/enet/core/examples/tsn/tsnapp_icssg_main.c
++++ b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/tsnapp_icssg_main.c
+@@ -46,6 +46,7 @@
+ #include <tsn_combase/tilld/cb_lld_ethernet.h>
+ #include "nrt_flow/dataflow.h"
+ #include "debug_log.h"
++#include "rproc_trace_status.h"
+ #include "tsninit.h"
+ #include "enetapp_icssg.h"
+ /* ========================================================================== */
+@@ -196,11 +197,13 @@ void EnetApp_mainTask(void *args)
+     DebugP_log("==========================\r\n");
+     DebugP_log("          gPTP App        \r\n");
+     DebugP_log("==========================\r\n");
++    RPROC_TRACE_OK("boot", "gptp icssg main task start");
+ 
+     memset(&gEnetAppCfg, 0, sizeof(gEnetAppCfg));
+     gEnetAppCfg.numPerCtxts = ENET_SYSCFG_NUM_PERIPHERAL;
+ 
+     EnetApp_updateCfg();
++    RPROC_TRACE_INFO("icssg_init", "config", 0, "peripherals=%u", gEnetAppCfg.numPerCtxts);
+ 
+     gEnetAppCfg.coreId = EnetSoc_getCoreId();
+     EnetQueue_initQ(&gEnetAppCfg.txFreePktInfoQ);
+@@ -210,6 +213,7 @@ void EnetApp_mainTask(void *args)
+         EnetAppUtils_enableClocks(gEnetAppCfg.perCtxt[i].enetType, gEnetAppCfg.perCtxt[i].instId);
+     }
+     DebugP_log("start to open driver.\r\n");
++    RPROC_TRACE_OK("enet_init", "driver init start");
+     EnetApp_driverInit();
+     for (i = 0U; i < gEnetAppCfg.numPerCtxts; i++)
+     {
+@@ -217,6 +221,11 @@ void EnetApp_mainTask(void *args)
+         if (status != ENET_SOK)
+         {
+             EnetAppUtils_print("Failed to open ENET: %d\r\n", status);
++            RPROC_TRACE_ERR("enet_init", status, "driver open failed per_idx=%u inst=%u", i, gEnetAppCfg.perCtxt[i].instId);
++        }
++        else
++        {
++            RPROC_TRACE_INFO("icssg_init", "open", 0, "per_idx=%u inst=%u mac_ports=%u", i, gEnetAppCfg.perCtxt[i].instId, gEnetAppCfg.perCtxt[i].macPortNum);
+         }
+         EnetApp_acquireHandleInfo(gEnetAppCfg.perCtxt[i].enetType, gEnetAppCfg.perCtxt[i].instId, &handleInfo);
+         gEnetAppCfg.perCtxt[i].hEnet = handleInfo.hEnet;
+@@ -229,9 +238,11 @@ void EnetApp_mainTask(void *args)
+     if (EnetApp_initTsn())
+     {
+         DebugP_log("EnetApp_initTsn failed\r\n");
++        RPROC_TRACE_ERR("gptp_state", -1, "EnetApp_initTsn failed");
+     }
+     else
+     {
++        RPROC_TRACE_OK("gptp_state", "TSN and gPTP tasks started");
+         while (true)
+         {
+             // Print CPU load
+@@ -245,10 +256,11 @@ void EnetApp_mainTask(void *args)
+ }
+ 
+ static void EnetApp_portLinkStatusChangeCb(Enet_MacPort macPort,
+-                                                        bool isLinkUp, void *appArg)
++                                                         bool isLinkUp, void *appArg)
+ {
+     EnetAppUtils_print("MAC Port %u: link %s\r\n",
+     ENET_MACPORT_ID(macPort), isLinkUp ? "up" : "down");
++    RPROC_TRACE_INFO("phy_link", isLinkUp ? "up" : "down", 0, "mac_port=%u", ENET_MACPORT_ID(macPort));
+     cb_lld_notify_linkchange();
+ }
+ 
+
+=== donor -> integration: tsninit.c ===
+diff --git a/source/networking/enet/core/examples/tsn/tsninit.c b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/tsninit.c
+index cdf63f9..2cb1843 100644
+--- a/source/networking/enet/core/examples/tsn/tsninit.c
++++ b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/tsninit.c
+@@ -45,6 +45,7 @@
+ #include <tsn_uniconf/ucman.h>
+ #include <tsn_uniconf/uc_dbal.h>
+ #include "debug_log.h"
++#include "rproc_trace_status.h"
+ #include "tsninit.h"
+ #include "common.h"
+ 
+@@ -382,14 +383,21 @@ int EnetApp_startTsn(void)
+     int i;
+     int res = 0;
+ 
++    RPROC_TRACE_OK("gptp_state", "starting TSN modules");
++
+     for (i = 0; i < ENETAPP_MAX_TASK_IDX; i++)
+     {
+         res = EnetApp_startTsnModule(i);
+         if (res != 0)
+         {
++            RPROC_TRACE_ERR("gptp_state", res, "TSN module start failed idx=%d", i);
+             break;
+         }
+     }
++    if (res == 0)
++    {
++        RPROC_TRACE_OK("gptp_state", "all TSN modules started");
++    }
+     return res;
+ }
+ 
+
+=== donor -> integration: gptp_init.c ===
+diff --git a/source/networking/enet/core/examples/tsn/gptp_init.c b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/gptp_init.c
+index f9ee83b..d17435b 100644
+--- a/source/networking/enet/core/examples/tsn/gptp_init.c
++++ b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/gptp_init.c
+@@ -45,6 +45,7 @@
+ #include <tsn_uniconf/ucman.h>
+ #include <tsn_uniconf/uc_dbal.h>
+ #include "debug_log.h"
++#include "rproc_trace_status.h"
+ #include "tsninit.h"
+ #include "common.h"
+ 
+@@ -473,6 +474,7 @@ static void *EnetApp_gptpTask(void *arg)
+         netdevs[i] = appCtx->netdev[i];
+     }
+ 
++    RPROC_TRACE_INFO("gptp_state", "task_enter", 0, "netdev_count=%d", appCtx->netdevSize);
+ 
+     /* This function has a true loop inside */
+     res = gptpman_run(gGptpOpt.instNum, netdevs, appCtx->netdevSize,
+@@ -480,6 +482,11 @@ static void *EnetApp_gptpTask(void *arg)
+     if (res != 0)
+     {
+         DPRINT("%s: gptpman_run() error", __func__);
++        RPROC_TRACE_ERR("gptp_state", res, "gptpman_run failed");
++    }
++    else
++    {
++        RPROC_TRACE_OK("gptp_state", "gptpman_run exited cleanly");
+     }
+ 
+     gptpgcfg_close(gGptpOpt.instNum);
+
+=== donor -> integration: debug_log.c ===
+
+=== donor -> integration: default_flow_cfg.c ===
+
+=== donor -> integration: default_flow_icssg.c ===
+diff --git a/source/networking/enet/core/examples/tsn/nrt_flow/default_flow_icssg.c b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/default_flow_icssg.c
+index 72fcdb4..9988738 100644
+--- a/source/networking/enet/core/examples/tsn/nrt_flow/default_flow_icssg.c
++++ b/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang/default_flow_icssg.c
+@@ -34,7 +34,7 @@
+ /*                              Include Files                                 */
+ /* ========================================================================== */
+ #include <tsn_combase/combase.h>
+-#include "dataflow.h"
++#include "nrt_flow/dataflow.h"
+ #include "enetapp_icssg.h"
+ 
+ /* ========================================================================== */

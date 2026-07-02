@@ -1,0 +1,49 @@
+There are 40 section headers, starting at offset 0x46f2f8:
+
+Section Headers:
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+  [ 1] .vectors          PROGBITS        00000000 000038 000040 00  AX  0   0  8
+  [ 2] .text.hwi         PROGBITS        00000040 000078 000ad8 00  AX  0   0  8
+  [ 3] .text.cache       PROGBITS        00000b18 000b50 000430 00  AX  0   0  8
+  [ 4] .text.mpu         PROGBITS        00000f48 000f80 000290 00  AX  0   0  8
+  [ 5] .text.boot        PROGBITS        000011d8 001210 0001b0 00  AX  0   0  8
+  [ 6] .text:abort       PROGBITS        00001388 0013c0 000010 00  AX  0   0  8
+  [ 7] .text             PROGBITS        a0199300 003000 049e20 00  AX  0   0 32
+  [ 8] .rodata           PROGBITS        a01e3120 04ce20 01a920 00   A  0   0 16
+  [ 9] .data             PROGBITS        a01fda40 067740 003200 00  WA  0   0 64
+  [10] .bss              NOBITS          a0101000 003000 08c300 00  WA  0   0 128
+  [11] .sysmem           NOBITS          a018d300 08f300 008000 00  WA  0   0  8
+  [12] .stack            NOBITS          a0195300 097300 004000 00  WA  0   0  8
+  [13] .irqstack         NOBITS          a0200c40 06a940 000100 00  WA  0   0  8
+  [14] .fiqstack         NOBITS          a0200d40 06aa40 000100 00  WA  0   0  8
+  [15] .svcstack         NOBITS          a0200e40 06ab40 001000 00  WA  0   0  8
+  [16] .abortstack       NOBITS          a0201e40 06bb40 000100 00  WA  0   0  8
+  [17] .undefinedstack   NOBITS          a0201f40 06bc40 000100 00  WA  0   0  8
+  [18] .ARM.exidx        NOBITS          00000000 06a940 000000 08   A  0   0  8
+  [19] .init_array       NOBITS          00000000 06a940 000000 00  WA  0   0  8
+  [20] .fini_array       NOBITS          00000000 06a940 000000 00  WA  0   0  8
+  [21] .bss.user_sh[...] NOBITS          00000000 06a940 000000 00  WA  0   0  1
+  [22] .bss.log_sha[...] NOBITS          00000000 06a940 000000 00  WA  0   0  1
+  [23] .bss.ipc_vri[...] NOBITS          a5004000 06a980 000000 00  WA  0   0 128
+  [24] .resource_table   PROGBITS        a0100000 002000 001000 00   A  0   0 4096
+  [25] .debug_info       PROGBITS        00000000 06a980 26ef5a 00      0   0  1
+  [26] .debug_frame      PROGBITS        00000000 2d98dc 00dcbc 00      0   0  4
+  [27] .debug_line       PROGBITS        00000000 2e7598 074655 00      0   0  1
+  [28] Veneer$$CMSE      NOBITS          00000000 000000 000000 00      0   0  1
+  [29] .debug_loc        PROGBITS        00000000 35bbed 0609b8 00      0   0  0
+  [30] .debug_ranges     PROGBITS        00000000 3bc5a5 007c78 00      0   0  0
+  [31] .debug_abbrev     PROGBITS        00000000 3c421d 000de0 00      0   0  0
+  [32] .debug_pubnames   PROGBITS        00000000 3c4ffd 02221a 00      0   0  0
+  [33] .debug_pubtypes   PROGBITS        00000000 3e7217 041bba 00      0   0  0
+  [34] .ARM.attributes   ARM_ATTRIBUTES  00000000 428dd1 00005f 00      0   0  0
+  [35] .symtab           SYMTAB          00000000 428e30 02e780 10     37 9943  0
+  [36] .TI.section.flags PROGBITS        00000000 4575b0 00001a 00      0   0  0
+  [37] .strtab           STRTAB          00000000 4575ca 0116b7 01   S  0   0  0
+  [38] .symtab_meta      LOOS+0xfff4c09  00000000 468c81 006401 10     35   0  0
+  [39] .shstrtab         STRTAB          00000000 46f082 0001d4 01   S  0   0  0
+Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings), I (info),
+  L (link order), O (extra OS processing required), G (group), T (TLS),
+  C (compressed), x (unknown), o (OS specific), E (exclude),
+  D (mbind), y (purecode), p (processor specific)

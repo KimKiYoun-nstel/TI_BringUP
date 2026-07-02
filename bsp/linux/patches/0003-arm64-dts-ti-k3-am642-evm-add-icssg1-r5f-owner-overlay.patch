@@ -1,0 +1,84 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TI_Bringup Workspace Base <noreply@example.com>
+Date: Thu, 2 Jul 2026 14:05:00 +0900
+Subject: [PATCH] arm64: dts: ti: add TMDS64EVM icssg1 r5f owner overlay
+
+Add a TMDS64EVM overlay that disables the Linux ICSSG1 Ethernet path used by
+the TSN C Case and leaves the main R5F remoteproc nodes available for the Path
+B firmware boot flow.
+---
+ arch/arm64/boot/dts/ti/Makefile                    | 4 ++++
+ .../boot/dts/ti/k3-am642-evm-icssg1-r5f-owner.dtso | 33 ++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/ti/k3-am642-evm-icssg1-r5f-owner.dtso
+
+diff --git a/arch/arm64/boot/dts/ti/Makefile b/arch/arm64/boot/dts/ti/Makefile
+index cb2623885..974a83876 100644
+--- a/arch/arm64/boot/dts/ti/Makefile
++++ b/arch/arm64/boot/dts/ti/Makefile
+@@ -120,6 +120,7 @@ dtb-$(CONFIG_ARCH_K3) += k3-am642-evm.dtb
+ dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-icssg0.dtbo
+ dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-icssg1-dualemac.dtbo
+ dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-icssg1-dualemac-mii.dtbo
++dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-icssg1-r5f-owner.dtbo
+ dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-onboard-clkgen-pcie-serdes.dtbo
+ dtb-$(CONFIG_ARCH_K3) += k3-am642-evm-pcie0-ep.dtbo
+ dtb-$(CONFIG_ARCH_K3) += k3-am642-eqep.dtbo
+@@ -309,6 +310,8 @@ k3-am642-evm-icssg1-dualemac-dtbs := \
+ 	k3-am642-evm.dtb k3-am642-evm-icssg1-dualemac.dtbo
+ k3-am642-evm-icssg1-dualemac-mii-dtbs := \
+ 	k3-am642-evm.dtb k3-am642-evm-icssg1-dualemac-mii.dtbo
++k3-am642-evm-icssg1-r5f-owner-dtbs := \
++	k3-am642-evm.dtb k3-am642-evm-icssg1-r5f-owner.dtbo
+ k3-am642-evm-onboard-clkgen-pcie-serdes-dtbs := \
+ 	k3-am642-evm.dtb k3-am642-evm-onboard-clkgen-pcie-serdes.dtbo
+ k3-am642-evm-pcie0-ep-dtbs := \
+@@ -467,6 +470,7 @@ dtb- += k3-am625-beagleplay-csi2-ov5640.dtb \
+ 	k3-am642-evm-icssg0.dtb \
+ 	k3-am642-evm-icssg1-dualemac.dtb \
+ 	k3-am642-evm-icssg1-dualemac-mii.dtb \
++	k3-am642-evm-icssg1-r5f-owner.dtb \
+ 	k3-am642-evm-onboard-clkgen-pcie-serdes.dtb \
+ 	k3-am642-evm-pcie0-ep.dtb \
+ 	k3-am642-evm-cpsw3g-pps.dtb \
+diff --git a/arch/arm64/boot/dts/ti/k3-am642-evm-icssg1-r5f-owner.dtso b/arch/arm64/boot/dts/ti/k3-am642-evm-icssg1-r5f-owner.dtso
+new file mode 100644
+index 000000000..c4dd34c31
+--- /dev/null
++++ b/arch/arm64/boot/dts/ti/k3-am642-evm-icssg1-r5f-owner.dtso
+@@ -0,0 +1,33 @@
++// SPDX-License-Identifier: GPL-2.0-only OR MIT
++/**
++ * DT overlay for handing TMDS64EVM ICSSG1 Ethernet ownership to R5F firmware.
++ *
++ * This disables Linux ICSSG Ethernet netdev creation while keeping the AM64
++ * R5F remoteproc nodes provided by k3-am64-ti-ipc-firmware.dtsi intact.
++ *
++ * The intent is:
++ * - keep A53 Linux booting on TMDS64EVM
++ * - keep Linux remoteproc for main R5F cores available
++ * - stop Linux CPSW/ICSSG Ethernet ownership on the two C Case test ports
++ * - let the R5F firmware own pinmux/MDIO/ICSSG runtime configuration
++ */
++
++/dts-v1/;
++/plugin/;
++
++&{/aliases} {
++	/delete-property/ ethernet1;
++	/delete-property/ ethernet2;
++};
++
++&cpsw_port2 {
++	status = "disabled";
++};
++
++&mdio_mux_1 {
++	status = "disabled";
++};
++
++&icssg1_eth {
++	status = "disabled";
++};
+-- 
+2.43.0
