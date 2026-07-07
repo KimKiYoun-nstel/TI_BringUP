@@ -1,0 +1,578 @@
+From 723147ec9eb1143c4100c6f1da4d153455c3e752 Mon Sep 17 00:00:00 2001
+From: prodigyrcn <prodigyrcn@nstel.co.kr>
+Date: Tue, 7 Jul 2026 12:23:39 +0900
+Subject: [PATCH 2/2] tsn: trace remoteproc gptp bridge path
+
+---
+ ...icssg_gptp_freertos.am64x.r5f.ti-arm-clang |  1 +
+ .../tsn_combase/tilld/sitara/lldenet.c        | 66 +++++++++++++++-
+ .../tsn/tsn-stack/tsn_gptp/gptpman.c          | 19 +++++
+ .../tsn/tsn-stack/tsn_gptp/md_pdelay_req_sm.c | 79 +++++++++++++++++++
+ .../tsn/tsn-stack/tsn_gptp/md_sync_send_sm.c  | 22 ++++++
+ .../tsn_gptp/port_sync_sync_send_sm.c         | 40 ++++++++++
+ .../tsn-stack/tsn_gptp/site_sync_sync_sm.c    | 26 +++++-
+ .../tsn-stack/tsn_gptp/tilld/lld_gptpnet.c    | 12 +++
+ 8 files changed, 261 insertions(+), 4 deletions(-)
+
+diff --git a/source/networking/tsn/makefile.tsn_icssg_gptp_freertos.am64x.r5f.ti-arm-clang b/source/networking/tsn/makefile.tsn_icssg_gptp_freertos.am64x.r5f.ti-arm-clang
+index ea4fe292..f17f2c92 100644
+--- a/source/networking/tsn/makefile.tsn_icssg_gptp_freertos.am64x.r5f.ti-arm-clang
++++ b/source/networking/tsn/makefile.tsn_icssg_gptp_freertos.am64x.r5f.ti-arm-clang
+@@ -86,6 +86,7 @@ INCLUDES_common := \
+     -I${MCU_PLUS_SDK_PATH}/source/networking/tsn/tsn-stack/tsn_uniconf/yangs \
+     -I${MCU_PLUS_SDK_PATH}/source/networking/tsn/tsn-stack/tsn_uniconf/yangs/generated \
+     -I${MCU_PLUS_SDK_PATH}/source/networking/tsn/tsn-stack/tsn_combase/tilld/sitara \
++    -I${MCU_PLUS_SDK_PATH}/ccs_projects/gptp_icssg_linux_remoteproc_am64x-evm_r5fss0-0_freertos_ti-arm-clang \
+     -I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/config/am64x/r5f \
+     -I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/FreeRTOS-Kernel/include \
+ 
+diff --git a/source/networking/tsn/tsn-stack/tsn_combase/tilld/sitara/lldenet.c b/source/networking/tsn/tsn-stack/tsn_combase/tilld/sitara/lldenet.c
+index 9df1c523..d06f9ba0 100644
+--- a/source/networking/tsn/tsn-stack/tsn_combase/tilld/sitara/lldenet.c
++++ b/source/networking/tsn/tsn-stack/tsn_combase/tilld/sitara/lldenet.c
+@@ -62,6 +62,16 @@ extern int32_t EnetApp_applyClassifier(Enet_Handle hEnet, uint32_t coreId, uint8
+ static LLDEnetTxDma_t s_lldTxDmaTable[LLDNET_TXDMA_CHANNEL_NUM];
+ static LLDEnetRxDma_t s_lldRxDmaTable[LLDNET_RXDMA_CHANNEL_NUM];
+ 
++typedef struct LLDEnetTxTraceStats_s {
++	uint32_t submitCalls;
++	uint32_t submitPkts;
++	uint32_t noBufHits;
++	uint32_t doneCalls;
++	uint32_t donePkts;
++} LLDEnetTxTraceStats;
++
++static LLDEnetTxTraceStats s_lldTxTraceStats[LLDNET_TXDMA_CHANNEL_NUM];
++
+ #define TXDMA_LOCK(hLLDTxDma) \
+ 	{if(CB_THREAD_IS_MUTEX_INITIALIZED(hLLDTxDma->txMutex))\
+ 		{CB_THREAD_MUTEX_LOCK(&hLLDTxDma->txMutex);}}
+@@ -263,6 +273,7 @@ static int DmaTxOpen(LLDEnet_t *hLLDEnet)
+ 	EnetApp_GetDmaHandleInArgs txInArgs;
+ 	EnetApp_GetTxDmaHandleOutArgs txChInfo;
+ 	LLDEnetTxDma_t *hLLDTxDma = hLLDEnet->hLLDTxDma;
++	LLDEnetTxTraceStats *traceStats = &s_lldTxTraceStats[hLLDTxDma->txChId];
+ 
+ 	/* Open the TX channel */
+ 	txInArgs.cbArg = hLLDTxDma;
+@@ -272,6 +283,9 @@ static int DmaTxOpen(LLDEnet_t *hLLDEnet)
+ 	hLLDTxDma->txChNum = txChInfo.txChNum;
+ 	hLLDTxDma->hTxCh = txChInfo.hTxCh;
+ 	EnetAppUtils_assert(hLLDTxDma->hTxCh != NULL);
++	memset(traceStats, 0, sizeof(*traceStats));
++	UB_LOG(UBL_INFO, "%s: txChId=%d txChNum=%d hTxCh=%p\n",
++	       __func__, hLLDTxDma->txChId, hLLDTxDma->txChNum, hLLDTxDma->hTxCh);
+ 
+ 	DmaTxQInit(hLLDTxDma);
+ 
+@@ -504,6 +518,7 @@ static uint32_t LLDEnetRetrieveTxDonePkts(LLDEnetTxDma_t *hLLDTxDma)
+ 	EnetDma_PktQ txFreeQ;
+ 	int32_t status;
+ 	uint32_t txFreeQCnt = 0U;
++	LLDEnetTxTraceStats *traceStats = &s_lldTxTraceStats[hLLDTxDma->txChId];
+ 
+ 	EnetQueue_initQ(&txFreeQ);
+ 
+@@ -512,9 +527,23 @@ static uint32_t LLDEnetRetrieveTxDonePkts(LLDEnetTxDma_t *hLLDTxDma)
+ 	txFreeQCnt = EnetQueue_getQCount(&txFreeQ);
+ 	if (status == ENET_SOK) {
+ 		EnetAppUtils_validatePacketState(&txFreeQ,
+-										 ENET_PKTSTATE_APP_WITH_DRIVER,
+-										 ENET_PKTSTATE_APP_WITH_FREEQ);
++						 ENET_PKTSTATE_APP_WITH_DRIVER,
++						 ENET_PKTSTATE_APP_WITH_FREEQ);
+ 		EnetQueue_append(&hLLDTxDma->txFreePktInfoQ, &txFreeQ);
++		if (txFreeQCnt > 0U) {
++			traceStats->doneCalls++;
++			traceStats->donePkts += txFreeQCnt;
++			if ((traceStats->doneCalls <= 8U) || ((traceStats->doneCalls % 32U) == 0U)) {
++				UB_LOG(UBL_INFO,
++				       "%s: txChId=%d doneCalls=%u donePkts=%u lastDone=%u freeQ=%u\n",
++				       __func__,
++				       hLLDTxDma->txChId,
++				       traceStats->doneCalls,
++				       traceStats->donePkts,
++				       txFreeQCnt,
++				       EnetQueue_getQCount(&hLLDTxDma->txFreePktInfoQ));
++			}
++		}
+ 	}
+ 
+ 	return txFreeQCnt;
+@@ -671,6 +700,21 @@ int LLDEnetSendMultiScatter(LLDEnet_t *hLLDEnet, LLDEnetFrameScatter_t *frames,
+ 
+ 	/* Don't return in the middle from here, use goto to avoid missing TXDMA_UNLOCK */
+ 	if (EnetQueue_getQCount(&hLLDTxDma->txFreePktInfoQ) < nFrames) {
++		LLDEnetTxTraceStats *traceStats = &s_lldTxTraceStats[hLLDTxDma->txChId];
++
++		traceStats->noBufHits++;
++		if ((traceStats->noBufHits <= 8U) || ((traceStats->noBufHits % 32U) == 0U)) {
++			UB_LOG(UBL_ERROR,
++			       "%s: txChId=%d no-buf freeQ=%u need=%u submitCalls=%u submitPkts=%u doneCalls=%u donePkts=%u\n",
++			       __func__,
++			       hLLDTxDma->txChId,
++			       EnetQueue_getQCount(&hLLDTxDma->txFreePktInfoQ),
++			       nFrames,
++			       traceStats->submitCalls,
++			       traceStats->submitPkts,
++			       traceStats->doneCalls,
++			       traceStats->donePkts);
++		}
+ 		res=LLDENET_E_NOBUF;
+ 		goto exit;
+ 	}
+@@ -720,9 +764,27 @@ int LLDEnetSendMultiScatter(LLDEnet_t *hLLDEnet, LLDEnetFrameScatter_t *frames,
+ 
+ 	status = EnetDma_submitTxPktQ(hLLDTxDma->hTxCh, &txSubmitQ);
+ 	if(status != ENET_SOK) {
++		UB_LOG(UBL_ERROR, "%s: txChId=%d submit failed status=%d\n",
++		       __func__, hLLDTxDma->txChId, status);
+ 		res=LLDENET_E_DMA;
+ 		goto exit;
+ 	}
++	{
++		LLDEnetTxTraceStats *traceStats = &s_lldTxTraceStats[hLLDTxDma->txChId];
++
++		traceStats->submitCalls++;
++		traceStats->submitPkts += nFrames;
++		if ((traceStats->submitCalls <= 8U) || ((traceStats->submitCalls % 32U) == 0U)) {
++			UB_LOG(UBL_INFO,
++			       "%s: txChId=%d submitCalls=%u submitPkts=%u sent=%u freeQ=%u\n",
++			       __func__,
++			       hLLDTxDma->txChId,
++			       traceStats->submitCalls,
++			       traceStats->submitPkts,
++			       nFrames,
++			       EnetQueue_getQCount(&hLLDTxDma->txFreePktInfoQ));
++		}
++	}
+ 	res=LLDENET_E_OK;
+ exit:
+ 	TXDMA_UNLOCK(hLLDTxDma);
+diff --git a/source/networking/tsn/tsn-stack/tsn_gptp/gptpman.c b/source/networking/tsn/tsn-stack/tsn_gptp/gptpman.c
+index 86e48581..08152fcc 100644
+--- a/source/networking/tsn/tsn-stack/tsn_gptp/gptpman.c
++++ b/source/networking/tsn/tsn-stack/tsn_gptp/gptpman.c
+@@ -50,6 +50,7 @@
+ #include <signal.h>
+ #include <tsn_unibase/unibase.h>
+ #include <tsn_combase/combase_link.h>
++#include "rproc_trace_status.h"
+ #include "gptpcommon.h"
+ #include "gptpman_private.h"
+ 
+@@ -82,6 +83,16 @@ static void set_asCapable(uint8_t gptpInstanceIndex, PerTimeAwareSystemGlobal *t
+ 	// 		2)The value of domainNumber is zero, and the value of sdoId for peer delay messages received
+ 	// on this PTP Port is 0x100.
+ 	bool is2011PdelayMsgCompatible = is_rxPdelayMsgAre2011Compatible(gptpInstanceIndex, tasg, ptd);
++	if (ptd->ppglb->thisPort == 2) {
++		RPROC_TRACE_INFO("gptp_ascap", "eval", 0,
++		                 "domain=%d port=%d across=%d neigh=%d compat2011=%d asCap=%d",
++		                 tasg->domainIndex,
++		                 ptd->ppglb->thisPort,
++		                 ptd->mdeglb->forAllDomain->asCapableAcrossDomains,
++		                 ptd->ppglb->neighborGptpCapable,
++		                 is2011PdelayMsgCompatible,
++		                 ptd->ppglb->asCapable);
++	}
+ 	if(ptd->mdeglb->forAllDomain->asCapableAcrossDomains &&
+ 	    (ptd->ppglb->neighborGptpCapable || is2011PdelayMsgCompatible)){
+ 		if(ptd->ppglb->asCapable){return;}
+@@ -118,6 +129,14 @@ static void update_asCapable_for_all(gptpman_data_t *gpmand, int domainIndex,
+ 		if(!DOMAIN_DATA_EXIST(di)){continue;}
+ 		set_asCapable(gpmand->gptpInstanceIndex, gpmand->tasds[di].tasglb,
+ 			      &gpmand->tasds[di].ptds[portIndex]);
++		if (portIndex == 2) {
++			RPROC_TRACE_INFO("gptp_ascap", "update", 0,
++			                 "domain=%d port=%d asCap=%d asCapOrAll=%d",
++			                 di,
++			                 portIndex,
++			                 gpmand->tasds[di].ptds[portIndex].ppglb->asCapable,
++			                 gpmand->tasds[di].tasglb->asCapableOrAll);
++		}
+ 		gpmand->tasds[di].tasglb->asCapableOrAll |=
+ 			gpmand->tasds[di].ptds[portIndex].ppglb->asCapable;
+ 	}
+diff --git a/source/networking/tsn/tsn-stack/tsn_gptp/md_pdelay_req_sm.c b/source/networking/tsn/tsn-stack/tsn_gptp/md_pdelay_req_sm.c
+index 246488c5..4a559d2a 100644
+--- a/source/networking/tsn/tsn-stack/tsn_gptp/md_pdelay_req_sm.c
++++ b/source/networking/tsn/tsn-stack/tsn_gptp/md_pdelay_req_sm.c
+@@ -57,6 +57,7 @@
+ #include "gptpconf/gptpgcfg.h"
+ #include "gptpcommon.h"
+ #include "gptp_perfmon.h"
++#include "rproc_trace_status.h"
+ 
+ typedef enum {
+ 	INIT,
+@@ -248,6 +249,12 @@ static int initial_send_pdelay_req_proc(md_pdelay_req_data_t *sm, uint64_t cts64
+ 	sm->thisSM->pdelayReqSequenceId = (uint16_t)rand();
+ 	sm->thisSM->txPdelayReqPtr = setPdelayReq(sm);
+ 	if(!sm->thisSM->txPdelayReqPtr){return -1;}
++	if (sm->portIndex == 2) {
++		RPROC_TRACE_INFO("gptp_pdelay", "send_req", 0,
++		                 "port=%d seq=%u",
++		                 sm->portIndex,
++		                 (unsigned int)ntohs(sm->thisSM->txPdelayReqPtr->head.sequenceId_ns));
++	}
+ 	res=txPdelayReq(sm->gpnetd, sm->portIndex);
+ 	if(res==-1){return -2;}
+ 	if(res<0){
+@@ -275,8 +282,21 @@ static md_pdelay_req_state_t initial_send_pdelay_req_condition(md_pdelay_req_dat
+ 		if(sm->mock_txts64!=0u){
+ 			sm->t1ts64=sm->mock_txts64;
+ 			sm->mock_txts64=0;
++			if (sm->portIndex == 2) {
++				RPROC_TRACE_INFO("gptp_pdelay", "mock_txts", 0,
++				                 "port=%d seq=%u t1=%"PRIu64,
++				                 sm->portIndex,
++				                 (unsigned int)sm->thisSM->pdelayReqSequenceId,
++				                 sm->t1ts64);
++			}
+ 			return WAITING_FOR_PDELAY_RESP;
+ 		}
++		if (sm->portIndex == 2) {
++			RPROC_TRACE_INFO("gptp_pdelay", "missing_txts", 0,
++			                 "port=%d seq=%u",
++			                 sm->portIndex,
++			                 (unsigned int)sm->thisSM->pdelayReqSequenceId);
++		}
+ 		UB_TLOG(UBL_WARN,"%s:missing TxTS, portIndex=%d, seqID=%d\n",
+ 			 __func__, sm->portIndex, sm->thisSM->pdelayReqSequenceId);
+ 		// repeat to send the initial PDelayReq
+@@ -633,6 +653,26 @@ static void *waiting_for_pdelay_interval_timer_proc(md_pdelay_req_data_t *sm)
+ 			sm->ppg->forAllDomain->neighborPropDelay.nsec);
+ 	}
+ 
++	if (sm->portIndex == 2) {
++		const int srcDiff = memcmp(RCVD_PDELAY_RESP_PTR->head.sourcePortIdentity.clockIdentity,
++		                           sm->ptasg->thisClock,
++		                           sizeof(ClockIdentity)) != 0;
++
++		RPROC_TRACE_INFO("gptp_ascross", "sample", 0,
++		                 "port=%d compat2011=%d valid=%d srcDiff=%d neighDelay=%"PRIu64" thresh=%"PRIu64" min=%"PRIu64" respSdo=0x%02x fupSdo=0x%02x respDom=%u fupDom=%u",
++		                 sm->portIndex,
++		                 sm->is2011BackwardCompatible,
++		                 sm->thisSM->neighborRateRatioValid,
++		                 srcDiff,
++		                 sm->ppg->forAllDomain->neighborPropDelay.nsec,
++		                 sm->mdeg->forAllDomain->neighborPropDelayThresh.nsec,
++		                 sm->mdeg->forAllDomain->neighborPropDelayMinLimit.nsec,
++		                 (unsigned int)(RCVD_PDELAY_RESP_PTR->head.majorSdoId_messageType & 0xF0u),
++		                 (unsigned int)(RCVD_PDELAY_RESP_FOLLOWUP_PTR->head.majorSdoId_messageType & 0xF0u),
++		                 (unsigned int)RCVD_PDELAY_RESP_PTR->head.domainNumber,
++		                 (unsigned int)RCVD_PDELAY_RESP_FOLLOWUP_PTR->head.domainNumber);
++	}
++
+ 	sm->mdeg->forAllDomain->isMeasuringDelay = true;
+ 
+ 	// In addition to the conditions in 802.1AS-2020 Figure 11-9
+@@ -659,6 +699,14 @@ static void *waiting_for_pdelay_interval_timer_proc(md_pdelay_req_data_t *sm)
+ 		sm->thisSM->detectedFaults = 0;
+ 		if(sm->mdeg->forAllDomain->asCapableAcrossDomains){return NULL;}
+ 		sm->mdeg->forAllDomain->asCapableAcrossDomains = true;
++		if (sm->portIndex == 2) {
++			RPROC_TRACE_INFO("gptp_ascross", "set", 0,
++			                 "port=%d neighDelay=%"PRIu64" valid=%d compat2011=%d",
++			                 sm->portIndex,
++			                 sm->ppg->forAllDomain->neighborPropDelay.nsec,
++			                 sm->thisSM->neighborRateRatioValid,
++			                 sm->is2011BackwardCompatible);
++		}
+ 		UB_LOG(UBL_INFO, "%s:set asCapableAcrossDomains, portIndex=%d\n",
+ 		       __func__, sm->portIndex);
+ 		return NULL;
+@@ -699,6 +747,15 @@ detectedfault:
+ 	}
+ 
+ noascapable:
++	if (sm->portIndex == 2) {
++		RPROC_TRACE_INFO("gptp_ascross", "clear", 0,
++		                 "port=%d neighDelay=%"PRIu64" valid=%d compat2011=%d detectedFaults=%u",
++		                 sm->portIndex,
++		                 sm->ppg->forAllDomain->neighborPropDelay.nsec,
++		                 sm->thisSM->neighborRateRatioValid,
++		                 sm->is2011BackwardCompatible,
++		                 sm->thisSM->detectedFaults);
++	}
+ 	UB_LOG(UBL_INFO, "%s:portIndex=%d, not asCapable\n", __func__, sm->portIndex);
+ 	sm->mdeg->forAllDomain->asCapableAcrossDomains = false;
+ 	sm->mdeg->forAllDomain->isMeasuringDelay = false;
+@@ -846,6 +903,13 @@ void md_pdelay_req_sm_txts(md_pdelay_req_data_t *sm, event_data_txts_t *edtxts,
+ 	sm->t1ts64=edtxts->ts64 + sm->ppg->egressLatency.scaledNanoseconds;
+ 	UB_LOG(UBL_DEBUGV, "%s:ts64=%"PRIu64", egressLatency=%"PRId64", t1ts64=%"PRIu64"\n",
+ 	       __func__, edtxts->ts64, sm->ppg->egressLatency.scaledNanoseconds, sm->t1ts64);
++	if (sm->portIndex == 2) {
++		RPROC_TRACE_INFO("gptp_pdelay", "txts", 0,
++		                 "port=%d seq=%u t1=%"PRIu64,
++		                 sm->portIndex,
++		                 (unsigned int)edtxts->seqid,
++		                 sm->t1ts64);
++	}
+ 	sm->thisSM->rcvdMDTimestampReceive = true;
+ 	(void)md_pdelay_req_sm(sm, cts64);
+ }
+@@ -863,6 +927,14 @@ void md_pdelay_req_sm_recv_resp(md_pdelay_req_data_t *sm, event_data_recv_t *edr
+ 	tns = ntohl(RCVD_PDELAY_RESP_PTR->requestReceiptTimestamp.nanoseconds_nl);
+ 	sm->t2ts64 = ((uint64_t)tsec * (uint64_t)UB_SEC_NS) + (uint64_t)tns;
+ 	sm->t4ts64 = edrecv->ts64 - sm->ppg->ingressLatency.scaledNanoseconds;
++	if (sm->portIndex == 2) {
++		RPROC_TRACE_INFO("gptp_pdelay", "recv_resp", 0,
++		                 "port=%d seq=%u t2=%"PRIu64" t4=%"PRIu64,
++		                 sm->portIndex,
++		                 (unsigned int)ntohs(RCVD_PDELAY_RESP_PTR->head.sequenceId_ns),
++		                 sm->t2ts64,
++		                 sm->t4ts64);
++	}
+ 	UB_LOG(UBL_DEBUGV, "%s:ts64=%"PRIu64", ingressLatency=%"PRId64", t4ts64=%"PRIu64"\n",
+ 	       __func__, edrecv->ts64, sm->ppg->ingressLatency.scaledNanoseconds, sm->t4ts64);
+ 
+@@ -891,5 +963,12 @@ void md_pdelay_req_sm_recv_respfup(md_pdelay_req_data_t *sm, event_data_recv_t *
+ 	tsec = ntohl(RCVD_PDELAY_RESP_FOLLOWUP_PTR->requestOriginTimestamp.seconds_lsb_nl);
+ 	tns = ntohl(RCVD_PDELAY_RESP_FOLLOWUP_PTR->requestOriginTimestamp.nanoseconds_nl);
+ 	sm->t3ts64 = ((uint64_t)tsec * (uint64_t)UB_SEC_NS) + (uint64_t)tns;
++	if (sm->portIndex == 2) {
++		RPROC_TRACE_INFO("gptp_pdelay", "recv_fup", 0,
++		                 "port=%d seq=%u t3=%"PRIu64,
++		                 sm->portIndex,
++		                 (unsigned int)ntohs(RCVD_PDELAY_RESP_FOLLOWUP_PTR->head.sequenceId_ns),
++		                 sm->t3ts64);
++	}
+ 	(void)md_pdelay_req_sm(sm, cts64);
+ }
+diff --git a/source/networking/tsn/tsn-stack/tsn_gptp/md_sync_send_sm.c b/source/networking/tsn/tsn-stack/tsn_gptp/md_sync_send_sm.c
+index e405c8c3..229d35ce 100644
+--- a/source/networking/tsn/tsn-stack/tsn_gptp/md_sync_send_sm.c
++++ b/source/networking/tsn/tsn-stack/tsn_gptp/md_sync_send_sm.c
+@@ -79,6 +79,25 @@ typedef enum {
+ #define RCVD_MDTIMESTAMP_RECEIVE sm->thisSM->rcvdMDTimestampReceive
+ #define GPTPINSTNUM sm->ptasg->gptpInstanceIndex
+ 
++static void trace_port2_sync_send(md_sync_send_data_t *sm, const char *msg,
++				  uint16_t seqid, int ssize)
++{
++	if (sm->portIndex != 2) {
++		return;
++	}
++
++	UB_LOG(UBL_ERROR,
++	       "port2_sync_send:%s domainIndex=%d portIndex=%d seqid=%u portOper=%d ptpEnable=%d asCap=%d len=%d\n",
++	       msg,
++	       sm->domainIndex,
++	       sm->portIndex,
++	       (unsigned int)seqid,
++	       PORT_OPER,
++	       PTP_PORT_ENABLED,
++	       AS_CAPABLE,
++	       ssize);
++}
++
+ static void *composeSyncHeader(md_sync_send_data_t *sm, uint64_t cts64, int ssize)
+ {
+ 	void *sdata;
+@@ -139,6 +158,7 @@ static int setSyncTwoStep_txSync(md_sync_send_data_t *sm, uint64_t cts64)
+ 
+ 	sdata=(MDPTPMsgSync*)composeSyncHeader(sm, cts64, ssize);
+ 	if(sdata==NULL){return -1;}
++	trace_port2_sync_send(sm, "sync", SYNC_SEQUENCE_ID, ssize);
+ 	res=gptpnet_send_whook(sm->gpnetd, sm->portIndex-1, ssize);
+ 	if(res==-1){return res;}
+ 	if(res<0) {
+@@ -203,6 +223,7 @@ static int setFollowUp_txFollowUp(md_sync_send_data_t *sm, uint64_t cts64)
+ 	composeSyncFupTLV(sm, sdata, cf);
+ 	UB_LOG(UBL_DEBUGV, "md_sync_send:txFollowUp domainIndex=%d, portIndex=%d\n",
+ 	       sm->domainIndex, sm->portIndex);
++	trace_port2_sync_send(sm, "follow_up", SYNC_SEQUENCE_ID, ssize);
+ 
+ 	dts=cts64-sm->tfup_ts;
+ 	tsync_ts_threshold=(int64_t)((double)sm->ppg->syncInterval.nsec*WARNING_IF_SYNC_INTERVAL_EXCEED_THRESHOLD);
+@@ -229,6 +250,7 @@ static int setSyncOneStep(md_sync_send_data_t *sm, uint64_t cts64)
+ 
+ 	sdata=(MDPTPMsgSyncOneStep*)composeSyncHeader(sm, cts64, ssize);
+ 	if(sdata==NULL){return -1;}
++	trace_port2_sync_send(sm, "sync_one_step", SYNC_SEQUENCE_ID, ssize);
+ 	if(gptpclock_we_are_gm(GPTPINSTNUM, sm->domainIndex)){
+ 		correctionField=0;
+ 		// when we are GM, upstreamTxTime is normally our gptp TS.
+diff --git a/source/networking/tsn/tsn-stack/tsn_gptp/port_sync_sync_send_sm.c b/source/networking/tsn/tsn-stack/tsn_gptp/port_sync_sync_send_sm.c
+index 3ed2ea32..668a055f 100644
+--- a/source/networking/tsn/tsn-stack/tsn_gptp/port_sync_sync_send_sm.c
++++ b/source/networking/tsn/tsn-stack/tsn_gptp/port_sync_sync_send_sm.c
+@@ -81,6 +81,27 @@ typedef enum {
+ #define LAST_SYNC_SENT_TIME sm->thisSM->lastSyncSentTime
+ #define GPTPINSTNUM sm->ptasg->gptpInstanceIndex
+ 
++static void trace_port2_sync_gate(port_sync_sync_send_data_t *sm, const char *stage,
++				  bool allow_send)
++{
++	if (sm->portIndex != 2) {
++		return;
++	}
++
++	UB_LOG(UBL_ERROR,
++	       "port2_sync_gate:%s allow=%d rcvd=%d srcPort=%u thisPort=%u portOper=%d ptpEnable=%d asCap=%d sel=%u logSync=%d\n",
++	       stage,
++	       allow_send,
++	       RCVD_PSSYNC,
++	       RCVD_PSSYNC ? (unsigned int)RCVD_PSSYNC_PTR->localPortIndex : 0U,
++	       (unsigned int)THIS_PORT,
++	       PORT_OPER,
++	       PTP_PORT_ENABLED,
++	       AS_CAPABLE,
++	       (unsigned int)SELECTED_STATE[sm->portIndex],
++	       (int)sm->ppg->currentLogSyncInterval);
++}
++
+ static void setMDSync(port_sync_sync_send_data_t *sm)
+ {
+ 	sm->mdSyncSend.domainIndex = sm->ptasg->domainIndex;
+@@ -101,6 +122,15 @@ static port_sync_sync_send_state_t allstate_condition(port_sync_sync_send_data_t
+ {
+ 	if(sm->ptasg->BEGIN || !sm->ptasg->instanceEnable ||
+ 	   (RCVD_PSSYNC &&  (!PORT_OPER || !PTP_PORT_ENABLED || !AS_CAPABLE))){
++		if (sm->portIndex == 2 && RCVD_PSSYNC) {
++			UB_LOG(UBL_ERROR,
++			       "port2_sync_gate:allstate block srcPort=%u portOper=%d ptpEnable=%d asCap=%d sel=%u\n",
++			       (unsigned int)RCVD_PSSYNC_PTR->localPortIndex,
++			       PORT_OPER,
++			       PTP_PORT_ENABLED,
++			       AS_CAPABLE,
++			       (unsigned int)SELECTED_STATE[sm->portIndex]);
++		}
+ 		sm->last_state=REACTION;
+ 		return TRANSMIT_INIT;
+ 	}
+@@ -127,6 +157,7 @@ static port_sync_sync_send_state_t transmit_init_condition(port_sync_sync_send_d
+ {
+ 	// Table 10-16—Interpretation of special values of logTimeSyncInterval (value 127)
+ 	if (sm->ppg->currentLogSyncInterval == 127) {
++		trace_port2_sync_gate(sm, "transmit_init(log127)", false);
+ 		return TRANSMIT_INIT;
+ 	}
+ 
+@@ -138,9 +169,14 @@ static port_sync_sync_send_state_t transmit_init_condition(port_sync_sync_send_d
+ 	    (gptpgcfg_get_intitem(
+ 		    GPTPINSTNUM, XL4_EXTMOD_XL4GPTP_TEST_SYNC_SEND_PORT,
+ 		    YDBI_CONFIG) == sm->portIndex))){
++		trace_port2_sync_gate(sm, "transmit_init(allow)", true);
+ 		return SEND_MD_SYNC;
+ 	}
+ 
++	if (RCVD_PSSYNC) {
++		trace_port2_sync_gate(sm, "transmit_init(block)", false);
++	}
++
+ 	return TRANSMIT_INIT;
+ }
+ 
+@@ -164,6 +200,7 @@ static void *send_md_sync_proc(port_sync_sync_send_data_t *sm, uint64_t cts64)
+ 	RCVD_PSSYNC = false;
+ 	LAST_SYNC_SENT_TIME.nsec = cts64;
+ 	setMDSync(sm);
++	trace_port2_sync_gate(sm, "send_md_sync_proc", true);
+ 	//UB_LOG(UBL_DEBUG, "%s:txMDSync\n", __func__);
+ 	retv = &sm->mdSyncSend;
+ 	if (SYNC_SLOWDOWN) {
+@@ -196,7 +233,10 @@ static port_sync_sync_send_state_t send_md_sync_condition(port_sync_sync_send_da
+ 	    ((SELECTED_STATE[sm->portIndex] == (uint8_t)MasterPort) ||
+ 	     (gptpgcfg_get_intitem(GPTPINSTNUM, XL4_EXTMOD_XL4GPTP_TEST_SYNC_SEND_PORT,
+ 				   YDBI_CONFIG) == sm->portIndex))){
++		trace_port2_sync_gate(sm, "send_md_sync(reaction)", true);
+ 		sm->last_state = REACTION;
++	} else if (sm->portIndex == 2) {
++		trace_port2_sync_gate(sm, "send_md_sync(hold)", false);
+ 	}
+ 
+ 	return SEND_MD_SYNC;
+diff --git a/source/networking/tsn/tsn-stack/tsn_gptp/site_sync_sync_sm.c b/source/networking/tsn/tsn-stack/tsn_gptp/site_sync_sync_sm.c
+index 9320eaf9..6028a322 100644
+--- a/source/networking/tsn/tsn-stack/tsn_gptp/site_sync_sync_sm.c
++++ b/source/networking/tsn/tsn-stack/tsn_gptp/site_sync_sync_sm.c
+@@ -71,6 +71,23 @@ typedef enum {
+ #define PARENT_LOG_SYNC_INTERVAL sm->ptasg->parentLogSyncInterval
+ #define GPTPINSTNUM sm->ptasg->gptpInstanceIndex
+ 
++static void trace_site_sync_gate(site_sync_sync_data_t *sm, const char *stage,
++				 bool allow_sync)
++{
++	if (!RCVD_PSSYNC) {
++		return;
++	}
++
++	UB_LOG(UBL_ERROR,
++	       "site_sync_gate:%s allow=%d srcPort=%u srcSel=%u gmPresent=%d parentLog=%d\n",
++	       stage,
++	       allow_sync,
++	       (unsigned int)RCVD_PSSYNC_PTR->localPortIndex,
++	       (unsigned int)SELECTED_STATE[RCVD_PSSYNC_PTR->localPortIndex],
++	       GM_PRESENT,
++	       (int)PARENT_LOG_SYNC_INTERVAL);
++}
++
+ static site_sync_sync_state_t allstate_condition(site_sync_sync_data_t *sm)
+ {
+ 	if(sm->ptasg->BEGIN || !sm->ptasg->instanceEnable ) {
+@@ -95,8 +112,12 @@ static site_sync_sync_state_t initializing_condition(site_sync_sync_data_t *sm)
+ 				     GPTPINSTNUM, XL4_EXTMOD_XL4GPTP_TEST_SYNC_REC_PORT,
+ 				     YDBI_CONFIG) ==
+ 			     RCVD_PSSYNC_PTR->localPortIndex))){
++		trace_site_sync_gate(sm, "initializing(allow)", true);
+ 		return RECEIVING_SYNC;
+ 	}
++	if (RCVD_PSSYNC) {
++		trace_site_sync_gate(sm, "initializing(block)", false);
++	}
+ 	return INITIALIZING;
+ }
+ 
+@@ -118,6 +139,7 @@ static PortSyncSync *setPSSyncSend(site_sync_sync_data_t *sm, PortSyncSync *pssp
+ static void *receiving_sync_proc(site_sync_sync_data_t *sm)
+ {
+ 	UB_LOG(UBL_DEBUGV, "site_sync_sync:%s:domainIndex=%d\n", __func__, sm->domainIndex);
++	trace_site_sync_gate(sm, "receiving_sync_proc", true);
+ 	RCVD_PSSYNC = false;
+ 	TX_PSSYNC_PTR_SSS = setPSSyncSend(sm, RCVD_PSSYNC_PTR);
+ 	PARENT_LOG_SYNC_INTERVAL = RCVD_PSSYNC_PTR->logMessageInterval;
+@@ -233,7 +255,7 @@ void *site_sync_sync_sm_portSyncSync(site_sync_sync_data_t *sm,
+ {
+ 	RCVD_PSSYNC = true;
+ 	RCVD_PSSYNC_PTR = portSyncSync;
+-	UB_LOG(UBL_DEBUGV, "%s:domainIndex=%d, localPortIndex=%d\n", __func__, sm->domainIndex,
+-	       RCVD_PSSYNC_PTR->localPortIndex);
++	UB_LOG(UBL_ERROR, "site_sync_gate:%s domainIndex=%d srcPort=%u\n", __func__, sm->domainIndex,
++	       (unsigned int)RCVD_PSSYNC_PTR->localPortIndex);
+ 	return site_sync_sync_sm(sm, cts64);
+ }
+diff --git a/source/networking/tsn/tsn-stack/tsn_gptp/tilld/lld_gptpnet.c b/source/networking/tsn/tsn-stack/tsn_gptp/tilld/lld_gptpnet.c
+index 28d432a0..e380a781 100644
+--- a/source/networking/tsn/tsn-stack/tsn_gptp/tilld/lld_gptpnet.c
++++ b/source/networking/tsn/tsn-stack/tsn_gptp/tilld/lld_gptpnet.c
+@@ -60,6 +60,8 @@ CB_SEM_T g_gptpd_ready_semaphore = NULL;
+ 
+ extern char *PTPMsgType_debug[];
+ 
++static uint32_t s_gptpnetSendCount[LLDENET_MAX_PORTS][16];
++
+ extern int gptpgcfg_link_check(uint8_t gptpInstanceIndex, gptpnet_data_netlink_t *edtnl);
+ extern int gptpgcfg_nonyang_notice_check(uint8_t gptpInstanceIndex);
+ 
+@@ -505,6 +507,16 @@ int gptpnet_send(gptpnet_data_t *gpnet, int ndev_index, uint16_t length)
+ 	}
+ 	seqid = PTP_HEAD_SEQID(ndev->txbuf.pdata);
+ 	domain = PTP_HEAD_DOMAIN_NUMBER(ndev->txbuf.pdata);
++	if (msgtype <= 15) {
++		s_gptpnetSendCount[ndev_index][msgtype]++;
++		if ((s_gptpnetSendCount[ndev_index][msgtype] <= 8U) ||
++		    ((s_gptpnetSendCount[ndev_index][msgtype] % 32U) == 0U)) {
++			UB_LOG(UBL_INFO,
++			       "%s: ndev=%d msg=%s msgtype=%d seqid=%u domain=%u count=%u len=%u\n",
++			       __func__, ndev_index, msg, msgtype, seqid, domain,
++			       s_gptpnetSendCount[ndev_index][msgtype], length);
++		}
++	}
+ 
+ 	if (msgtype < 8) {
+ 		txts_info_t txts_info;
+-- 
+2.34.1
+

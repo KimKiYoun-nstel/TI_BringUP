@@ -4,6 +4,14 @@
 
 `TMDS64EVM` 기준 `gptp_icssg_switch` donor 예제를 Linux `remoteproc` 경로로 이식한 현재 상태를 1차 고정한다.
 
+주의:
+
+- 이 문서는 **Path B bring-up 성공 범위**를 고정한 중간 단계 문서다.
+- 이후 최종 fresh-start 검증에서 donor-equivalent bridge gPTP 기능은 성립하지 않는 것으로 결론났다.
+- 현재 최종 판단은 다음 문서를 우선 기준으로 본다.
+  - `closure-status.md`
+  - `2026-07-06_gptp-bridge-fresh-start-validation.md`
+
 이 문서는 다음을 함께 정리한다.
 
 1. 이식 성공 범위
@@ -153,8 +161,8 @@ repo 자산:
 
 - `projects/tsn_c_case/tmp_guide/c5_core_clock_ownership_verification_guide.md`
   - 임시 작업 가이드였고, 현재는 결과 문서와 patch/provenance 자산으로 대체했다.
-- `projects/tsn_c_case/logs/2026-07-01_pathb_integration_reference.diff`
-  - `bsp/mcu-plus/patches/0004-...patch`로 승격했다.
+- `bsp/mcu-plus/patches/0004-am64x-gptp-icssg-linux-remoteproc-pathb-integration-reference.patch`
+  - 기존 raw diff는 정리했고, repo에서는 이 patch reference를 기준 자산으로 사용한다.
 
 ## 적용 순서 제안
 

@@ -18,7 +18,8 @@
 |---|---|---|
 | MCU+ SDK version | `12.00.00` | `tools/env/mcu-plus-sdk-am64x-12.00.00.env` 기준 |
 | install root | `~/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27` | external original, reference-only |
-| workspace root | `workspace/mcu_plus_sdk_am64x_12_00_00_27` | editable local workspace |
+| local seed repo | `~/ti/local_git_repo/mcu_plus_sdk_am64x_12_00_00_27.git` | local bare Git seed, host-only |
+| workspace root | `workspace/mcu_plus_sdk_am64x_12_00_00_27` | editable local git workspace clone |
 | env file | `tools/env/mcu-plus-sdk-am64x-12.00.00.env` | local build helper 기준 |
 | CCS project dir | `workspace/mcu_plus_sdk_am64x_12_00_00_27/ccs_projects` | headless CCS build/export 용도 |
 
@@ -54,6 +55,7 @@
 확정된 사실:
 
 - repo는 이미 MCU+ SDK local workspace 경로를 가지고 있다.
+- repo는 이제 MCU+ SDK local bare seed repo와 git-managed workspace clone을 함께 가진다.
 - R5F early boot rehearsal에 필요한 최소 예제군과 boot 도구가 local workspace에 존재한다.
 - `tools/env/mcu-plus-sdk-am64x-12.00.00.env`는 install root와 workspace root를 분리해 관리한다.
 
@@ -69,6 +71,6 @@
 ## 운영 원칙
 
 - `~/ti/am64x/mcu_plus_sdk_*` 외부 SDK original은 reference-only 이다.
-- 재현 가능한 변경이 필요하면 `workspace/mcu_plus_sdk_am64x_12_00_00_27`에서 수행한다.
+- 재현 가능한 변경이 필요하면 local seed repo에서 clone한 `workspace/mcu_plus_sdk_am64x_12_00_00_27`에서 수행한다.
 - 장기 보관 가치가 생긴 변경은 `bsp/mcu-plus/patches/`와 `logs/provenance/`로 승격한다.
 - `.appimage`, `.tiimage`, `.mcelf`, `.out` 같은 build artifact는 repo에 commit하지 않는다.

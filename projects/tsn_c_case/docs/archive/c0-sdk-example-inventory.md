@@ -58,7 +58,7 @@ make -f makefile.am64x gptp_icssg_dualmac_am64x-evm_r5fss0-0_freertos_ti-arm-cla
 ### switch
 
 - build log:
-  - `projects/tsn_c_case/logs/2026-06-30_c0_build_gptp_icssg_switch.log`
+  - `projects/tsn_c_case/logs/reference/2026-06-30_c0_build_gptp_icssg_switch.log`
 - 확인한 산출물:
   - `gptp_icssg_switch.release.out`
   - `gptp_icssg_switch.release.map`
@@ -69,7 +69,7 @@ make -f makefile.am64x gptp_icssg_dualmac_am64x-evm_r5fss0-0_freertos_ti-arm-cla
 ### dualmac
 
 - build log:
-  - `projects/tsn_c_case/logs/2026-06-30_c0_build_gptp_icssg_dualmac.log`
+  - `gptp_icssg_dualmac`도 build는 확인했지만, raw build log는 최종 정리 시점에 삭제했다.
 - 확인한 산출물:
   - `gptp_icssg_dualmac.release.out`
   - `gptp_icssg_dualmac.release.map`

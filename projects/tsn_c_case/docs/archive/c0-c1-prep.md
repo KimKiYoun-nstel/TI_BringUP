@@ -9,7 +9,7 @@
 ### 0. 2026-06-30 baseline 수집 완료
 
 - 수집 로그:
-  - `projects/tsn_c_case/logs/2026-06-30_165223_tmds_c1_linux_baseline.txt`
+  - `projects/tsn_c_case/logs/reference/2026-06-30_165223_tmds_c1_linux_baseline.txt`
 - 수집 결과 핵심:
   - `eth0`: `am65-cpsw-nuss`
   - `eth1`: `am65-cpsw-nuss`

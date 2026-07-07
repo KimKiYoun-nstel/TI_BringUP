@@ -61,7 +61,7 @@ project root에 다음 source를 가져왔다.
 ### log
 
 - build log:
-  - `projects/tsn_c_case/logs/2026-06-30_pathb_scaffold_build.log`
+  - `projects/tsn_c_case/logs/reference/2026-06-30_pathb_scaffold_build.log`
 
 ### post-build 상태
 

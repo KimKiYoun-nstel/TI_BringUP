@@ -27,7 +27,7 @@ TMDS64EVM에서 `ICSSG1 dual-port Linux` 구성이 실제로 가능한지 확인
 
 근거:
 
-- `projects/tsn_c_case/logs/2026-06-30_165223_tmds_c1_linux_baseline.txt`
+- `projects/tsn_c_case/logs/reference/2026-06-30_165223_tmds_c1_linux_baseline.txt`
 
 ## 부팅 후 확인 결과
 
