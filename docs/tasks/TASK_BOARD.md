@@ -3,7 +3,7 @@
 ## 현재
 
 - [ ] UART 단일 MCP + target(`sk`/`tmds`/`custom`) 운용을 실제 새 세션에서 재검증
-- [ ] TMDS64EVM C Case 후속 검증: forwarding/gPTP end-to-end 검증과 반복 reboot 회귀 확인
+- [ ] TMDS64EVM C Case 후속 과제: `gptp_icssg_switch`의 Linux remoteproc 동일기능 이식 재설계 여부 결정 (현 검증 결론: 현재 Path B port는 donor와 behaviorally equivalent 하지 않음. `port1/2 asCap=0`, `gptp_ascross` 0 hits, downstream `Sync/Follow_Up/Announce` 미성립으로 인해 현재 이식은 same-function port로 채택 불가. 계속 진행하려면 `md_pdelay_req_sm` / `asCapableAcrossDomains` 승격 경로 중심의 deeper adaptation이 필요)
 - [ ] TMDS64EVM C Case 후속 안정화: RM ownership fix 이후 MDIO probe 정합성과 `.icss_mem/.enet_dma_mem` donor parity 필요성 재검토
 - [x] SK-AM64B SBL OSPI Linux LPDDR4 reginit delta를 workspace-base asset/note로 정리
 - [x] SK-AM64B SBL OSPI Linux 기본 dual-boot 경로 OSPI write 및 Linux boot 재검증
@@ -42,6 +42,7 @@
 - [x] TMDS64EVM C Case C5 boot-time remoteproc firmware override 실검증
 - [x] TMDS64EVM C Case C5 ICSSG_1 PKTDMA RM ownership fix로 Path B `EnetUdma_openRxCh` blocker 해소 및 gPTP task start 확인
 - [x] TMDS64EVM TSN C Case 1차 정리: patch/provenance 자산 승격과 성공 범위 고정
+- [x] TMDS64EVM C Case 검증 결론 확정: 현재 `gptp_icssg_switch` Path B Linux remoteproc port는 donor와 동일 기능으로 동작하지 않음 (`asCapableAcrossDomains` 미성립, `asCap=0`, downstream `Sync/Follow_Up/Announce` 미성립)
 - [x] R5F early boot task-unit-1 inventory 문서화 및 repo skeleton 정리
 - [x] Ubuntu 22.04 WSL 준비
 - [x] `TI_BringUP` GitHub repo 생성
