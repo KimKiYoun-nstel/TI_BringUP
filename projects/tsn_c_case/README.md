@@ -19,6 +19,7 @@
   - 그러나 최종 fresh-start 검증 기준으로 donor와 같은 bridge-generated gPTP 기능은 성립하지 않았다.
   - 직접 근거는 `port1/2 asCap=0`, `gptp_ascross` 0 hits, downstream `Sync/Follow_Up/Announce` 미성립이다.
 - 현재 repo에서 확인된 핵심 자산:
+  - 전체 review 문서: `docs/project-review.md`
   - 최종 closure/status 문서: `docs/closure-status.md`
   - 최종 기능 검증 문서: `docs/2026-07-06_gptp-bridge-fresh-start-validation.md`
   - 1차 정리 문서: `docs/phase1-summary.md`
@@ -32,6 +33,7 @@
 
 ## 문서
 
+- `docs/project-review.md`: 시작 목표, 진행, 최종 결론, cleanup까지 한 번에 보는 review 문서
 - `docs/README.md`: canonical 문서와 archive 문서 구분 안내
 - `docs/closure-status.md`: 프로젝트 마감 관점의 최종 상태, 남은 workspace residue, 부트 이미지 연관성
 - `docs/2026-07-06_gptp-bridge-fresh-start-validation.md`: 최종 end-to-end 검증과 non-equivalent 결론

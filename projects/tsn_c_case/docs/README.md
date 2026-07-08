@@ -2,6 +2,8 @@
 
 ## 먼저 볼 문서
 
+- `project-review.md`
+  - 시작 목표, 중간 성과, 최종 결론, cleanup까지 묶은 단일 review 문서
 - `closure-status.md`
   - 프로젝트 마감 기준의 최종 상태, workspace residue, boot image 연관성
 - `2026-07-06_gptp-bridge-fresh-start-validation.md`
@@ -17,6 +19,7 @@
 
 중요한 구분:
 
+- `project-review.md`는 프로젝트 전체를 한 번에 이해하기 위한 entry 문서다.
 - `phase1-summary.md`는 bring-up 성공 범위를 정리한 문서다.
 - 최종 기능 결론은 `2026-07-06_gptp-bridge-fresh-start-validation.md`와
   `closure-status.md` 기준으로 본다.
