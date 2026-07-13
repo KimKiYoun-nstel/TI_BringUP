@@ -92,7 +92,8 @@ TI_Bringup/
     build/               # reproducible build helper scripts
     install/             # deploy/install/rehearsal helper scripts
     uart/                # host-side UART automation helpers for reboot/U-Boot/Linux flows
-  board/                 # board-specific working notes
+  board/                 # current board inventory, connection profiles, quick notes
+  projects/              # experiment-scoped labs, multi-board work units
   logs/                  # curated boot/U-Boot/kernel logs + provenance
   docs/                  # long-term knowledge base and research notes
   workspace/             # local only, ignored by parent Git
@@ -102,6 +103,10 @@ TI_Bringup/
 
 - `workspace/`
   - 실제 수정/빌드/실험이 일어나는 local worktree
+- `board/`
+  - 현재 active 보드의 접속 프로필과 식별 정보
+- `projects/`
+  - 단일 보드 또는 다중 보드 실험 단위
 - `bsp/*/patches/series`
   - clean baseline에 replay 가능한 공식 patch 목록
 - `docs/research/`
@@ -113,16 +118,16 @@ TI_Bringup/
 
 이 저장소는 bring-up 과정에서 UART를 1차 증적 채널로 사용한다. 따라서 reboot 직후 boot log 관찰, autoboot 중단, U-Boot prompt 진입, boot command 검증, Linux login prompt 확인처럼 UART에서 직접 확인되는 흐름을 자동화할 수 있어야 한다.
 
-`tools/uart/` 아래에는 host 측에서 실행하는 Python 기반 UART daemon / client helper를 둔다.
+`tools/uart/` 아래에는 board별 외부 `uartd`와 연동하는 Python 기반 UART client/MCP helper를 둔다.
 
 - `tools/uart/uartd.py`: UART port owner daemon
 - `tools/uart/uartctl.py`: daemon client CLI
 - `tools/uart/uart-mcp-server.py`: MCP stdio adapter for agents
 - `tools/uart/targets.json`: SK/custom board target endpoint profile
 
-이 helper들은 `pyserial`을 사용해 `/dev/ttyUSB*` 포트를 직접 감시하고 입력을 전송한다. 기본 모델은 `uartd.py`가 UART port를 계속 점유하고, `uartctl.py`와 `uart-mcp-server.py`는 **TCP endpoint를 기본 경로**로 daemon에 접속해 제어하는 구조다. Linux/WSL에서는 Unix domain socket도 fallback으로 유지한다. 이 방식은 사람이 `tail`로 출력을 보면서 다른 Agent가 `send`/`expect`를 수행하는 workflow에 적합하다.
+이 helper들은 `uartd.py`가 점유 중인 UART를 TCP endpoint로 공유받아 제어한다. 현재 기본 모델은 board별 외부 host에서 `uartd.py`가 UART port를 계속 점유하고, `uartctl.py`와 `uart-mcp-server.py`는 **TCP endpoint를 기본 경로**로 daemon에 접속해 제어하는 구조다. 이 방식은 사람이 `tail`로 출력을 보면서 다른 Agent가 `send`/`expect`를 수행하는 workflow에 적합하다.
 
-Agent 연동은 `uart-mcp-server.py`를 통해 수행한다. 이 adapter는 UART를 직접 열지 않고 persistent daemon JSON API만 호출하며, `tools/uart/targets.json` 기준으로 `sk`, `custom` target endpoint를 선택할 수 있다. 프로젝트 루트의 `opencode.jsonc`는 단일 generic `uart` MCP를 등록하고, 실제 호출 시 `target` 파라미터로 보드를 구분한다.
+Agent 연동은 `uart-mcp-server.py`를 통해 수행한다. 이 adapter는 UART를 직접 열지 않고 persistent daemon JSON API만 호출하며, `tools/uart/targets.json` 기준으로 `sk`, `tmds`, `custom` target endpoint를 선택할 수 있다. 프로젝트 루트의 `opencode.jsonc`는 단일 generic `uart` MCP를 등록하고, 실제 호출 시 `target` 파라미터로 보드를 구분한다.
 
 원칙:
 
@@ -217,6 +222,8 @@ USB 성공 경로는 단순 media 교체가 아니라
 - `sdk-manifest/`: SDK 버전, baseline, source commit, build target
 - `docs/common/`: AM64x 공통 지식
 - `docs/common/CUSTOM_BOARD_DTS_WORKFLOW.md`: 커스텀 보드 DTS workflow를 root repo build 흐름에 연결하는 기준
+- `board/`: 현재 보드 inventory, SSH/IP, 실험용 interface 프로필
+- `projects/`: 실험 단위 작업 구역과 보드 matrix
 - `docs/boards/`: 보드별 검증 결과와 고정 메모
 - `docs/bringup-logs/`: 날짜별 실행 로그와 원본 증적
 - `docs/setup/`: SDK, 툴체인, 호스트 환경 준비 절차

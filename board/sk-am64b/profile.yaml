@@ -1,0 +1,21 @@
+board_id: sk-am64b
+display_name: TI SK-AM64B
+ssh:
+  user: root
+  hostname: am64xx-evm
+management:
+  primary_interface: uart
+  primary_ip: null
+uart:
+  transport: tcp
+  endpoint: 192.168.0.170:17003
+  control_tool: python3 tools/uart/uartctl.py --target sk
+lab_links:
+  - name: gptp_eth1_direct
+    interface: eth1
+    peer_board: tmds64evm
+    ip_mode: link_local_or_unset
+notes:
+  - 현재 보드 제어는 SSH가 아니라 UART 기준으로 수행한다.
+  - eth1 direct gPTP 실험 시 CPSW PTP provider index 0 사용
+  - PHC 초기값이 wall clock와 다를 수 있으므로 gPTP master 기준 실험 전 확인 필요

@@ -3,9 +3,13 @@
   "targets": {
     "sk": {
       "transport": "tcp",
-      "tcp": "127.0.0.1:17001",
-      "socket": "../../logs/uartd.sock",
-      "description": "Local SK-AM64B uartd"
+      "tcp": "192.168.0.170:17003",
+      "description": "Remote SK-AM64B uartd"
+    },
+    "tmds": {
+      "transport": "tcp",
+      "tcp": "192.168.0.170:17002",
+      "description": "Remote TMDS64EVM uartd"
     },
     "custom": {
       "transport": "tcp",

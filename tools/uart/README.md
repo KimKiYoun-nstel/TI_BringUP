@@ -1,233 +1,359 @@
-# UART TCP 사용 가이드
+# UART daemon 다중 인스턴스 실행 가이드
 
 ## 목적
 
-이 문서는 WSL host에서 `uartd.py`를 실행하고, `uartctl.py`가 TCP로 SK-AM64B UART 세션에 접속하는 기본 절차를 간단히 정리한다.
-
-현재 `tools/uart/` 구조는 다음과 같다.
-
-- `uartd.py`: UART port owner daemon
-- `uartctl.py`: daemon client CLI
-- `uart-mcp-server.py`: Agent용 MCP adapter
-- `targets.json`: named target과 TCP endpoint 설정
-
-기본 모델은 다음과 같다.
+이 문서는 하나의 host에서 여러 UART daemon을 동시에 실행하는 방법을 정리한다.
+예를 들어 Windows host에서 `COM7`은 TCP `17001`, `COM11`은 TCP `17003`으로 각각 독립 실행할 수 있다.
 
 ```text
-SK-AM64B debug UART (/dev/ttyUSB1)
-  -> uartd.py 가 포트를 계속 점유
-  -> TCP 127.0.0.1:17001 로 제어 API 제공
-  -> uartctl.py 가 TCP client로 접속
-  -> 모든 UART 출력은 logs/runtime_log 에 append
+COM7  -> uartd.py instance A -> TCP 0.0.0.0:17001
+COM11 -> uartd.py instance B -> TCP 0.0.0.0:17003
 ```
 
-## 사전 조건
+핵심 원칙은 다음과 같다.
 
-- SK-AM64B debug UART가 WSL에서 `/dev/ttyUSB*`로 보여야 한다.
-- Python 3가 있어야 한다.
-- `pyserial`이 설치되어 있어야 한다.
+```text
+1. UART port는 인스턴스마다 달라야 한다.
+2. TCP port는 인스턴스마다 달라야 한다.
+3. pid/log/socket 파일도 인스턴스마다 달라야 한다.
+```
+
+이번 수정본의 `uartd.py`는 `--port`와 `--tcp` 또는 `--tcp-port`를 기준으로 pid/log/socket 기본 파일명을 자동 분리한다.
+따라서 아래처럼 `COM port`와 `TCP port`만 다르게 주면 N개 인스턴스를 실행할 수 있다.
+
+---
+
+## 수정된 동작 요약
+
+### 기존 문제
+
+기존 구조에서는 여러 인스턴스를 실행할 때 기본 파일 경로가 겹칠 수 있었다.
+
+```text
+logs/uartd.pid
+logs/runtime_log
+logs/uartd.log
+logs/uartd.sock
+```
+
+두 개 이상의 daemon이 같은 파일을 공유하면 다음 문제가 생긴다.
+
+- pid file이 마지막 실행 인스턴스로 덮어써짐
+- runtime log가 여러 UART 출력으로 섞임
+- daemon log가 섞임
+- Linux/WSL에서는 Unix socket path 충돌 가능
+- `--tcp 0.0.0.0:PORT`로 bind한 경우 readiness check가 `0.0.0.0`으로 접속하려 해서 실패 가능
+
+### 수정 후
+
+수정본은 명시적인 `--pid-file`, `--runtime-log`, `--daemon-log`, `--socket`이 없으면 자동으로 인스턴스별 파일명을 만든다.
+
+예:
+
+```text
+COM7 + TCP 17001
+  logs/uartd-COM7-17001.pid
+  logs/runtime_log-uartd-COM7-17001
+  logs/uartd-COM7-17001.log
+
+COM11 + TCP 17003
+  logs/uartd-COM11-17003.pid
+  logs/runtime_log-uartd-COM11-17003
+  logs/uartd-COM11-17003.log
+```
+
+Linux/WSL에서 Unix socket을 함께 사용할 경우에도 기본 socket path가 인스턴스별로 분리된다.
+
+```text
+logs/uartd-dev-ttyUSB0-17001.sock
+logs/uartd-dev-ttyUSB1-17003.sock
+```
+
+---
+
+## Windows PowerShell 사용 예
+
+### COM7 daemon 시작
+
+```powershell
+py uartd.py start --port COM7 --baud 115200 --tcp 0.0.0.0:17001
+```
+
+### COM11 daemon 시작
+
+```powershell
+py uartd.py start --port COM11 --baud 115200 --tcp 0.0.0.0:17003
+```
+
+`0.0.0.0`은 모든 네트워크 인터페이스에 bind한다는 뜻이다.
+클라이언트가 접속할 때는 `0.0.0.0`이 아니라 실제 접속 가능한 주소를 사용한다.
+
+로컬 PowerShell에서 접속:
+
+```powershell
+py uartctl.py --tcp 127.0.0.1:17001 status
+py uartctl.py --tcp 127.0.0.1:17001 attach
+
+py uartctl.py --tcp 127.0.0.1:17003 status
+py uartctl.py --tcp 127.0.0.1:17003 attach
+```
+
+다른 PC 또는 WSL/Linux에서 Windows host로 접속:
 
 ```bash
-python3 -m pip install pyserial
+python3 uartctl.py --tcp 192.168.0.170:17001 status
+python3 uartctl.py --tcp 192.168.0.170:17001 attach
+
+python3 uartctl.py --tcp 192.168.0.170:17003 status
+python3 uartctl.py --tcp 192.168.0.170:17003 attach
 ```
 
-포트 확인 예:
+### daemon 상태 확인
+
+각 인스턴스는 TCP endpoint로 구분해서 확인한다.
+
+```powershell
+py uartd.py status --tcp 127.0.0.1:17001
+py uartd.py status --tcp 127.0.0.1:17003
+```
+
+또는 `uartctl.py`로 확인한다.
+
+```powershell
+py uartctl.py --tcp 127.0.0.1:17001 status
+py uartctl.py --tcp 127.0.0.1:17003 status
+```
+
+### daemon 정상 종료
+
+```powershell
+py uartd.py stop --tcp 127.0.0.1:17001
+py uartd.py stop --tcp 127.0.0.1:17003
+```
+
+또는 `uartctl.py`로 종료한다.
+
+```powershell
+py uartctl.py --tcp 127.0.0.1:17001 stop
+py uartctl.py --tcp 127.0.0.1:17003 stop
+```
+
+### Windows 프로세스 확인
+
+```powershell
+Get-CimInstance Win32_Process |
+  Where-Object { $_.CommandLine -match "uartd\.py" } |
+  Format-Table ProcessId, CommandLine -AutoSize
+```
+
+### Windows 프로세스 강제 종료
+
+정상 종료가 안 될 때만 사용한다.
+
+```powershell
+Get-CimInstance Win32_Process |
+  Where-Object { $_.CommandLine -match "uartd\.py" } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+```
+
+특정 TCP port 인스턴스만 종료하고 싶으면 command line으로 필터링한다.
+
+```powershell
+Get-CimInstance Win32_Process |
+  Where-Object { $_.CommandLine -match "uartd\.py" -and $_.CommandLine -match "17001" } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+```
+
+---
+
+## Linux / WSL 사용 예
+
+### /dev/ttyUSB0 daemon 시작
 
 ```bash
-ls -l /dev/ttyUSB*
+python3 uartd.py start --port /dev/ttyUSB0 --baud 115200 --tcp 0.0.0.0:17001
 ```
 
-## WSL host에서 uartd 시작
-
-가장 단순한 시작 예시는 다음과 같다.
+### /dev/ttyUSB1 daemon 시작
 
 ```bash
-cd ~/ti/TI_Bringup
-python3 tools/uart/uartd.py start --port /dev/ttyUSB1 --baud 115200
+python3 uartd.py start --port /dev/ttyUSB1 --baud 115200 --tcp 0.0.0.0:17003
 ```
 
-이 명령의 의미:
-
-- UART 포트 owner를 `uartd.py` 하나로 고정한다.
-- WSL/Linux에서는 기본적으로 Unix socket과 TCP를 함께 연다.
-- 기본 TCP endpoint는 `127.0.0.1:17001`이다.
-- UART 출력은 `logs/runtime_log`에 계속 누적된다.
-- daemon 내부 로그는 `logs/uartd.log`에 남는다.
-
-TCP만 명시적으로 열고 싶으면 다음처럼 실행할 수 있다.
+Linux/WSL에서는 기본적으로 Unix socket과 TCP가 함께 열린다.
+TCP만 사용하려면 `--no-unix-socket`을 추가한다.
 
 ```bash
-python3 tools/uart/uartd.py start \
-  --port /dev/ttyUSB1 \
-  --baud 115200 \
-  --tcp-host 127.0.0.1 \
-  --tcp-port 17001 \
-  --no-unix-socket
+python3 uartd.py start --port /dev/ttyUSB0 --baud 115200 --tcp 0.0.0.0:17001 --no-unix-socket
+python3 uartd.py start --port /dev/ttyUSB1 --baud 115200 --tcp 0.0.0.0:17003 --no-unix-socket
 ```
-
-WSL 밖의 다른 client가 붙어야 하면 bind host를 `0.0.0.0`으로 바꿔서 노출할 수 있다.
-
-```bash
-python3 tools/uart/uartd.py start \
-  --port /dev/ttyUSB1 \
-  --baud 115200 \
-  --tcp-host 0.0.0.0 \
-  --tcp-port 17001
-```
-
-외부 노출 시에는 접근 가능한 host/IP와 방화벽 정책을 함께 확인한다.
-
-## 현재 기본 target 설정
-
-`tools/uart/targets.json`의 기본값은 다음과 같다.
-
-```json
-{
-  "default_target": "sk",
-  "targets": {
-    "sk": {
-      "transport": "tcp",
-      "tcp": "127.0.0.1:17001"
-    }
-  }
-}
-```
-
-즉 `uartctl.py`에서 target을 생략하면 기본적으로 `sk -> 127.0.0.1:17001`로 접속한다.
-
-## uartctl 사용법
 
 ### 상태 확인
 
 ```bash
-python3 tools/uart/uartctl.py status
-python3 tools/uart/uartctl.py --target sk status
-python3 tools/uart/uartctl.py --tcp 127.0.0.1:17001 status
+python3 uartd.py status --tcp 127.0.0.1:17001
+python3 uartd.py status --tcp 127.0.0.1:17003
 ```
 
-확인 포인트:
-
-- daemon pid
-- UART port
-- baudrate
-- TCP endpoint
-- `logs/runtime_log` 경로
-- client 수
-- 현재 UART buffer offset
-
-### 최근 UART 출력 보기
+또는:
 
 ```bash
-python3 tools/uart/uartctl.py tail
-python3 tools/uart/uartctl.py watch
-tail -f logs/runtime_log
+python3 uartctl.py --tcp 127.0.0.1:17001 status
+python3 uartctl.py --tcp 127.0.0.1:17003 status
 ```
 
-- `tail`: daemon backlog와 이후 새 출력을 계속 출력
-- `watch`: read-only live console
-- `logs/runtime_log`: UART 1차 증적 로그
-
-### 입력 전송
+### attach
 
 ```bash
-python3 tools/uart/uartctl.py send "" --newline
-python3 tools/uart/uartctl.py send "printenv bootcmd" --newline
+python3 uartctl.py --tcp 127.0.0.1:17001 attach
+python3 uartctl.py --tcp 127.0.0.1:17003 attach
 ```
 
-- 첫 번째 예시는 autoboot 중단용 Enter 입력에 쓸 수 있다.
-- 두 번째 예시는 U-Boot prompt에 명령 한 줄을 보낸다.
-
-### 문자열 대기
+### 종료
 
 ```bash
-python3 tools/uart/uartctl.py expect "Hit any key to stop autoboot" --timeout 5 --fresh
-python3 tools/uart/uartctl.py expect "=> " --timeout 3 --fresh
-python3 tools/uart/uartctl.py expect "login:" --timeout 60 --fresh
+python3 uartd.py stop --tcp 127.0.0.1:17001
+python3 uartd.py stop --tcp 127.0.0.1:17003
 ```
 
-- `--fresh`는 요청 이후의 새 출력만 기준으로 찾는다.
-- prompt 동기화에는 backlog 검색보다 `--fresh`가 안전하다.
+---
 
-### send + expect를 한 번에 수행
+## 명시적 로그 경로를 직접 지정하는 방법
 
-제어 자동화에서는 `command`가 가장 편하다.
+자동 파일명을 쓰지 않고 직접 경로를 지정할 수도 있다.
+
+```powershell
+py uartd.py start `
+  --port COM7 `
+  --baud 115200 `
+  --tcp 0.0.0.0:17001 `
+  --pid-file logs\uartd-com7.pid `
+  --runtime-log logs\runtime-com7.log `
+  --daemon-log logs\uartd-com7.log
+```
+
+```powershell
+py uartd.py start `
+  --port COM11 `
+  --baud 115200 `
+  --tcp 0.0.0.0:17003 `
+  --pid-file logs\uartd-com11.pid `
+  --runtime-log logs\runtime-com11.log `
+  --daemon-log logs\uartd-com11.log
+```
+
+일반적으로는 명시하지 않아도 된다. 수정본이 자동으로 분리한다.
+
+---
+
+## 방화벽 확인
+
+Windows에서 `0.0.0.0:17001`처럼 외부 접속 가능하게 bind하면 Windows Defender Firewall에서 Python 또는 해당 TCP port 접근을 허용해야 할 수 있다.
+
+로컬 접속만 필요하면 `127.0.0.1` bind를 권장한다.
+
+```powershell
+py uartd.py start --port COM7 --baud 115200 --tcp 127.0.0.1:17001
+```
+
+다른 장비에서 접속해야 하면:
+
+```powershell
+py uartd.py start --port COM7 --baud 115200 --tcp 0.0.0.0:17001
+```
+
+클라이언트에서는 Windows host의 실제 IP를 사용한다.
 
 ```bash
-python3 tools/uart/uartctl.py command "usb start" --expect "=> " --timeout 20
-python3 tools/uart/uartctl.py command "printenv bootcmd" --expect "=> " --timeout 5
+python3 uartctl.py --tcp 192.168.0.170:17001 status
 ```
 
-이 방식은 명령 전송과 다음 prompt 대기를 같은 transaction으로 처리한다.
+---
 
-### interactive attach
+## 점검 순서
+
+### 1. daemon 프로세스 확인
+
+Windows:
+
+```powershell
+Get-CimInstance Win32_Process |
+  Where-Object { $_.CommandLine -match "uartd\.py" } |
+  Format-Table ProcessId, CommandLine -AutoSize
+```
+
+Linux/WSL:
 
 ```bash
-python3 tools/uart/uartctl.py attach
+pgrep -af uartd.py
 ```
 
-- detach: `Ctrl-]` 다음 `q`
-- 사람이 raw console을 직접 보면서 입력할 때 사용한다.
+### 2. TCP listen 확인
 
-### daemon 종료
+Windows:
+
+```powershell
+netstat -ano | findstr ":17001"
+netstat -ano | findstr ":17003"
+```
+
+Linux/WSL:
 
 ```bash
-python3 tools/uart/uartctl.py stop
+ss -ltnp | grep -E '17001|17003'
 ```
 
-## 가장 자주 쓰는 흐름
+### 3. uartd status 확인
 
-### 1. WSL에서 daemon 시작
-
-```bash
-python3 tools/uart/uartd.py start --port /dev/ttyUSB1 --baud 115200
+```powershell
+py uartd.py status --tcp 127.0.0.1:17001
+py uartd.py status --tcp 127.0.0.1:17003
 ```
 
-### 2. 다른 terminal에서 상태 확인
+### 4. uartctl attach 확인
 
-```bash
-python3 tools/uart/uartctl.py status
+```powershell
+py uartctl.py --tcp 127.0.0.1:17001 attach
+py uartctl.py --tcp 127.0.0.1:17003 attach
 ```
 
-### 3. UART 로그 보기
-
-```bash
-tail -f logs/runtime_log
-```
-
-### 4. U-Boot 진입 예시
-
-```bash
-python3 tools/uart/uartctl.py expect "Hit any key to stop autoboot" --timeout 5 --fresh
-python3 tools/uart/uartctl.py send "" --newline
-python3 tools/uart/uartctl.py expect "=> " --timeout 3 --fresh
-```
-
-### 5. U-Boot 명령 실행 예시
-
-```bash
-python3 tools/uart/uartctl.py command "printenv bootcmd" --expect "=> " --timeout 5
-```
-
-## 로그와 문제 확인 지점
-
-- UART 원문 증적: `logs/runtime_log`
-- daemon 내부 로그: `logs/uartd.log`
-- daemon pid: `logs/uartd.pid`
-
-문제가 있으면 아래 순서로 본다.
-
-1. `python3 tools/uart/uartctl.py status`
-2. `tail -f logs/uartd.log`
-3. `tail -f logs/runtime_log`
+---
 
 ## 주의사항
 
-- serial port는 `uartd.py`만 직접 열어야 한다.
-- `picocom`, `screen`, `minicom` 같은 다른 tool이 같은 포트를 동시에 열면 충돌할 수 있다.
-- prompt 기준 자동화는 `expect --fresh` 또는 `command --expect`를 우선 사용한다.
-- 원격/외부 TCP 노출이 필요 없으면 `127.0.0.1` bind를 유지하는 편이 안전하다.
+- `--tcp 0.0.0.0:PORT`는 bind용 주소다. 클라이언트 접속에는 `127.0.0.1` 또는 Windows host의 실제 IP를 사용한다.
+- 같은 COM port를 두 daemon이 동시에 열 수 없다.
+- 같은 TCP port를 두 daemon이 동시에 listen할 수 없다.
+- 다른 프로그램이 COM port를 열고 있으면 `uartd.py`가 해당 port를 열 수 없다.
+- 원격 접속을 열 경우 방화벽과 네트워크 보안 정책을 확인한다.
+- 여러 daemon을 실행할 때는 각 인스턴스별 runtime log를 확인한다.
 
-## 관련 문서
+---
 
-- `docs/common/UART_DAEMON_AGENT_WORKFLOW.md`
-- `docs/boards/SK-AM64B/uart-console-windows.md`
+## 빠른 실행 예
+
+Windows PowerShell:
+
+```powershell
+py uartd.py start --port COM7 --baud 115200 --tcp 0.0.0.0:17001
+py uartd.py start --port COM11 --baud 115200 --tcp 0.0.0.0:17003
+
+py uartctl.py --tcp 127.0.0.1:17001 status
+py uartctl.py --tcp 127.0.0.1:17003 status
+
+py uartctl.py --tcp 127.0.0.1:17001 attach
+py uartctl.py --tcp 127.0.0.1:17003 attach
+```
+
+Linux/WSL:
+
+```bash
+python3 uartd.py start --port /dev/ttyUSB0 --baud 115200 --tcp 0.0.0.0:17001
+python3 uartd.py start --port /dev/ttyUSB1 --baud 115200 --tcp 0.0.0.0:17003
+
+python3 uartctl.py --tcp 127.0.0.1:17001 status
+python3 uartctl.py --tcp 127.0.0.1:17003 status
+
+python3 uartctl.py --tcp 127.0.0.1:17001 attach
+python3 uartctl.py --tcp 127.0.0.1:17003 attach
+```

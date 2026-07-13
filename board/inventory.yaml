@@ -1,0 +1,23 @@
+version: 1
+updated: 2026-06-24
+boards:
+  - board_id: sk-am64b
+    display_name: TI SK-AM64B
+    board_class: reference
+    active_target: true
+    profile: board/sk-am64b/profile.yaml
+
+  - board_id: tmds64evm
+    display_name: TI TMDS64EVM
+    board_class: reference
+    active_target: true
+    profile: board/tmds64evm/profile.yaml
+
+  - board_id: cpu_brd_v03_pba_260511
+    display_name: Custom Board cpu_brd_v03_pba_260511
+    board_class: custom
+    active_target: true
+    profile: board/cpu_brd_v03_pba_260511/profile.yaml
+
+legacy_placeholders:
+  - board/myboard/

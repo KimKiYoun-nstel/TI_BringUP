@@ -22,11 +22,21 @@ except ImportError:
     serial = None
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2] if len(Path(__file__).resolve().parents) >= 3 else Path.cwd()
-DEFAULT_RUNTIME_LOG = REPO_ROOT / "logs" / "runtime_log"
-DEFAULT_SOCKET_PATH = REPO_ROOT / "logs" / "uartd.sock"
-DEFAULT_PID_PATH = REPO_ROOT / "logs" / "uartd.pid"
-DEFAULT_DAEMON_LOG = REPO_ROOT / "logs" / "uartd.log"
+def _resolve_repo_root() -> Path:
+    script = Path(__file__).resolve()
+    # Project layout: <repo>/tools/uart/uartd.py -> use <repo>.
+    # Standalone layout: <dir>/uartd.py -> use <dir>.
+    if len(script.parents) >= 3 and script.parent.name == "uart" and script.parent.parent.name == "tools":
+        return script.parents[2]
+    return script.parent
+
+
+REPO_ROOT = _resolve_repo_root()
+DEFAULT_LOG_DIR = REPO_ROOT / "logs"
+DEFAULT_RUNTIME_LOG = DEFAULT_LOG_DIR / "runtime_log"
+DEFAULT_SOCKET_PATH = DEFAULT_LOG_DIR / "uartd.sock"
+DEFAULT_PID_PATH = DEFAULT_LOG_DIR / "uartd.pid"
+DEFAULT_DAEMON_LOG = DEFAULT_LOG_DIR / "uartd.log"
 DEFAULT_PORT = "COM7" if os.name == "nt" else "/dev/ttyUSB1"
 DEFAULT_BAUD = 115200
 DEFAULT_READ_TIMEOUT = 0.2
@@ -719,15 +729,15 @@ def parse_tcp_endpoint(value: str) -> tuple[str, int]:
 def add_common_server_args(sub: argparse.ArgumentParser) -> None:
     sub.add_argument("--port", default=DEFAULT_PORT, help="Serial port, e.g. COM7 on Windows or /dev/ttyUSB1 on Linux")
     sub.add_argument("--baud", type=int, default=DEFAULT_BAUD)
-    sub.add_argument("--socket", default=str(DEFAULT_SOCKET_PATH), help="Unix socket path, Linux/WSL only")
+    sub.add_argument("--socket", default=None, help="Unix socket path, Linux/WSL only. Default is instance-specific.")
     sub.add_argument("--no-unix-socket", action="store_true", help="Disable Unix socket listener")
     sub.add_argument("--no-tcp", action="store_true", help="Disable TCP listener")
     sub.add_argument("--tcp", default=None, help=f"Enable TCP listener HOST:PORT, e.g. 0.0.0.0:{DEFAULT_TCP_PORT}")
     sub.add_argument("--tcp-host", default=None, help="Enable TCP listener on this host/interface")
     sub.add_argument("--tcp-port", type=int, default=None, help="Enable TCP listener on this port")
-    sub.add_argument("--pid-file", default=str(DEFAULT_PID_PATH))
-    sub.add_argument("--runtime-log", default=str(DEFAULT_RUNTIME_LOG))
-    sub.add_argument("--daemon-log", default=str(DEFAULT_DAEMON_LOG))
+    sub.add_argument("--pid-file", default=None, help="PID file path. Default is instance-specific.")
+    sub.add_argument("--runtime-log", default=None, help="UART runtime log path. Default is instance-specific.")
+    sub.add_argument("--daemon-log", default=None, help="Daemon internal log path. Default is instance-specific.")
     sub.add_argument("--read-timeout", type=float, default=DEFAULT_READ_TIMEOUT)
     sub.add_argument("--write-timeout", type=float, default=DEFAULT_WRITE_TIMEOUT)
     sub.add_argument("--encoding", default="utf-8")
@@ -766,16 +776,56 @@ def resolve_tcp_args(args: argparse.Namespace) -> tuple[str | None, int | None]:
     return DEFAULT_TCP_HOST, DEFAULT_TCP_PORT
 
 
+def _sanitize_name(value: str) -> str:
+    text = value.replace("\\", "-").replace("/", "-").replace(":", "-").strip("- ")
+    cleaned = "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "-" for ch in text)
+    while "--" in cleaned:
+        cleaned = cleaned.replace("--", "-")
+    return cleaned.strip("-") or "uart"
+
+
+def _instance_name(port: str, tcp_port: int | None) -> str:
+    port_part = _sanitize_name(port)
+    if tcp_port is None:
+        return f"uartd-{port_part}"
+    return f"uartd-{port_part}-{tcp_port}"
+
+
+def _resolved_paths(args: argparse.Namespace, tcp_port: int | None) -> tuple[Path, Path, Path, Path]:
+    name = _instance_name(args.port, tcp_port)
+    socket_path = Path(args.socket) if args.socket else DEFAULT_LOG_DIR / f"{name}.sock"
+    pid_path = Path(args.pid_file) if args.pid_file else DEFAULT_LOG_DIR / f"{name}.pid"
+    runtime_log = Path(args.runtime_log) if args.runtime_log else DEFAULT_LOG_DIR / f"runtime_log-{name}"
+    daemon_log = Path(args.daemon_log) if args.daemon_log else DEFAULT_LOG_DIR / f"{name}.log"
+    return socket_path, pid_path, runtime_log, daemon_log
+
+
+def _connect_host_for_bind(host: str) -> str:
+    # 0.0.0.0/:: are bind addresses, not good readiness/status connect targets.
+    if host in {"0.0.0.0", "", "*"}:
+        return "127.0.0.1"
+    if host == "::":
+        return "::1"
+    return host
+
+
+def _control_endpoint_for_bind(host: str | None, port: int | None) -> str | None:
+    if host is None or port is None:
+        return None
+    return f"{_connect_host_for_bind(host)}:{port}"
+
+
 def daemon_config_from_args(args: argparse.Namespace) -> DaemonConfig:
     tcp_host, tcp_port = resolve_tcp_args(args)
+    socket_path, pid_path, runtime_log, daemon_log = _resolved_paths(args, tcp_port)
     enable_unix_socket = not args.no_unix_socket and os.name != "nt"
     return DaemonConfig(
         port=args.port,
         baud=args.baud,
-        socket_path=Path(args.socket),
-        pid_path=Path(args.pid_file),
-        runtime_log=Path(args.runtime_log),
-        daemon_log=Path(args.daemon_log),
+        socket_path=socket_path,
+        pid_path=pid_path,
+        runtime_log=runtime_log,
+        daemon_log=daemon_log,
         read_timeout=args.read_timeout,
         write_timeout=args.write_timeout,
         encoding=args.encoding,
@@ -822,8 +872,8 @@ def ping_control(socket_path: Path | None = None, tcp: str | None = None) -> dic
 
 def start_daemon(args: argparse.Namespace) -> int:
     tcp_host, tcp_port = resolve_tcp_args(args)
-    tcp_endpoint = f"{tcp_host}:{tcp_port}" if tcp_host is not None and tcp_port is not None else None
-    socket_path = Path(args.socket)
+    tcp_endpoint = _control_endpoint_for_bind(tcp_host, tcp_port)
+    socket_path, pid_path, runtime_log, daemon_log = _resolved_paths(args, tcp_port)
 
     status = ping_control(socket_path=None if os.name == "nt" else socket_path, tcp=tcp_endpoint)
     if status is not None and status.get("ok"):
@@ -839,13 +889,13 @@ def start_daemon(args: argparse.Namespace) -> int:
         "--baud",
         str(args.baud),
         "--socket",
-        args.socket,
+        str(socket_path),
         "--pid-file",
-        args.pid_file,
+        str(pid_path),
         "--runtime-log",
-        args.runtime_log,
+        str(runtime_log),
         "--daemon-log",
-        args.daemon_log,
+        str(daemon_log),
         "--read-timeout",
         str(args.read_timeout),
         "--write-timeout",
@@ -867,8 +917,8 @@ def start_daemon(args: argparse.Namespace) -> int:
     if args.exclusive:
         cmd.append("--exclusive")
 
-    Path(args.daemon_log).parent.mkdir(parents=True, exist_ok=True)
-    with Path(args.daemon_log).open("a", encoding="utf-8") as handle:
+    daemon_log.parent.mkdir(parents=True, exist_ok=True)
+    with daemon_log.open("a", encoding="utf-8") as handle:
         popen_kwargs: dict[str, Any] = {
             "cwd": str(REPO_ROOT),
             "stdout": handle,
@@ -884,7 +934,10 @@ def start_daemon(args: argparse.Namespace) -> int:
     while time.time() < deadline:
         status = ping_control(socket_path=None if os.name == "nt" else socket_path, tcp=tcp_endpoint)
         if status is not None and status.get("ok"):
-            print(f"uartd started pid={status.get('pid')} tcp={status.get('tcp')} socket={status.get('socket')}")
+            print(
+                f"uartd started pid={status.get('pid')} tcp={status.get('tcp')} socket={status.get('socket')} "
+                f"pid_file={pid_path} runtime_log={runtime_log} daemon_log={daemon_log}"
+            )
             return 0
         time.sleep(0.1)
     raise UartDaemonError("uartd did not become ready in time")

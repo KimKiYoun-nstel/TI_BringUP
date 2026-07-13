@@ -53,18 +53,20 @@ tools/uart/targets.json  target name -> TCP/Unix endpoint profile
 
 ## 기본 사용 순서
 
-### 1. daemon 시작
+### 1. daemon 준비 상태 확인
 
-```bash
-./tools/uart/uartd.py start --port /dev/ttyUSB1 --baud 115200
+현재 저장소의 기본 운영에서는 각 보드 UART를 이 host에서 직접 열지 않고,
+외부 host에서 이미 실행 중인 `uartd` TCP endpoint에 붙는다.
+
+현재 기본 매핑:
+
+```text
+custom -> 192.168.0.170:17001
+tmds   -> 192.168.0.170:17002
+sk     -> 192.168.0.170:17003
 ```
 
-의미:
-
-- UART port를 daemon이 점유한다.
-- 이후 모든 UART 출력은 `logs/runtime_log`에 append된다.
-- Linux/WSL에서는 기본적으로 Unix socket과 TCP `127.0.0.1:17001`이 함께 열린다.
-- 다른 프로세스는 serial port를 직접 열지 말고 `uartctl.py`로 접근한다.
+따라서 이 host에서 보통 먼저 할 일은 `uartd.py start`가 아니라 `uartctl.py status`다.
 
 ### 2. 상태 확인
 
@@ -72,11 +74,12 @@ tools/uart/targets.json  target name -> TCP/Unix endpoint profile
 ./tools/uart/uartctl.py status
 ```
 
-기본 target은 `tools/uart/targets.json`의 `default_target`이며 현재는 `sk`다. 즉 인자를 생략하면 기본적으로 TCP `127.0.0.1:17001`로 접속한다.
+기본 target은 `tools/uart/targets.json`의 `default_target`이며 현재는 `sk`다. 즉 인자를 생략하면 기본적으로 TCP `192.168.0.170:17003`로 접속한다.
 
 다른 target 예시:
 
 ```bash
+./tools/uart/uartctl.py --target tmds status
 ./tools/uart/uartctl.py --target custom status
 ```
 
@@ -215,8 +218,7 @@ command --expect
 terminal A:
 
 ```bash
-./tools/uart/uartd.py start --port /dev/ttyUSB1 --baud 115200
-./tools/uart/uartctl.py attach
+./tools/uart/uartctl.py --target sk attach
 ```
 
 terminal B:
@@ -244,17 +246,17 @@ terminal B:
 
 - UART port는 한 번에 하나의 owner만 여는 것이 안전하다. daemon 모델에서는 `uartd.py`만 owner다.
 - daemon 실행 중 다른 terminal에서 `picocom`, `screen`, `minicom`, 별도 Python script 등으로 같은 port를 다시 열면 충돌할 수 있다.
-- `runtime_log`는 append되므로, 새 세션 구분이 필요하면 시작 전에 백업하거나 rotate 정책을 따로 둔다.
+- 외부 host daemon의 `runtime_log`는 이 host local path와 다를 수 있으므로 status 응답의 경로를 기준으로 본다.
 - `uartctl.py tail`은 편의용 stream이고, 원본 증적 확인은 `logs/runtime_log` 기준으로 판단한다.
 - `uartctl attach`는 terminal raw mode를 사용하므로 비정상 종료 시 `reset` 또는 `stty sane`가 필요할 수 있다.
 
 ## 권장 모델
 
-현재 저장소의 기본 UART 운용 모델은 `uartd.py` + `uartctl.py`다.
+현재 저장소의 기본 UART 운용 모델은 `외부 uartd + local uartctl.py`다.
 
 - `uartd.py`
-  - UART owner
-  - `logs/runtime_log` 증적 유지
+  - 원격 host 측 UART owner
+  - target별 `runtime_log` 증적 유지
 - `uartctl.py`
   - 사용자/Agent 제어 인터페이스
   - `status`, `send`, `expect`, `tail`, `stop`
@@ -265,7 +267,7 @@ terminal B:
 
 Agent는 `tools/uart/uart-mcp-server.py`를 통해 UART daemon에 접근할 수 있다.
 
-기본 운용은 generic `uart` MCP 하나를 사용하고, tool argument의 `target`으로 `sk` 또는 `custom`을 선택하는 방식이다.
+기본 운용은 generic `uart` MCP 하나를 사용하고, tool argument의 `target`으로 `sk`, `tmds`, `custom`을 선택하는 방식이다.
 
 기본 구조:
 
@@ -273,7 +275,7 @@ Agent는 `tools/uart/uart-mcp-server.py`를 통해 UART daemon에 접근할 수 
 opencode Agent
   -> MCP stdio
   -> uart-mcp-server.py
-  -> target profile (`sk`, `custom`)
+  -> target profile (`sk`, `tmds`, `custom`)
   -> tcp://127.0.0.1:17001 or target-specific endpoint
   -> uartd.py
   -> /dev/ttyUSBx or remote host serial port

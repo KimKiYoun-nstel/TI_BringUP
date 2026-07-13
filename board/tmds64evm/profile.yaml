@@ -1,0 +1,20 @@
+board_id: tmds64evm
+display_name: TI TMDS64EVM
+ssh:
+  user: root
+  hostname: am64xx-evm
+management:
+  primary_interface: eth0
+  primary_ip: 192.168.0.220
+uart:
+  transport: tcp
+  endpoint: 192.168.0.170:17002
+  control_tool: python3 tools/uart/uartctl.py --target tmds
+lab_links:
+  - name: gptp_eth1_direct
+    interface: eth1
+    peer_board: sk-am64b
+    ip_mode: unset
+notes:
+  - 부팅 직후 eth1이 administratively down 상태일 수 있음
+  - gPTP 실험 전 ip link set eth1 up 절차를 고정으로 둠
