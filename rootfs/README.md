@@ -11,8 +11,15 @@ rootfs/
   overlay/                     shared overlay files already validated in the repo
   overlays/
     sk-am64b-lab-r5f/         profile-specific overlay for lab-only service policy
+    sk-am64b-qbu-clean-baseline/
+    tmds64evm-qbu-clean-baseline/
 ```
 
 `overlay/` is for shared or already-adopted overlay content.
 
 `overlays/<profile>/` is for explicit policy profiles that should remain separable from the shared baseline. For example, `sk-am64b-lab-r5f/` contains a lab marker and systemd drop-ins used to keep TI baseline RPMsg services installed but skipped at boot during lab firmware validation.
+
+The two `*-qbu-clean-baseline/` profiles provide target-side scripts that disable
+the earlier TSN DSCP/PCP network profiles and create Qbu L2-only data ports.
+Their exact deployment and validation contract is documented in
+`projects/tsn_qbu/docs/PROVENANCE.md` and `projects/tsn_qbu/docs/REPRODUCTION.md`.
