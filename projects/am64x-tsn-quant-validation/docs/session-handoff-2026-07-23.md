@@ -296,6 +296,29 @@ CPU 영향 시험은 다음 두 조건에서 수행했다.
 두 시험은 ICSSG IRQ affinity, kworker priority, driver/firmware timestamp queue를 분리한
 시험이 아니다. 따라서 CPU 또는 ICSSG timestamp path를 원인으로 배제하지 않는다.
 
+### P1 TX timestamp timeout 분리 진단: 2026-07-23
+
+TMDS의 ICSSG IRQ `icssg1-eth-tx0`, `icssg1-eth`, `icssg1-eth`은 `smp_affinity_list=0-1`로
+허용돼 있었지만, 관찰 시점의 interrupt counter는 모두 CPU0에서 증가했다. ICSSG command
+worker는 CPU1에 관찰됐다. 이 상태에서 다음 두 near-line diagnostic run을 수행했다.
+
+| Condition | Achieved rate | 결과 |
+|---|---:|---|
+| generator `taskset -c 1`, TMDS `ptp4l` `taskset -c 0` | 983.4 Mbit/s | peer-delay TX timestamp timeout 및 `FAULTY` 반복 |
+| 위 조건 + TMDS `ptp4l` `SCHED_FIFO` priority 50 | 983.8 Mbit/s | 동일한 TX timestamp timeout 및 `FAULTY` 반복 |
+
+두 run 이후 `FW_TX_TS_DROPPED_PACKET`, `FW_TX_DROPPED_PACKET`, `FW_DROPPED_PKT`,
+`FW_Q0~Q7_OVERFLOW`는 모두 0이었다. 따라서 다음은 현재 증거로 제외하거나 확정할 수 있다.
+
+- trafgen userspace process가 CPU0에서 실행되는 것만이 timeout의 원인은 아니다.
+- `ptp4l` userspace process의 일반 scheduler priority만 올려도 문제는 해결되지 않는다.
+- ICSSG hardware spec bandwidth limit이나 firmware/driver bug라고 아직 확정할 수는 없다.
+
+다음 분리 대상은 ICSSG TX timestamp completion의 kworker/IRQ scheduling, driver/firmware
+queue 상태, 그리고 gPTP frame의 traffic-class/queue mapping이다. Qbv 또는 priority queue가
+timeout을 완화하는지 확인하는 시험은 이 baseline failure를 재현한 동일 achieved-rate에서
+off/on A/B로 수행해야 한다.
+
 Recovery 시험 결과는 다음과 같다.
 
 - TMDS `ptp4l` restart: process start 후 약 7.2 s에 `SLAVE`, 약 18 s 내 수십 ns 이하로 수렴했다.
