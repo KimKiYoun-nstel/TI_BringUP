@@ -13,6 +13,9 @@ latency, jitter, loss 및 tail latency 변화를 신뢰성 있게 판단하는 �
 수동 시험 순서는 [`docs/workspace-sdk-cross-check.md`](docs/workspace-sdk-cross-check.md)에 기록한다.
 P1 high-rate 결과, pktgen 전환 실패 및 다음 세션 재개 절차는
 [`docs/session-handoff-2026-07-23.md`](docs/session-handoff-2026-07-23.md)에 기록한다.
+P1의 목적, 시험 구성, 최종 판정, 제약 및 후속 선택지는
+[`docs/p1-gptp-load-validation-2026-07-23.md`](docs/p1-gptp-load-validation-2026-07-23.md)에
+정리한다.
 
 ## 현재 판정
 
