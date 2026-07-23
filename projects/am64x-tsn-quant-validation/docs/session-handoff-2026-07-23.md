@@ -319,6 +319,25 @@ queue 상태, 그리고 gPTP frame의 traffic-class/queue mapping이다. Qbv 또
 timeout을 완화하는지 확인하는 시험은 이 baseline failure를 재현한 동일 achieved-rate에서
 off/on A/B로 수행해야 한다.
 
+### P1 rate acceptance의 현재 범위: 2026-07-23
+
+`-b 975Mbit` 요청을 추가로 3회 반복했다. rate control의 achieved rate는 `960.8`, `969.1`,
+`971.4 Mbit/s`로 request와 일치하지 않았고, `969.1 Mbit/s`에서 다시
+`SLAVE -> MASTER` announce receipt timeout이 발생했다. 이전 두 run을 합치면 actual
+`960.8~971.4 Mbit/s` 5회 중 2회에서 gPTP state transition을 관찰했다.
+
+따라서 현재 P1의 provisional acceptance는 다음과 같다.
+
+- `800 Mbit/s` actual background load는 검증된 gPTP stability PASS 조건이다.
+- actual `960 Mbit/s` 이상은 단일 정상 run이 있어도 stability PASS로 선언하지 않는
+  diagnostic/unstable 구간이다.
+- actual 약 `950 Mbit/s`는 candidate stable range일 뿐이다. 같은 achieved-rate에서 최소
+  10회 이상의 run과 state-transition 0회 조건을 충족하기 전에는 공식 PASS envelope로
+  승격하지 않는다.
+
+이 구분은 ICSSG hardware specification limit이 아니라, 현재 current kernel, current firmware,
+one-fork trafgen 및 60 s observation window에서 얻은 operational limit이다.
+
 Recovery 시험 결과는 다음과 같다.
 
 - TMDS `ptp4l` restart: process start 후 약 7.2 s에 `SLAVE`, 약 18 s 내 수십 ns 이하로 수렴했다.
@@ -329,9 +348,9 @@ raw TMDS `ptp4l`과 trafgen logs는 Git 제외 local artifact
 `artifacts/p1-2026-07-23/checksums.sha256`이다. 종료 후 양 board의 `ptp4l` process와
 HWTSTAMP TX/RX를 off로 복귀했고, TMDS `/tmp/trafgen`만 남겼다.
 
-다음 P1 보완 항목은 actual `954~984 Mbit/s` 사이의 같은 achieved-rate 반복 sample을 늘려
-instability probability를 구하는 것, ICSSG IRQ/kworker/tx timestamp queue 증적을 수집하는 것,
-그리고 offset/recovery-time/rate tolerance의 board-specific acceptance budget을 정하는 것이다.
+다음 P1 보완 항목은 actual 약 `950 Mbit/s` candidate range의 10회 반복 sample, ICSSG
+IRQ/kworker/tx timestamp queue 증적, 그리고 offset/recovery-time/rate tolerance의
+board-specific acceptance budget 확정이다.
 
 ## 재개 판단과 다음 순서
 
