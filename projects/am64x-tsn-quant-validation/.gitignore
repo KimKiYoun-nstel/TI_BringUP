@@ -1,0 +1,3 @@
+# Raw captures and per-run summaries can be retained locally or archived separately.
+artifacts/*
+!artifacts/.gitkeep

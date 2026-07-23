@@ -1,0 +1,51 @@
+version: 1
+status: measurement-reference-pending-live-recheck
+
+# This file fixes the intended physical data topology. Every quantitative run
+# must record a fresh carrier, speed, MAC-pair, driver, and PHC verification.
+boards:
+  sk-am64b:
+    data_ports:
+      eth0:
+        mac_block: cpsw
+        expected_phc: /dev/ptp0
+      eth1:
+        mac_block: cpsw
+        expected_phc: /dev/ptp0
+  tmds64evm:
+    management_port: eth0
+    data_ports:
+      eth1:
+        mac_block: cpsw
+        expected_phc: /dev/ptp0
+      eth2:
+        mac_block: icssg
+        expected_phc: /dev/ptp2
+
+physical_links:
+  - id: cpsw-direct
+    endpoints:
+      - board: sk-am64b
+        netdev: eth0
+      - board: tmds64evm
+        netdev: eth1
+    expected_speed: 1000Mb/s
+    expected_duplex: full
+    intended_use:
+      - qbv-cpsw-reference
+      - qbu-cpsw-reference
+  - id: gptp-direct
+    endpoints:
+      - board: sk-am64b
+        netdev: eth1
+      - board: tmds64evm
+        netdev: eth2
+    expected_speed: 1000Mb/s
+    expected_duplex: full
+    intended_use:
+      - gptp-reference
+
+known_constraints:
+  - The TMDS board profile's eth1 gPTP label is historical and is not this project's topology authority.
+  - ICSSG and CPSW use different PHC devices; do not infer a common timestamp axis without a measured synchronization bound.
+  - Existing stable Qbv and Qbu functional references use cpsw-direct; use it first for timestamp qualification.
