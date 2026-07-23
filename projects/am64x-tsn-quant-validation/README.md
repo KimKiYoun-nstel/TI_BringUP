@@ -11,7 +11,7 @@ latency, jitter, loss 및 tail latency 변화를 신뢰성 있게 판단하는 �
 `.agents/AM64x_TSN_정량_검증_TI_SDK_활용_추가_가이드.md`다. 현재 증적의 상태는
 [`docs/guide-review.md`](docs/guide-review.md), workspace TI SDK source와의 교차 분석 및
 수동 시험 순서는 [`docs/workspace-sdk-cross-check.md`](docs/workspace-sdk-cross-check.md)에 기록한다.
-중단된 P1 high-rate/pktgen 준비 상태와 다음 세션 재개 절차는
+P1 high-rate 결과, pktgen 전환 실패 및 다음 세션 재개 절차는
 [`docs/session-handoff-2026-07-23.md`](docs/session-handoff-2026-07-23.md)에 기록한다.
 
 ## 현재 판정

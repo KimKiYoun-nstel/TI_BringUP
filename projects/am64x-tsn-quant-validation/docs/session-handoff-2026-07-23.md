@@ -222,26 +222,32 @@ qualification해야 한다.
 | Case | Traffic | Receiver accounting | gPTP 판정 |
 |---|---|---|---|
 | near-line 2 CPU | unlimited TX, 2 CPU | `7,378,955,910` byte / 약 `984.0 Mbit/s`, SK RX delta 일치 | 실패. `SLAVE -> FAULTY` 반복, peer-delay TX timestamp failure 발생 |
-| near-line 1 CPU | unlimited TX, CPU1 only | `7,377,956,670` byte / 약 `984.0 Mbit/s`, SK RX delta 일치 | 실패. 약 50 s 후 `SLAVE -> FAULTY`, peer-delay TX timestamp failure 발생 |
-| 80% rate mode | `-b 800Mbit`, CPU1 only, 60 s | `6,000,072,840` byte / 약 `800.1 Mbit/s`, SK RX delta 일치 | 통과. TMDS `SLAVE` 유지, steady RMS `1~19 ns`, max `1~23 ns`; path delay는 일시 `454 ns` 후 `437~440 ns` 회복 |
+| near-line 1 fork | unlimited TX, trafgen 1 fork | `7,377,956,670` byte / 약 `984.0 Mbit/s`, SK RX delta 일치 | 실패. 약 50 s 후 `SLAVE -> FAULTY`, peer-delay TX timestamp failure 발생 |
+| 80% rate mode | `-b 800Mbit`, trafgen 1 fork, 60 s | `6,000,072,840` byte / 약 `800.1 Mbit/s`, SK RX delta 일치 | 통과. TMDS `SLAVE` 유지, steady RMS `1~19 ns`, max `1~23 ns`; path delay는 일시 `454 ns` 후 `437~440 ns` 회복 |
 
 P1은 아직 전체 PASS/FAIL 하나로 판정하는 시험이 아니다. 이 프로젝트의 P1 정의는 idle, 50%,
 80%, near-line-rate background, CPU load, link flap, `ptp4l` restart를 순서대로 수행하고 각 run의
 offset mean/stddev/p99/p99.9/max, path delay, servo frequency, sync loss 및 recovery time을
-수집하는 것이다. CPU/load-flap/restart case와 반복 run은 아직 수행하지 않았다.
+수집하는 것이다. 각 조건의 최초 sample은 확보했지만, rate별 반복 sample과 board-specific
+acceptance budget은 아직 충분하지 않다.
 
 현재 80% subcase의 operational PASS 조건은 다음 네 가지였다.
 
 1. direct SK `eth1`-TMDS `eth2` path에서 gPTP가 수렴 후 TMDS `SLAVE`를 유지한다.
 2. 60 s 동안 `SLAVE -> FAULTY`, sync loss, peer-delay TX timestamp timeout이 없다.
-3. requested `800 Mbit/s`와 sender achieved rate를 기록하고, SK netdev RX counter delta가
-   sender frame/byte accounting과 일치해 receiver drop/application bottleneck이 없음을 보인다.
+3. requested `800 Mbit/s`와 sender achieved rate를 기록하고, SK netdev RX counter delta와
+   sender frame/byte accounting의 대응을 확인한다. 이는 frame arrival 증거이며 end-to-end
+   loss-free proof는 아니다.
 4. RMS, max, path delay를 raw `ptp4l` log에서 기록한다.
 
-따라서 **P1의 80% gPTP background-load subcase는 PASS**다. 반면 near-line-rate subcase는
-명시적으로 FAIL이며, P1 전체 matrix는 아직 incomplete다. P1에는 아직 board-specific numeric
+따라서 **P1의 80% gPTP background-load subcase는 PASS**다. 반면 actual 약 984 Mbit/s
+near-line-rate subcase는 명시적으로 FAIL이다. P1에는 아직 board-specific numeric
 offset/percentile budget 또는 rate tolerance가 문서로 확정되지 않았으므로, 이번 PASS는 위
 operational condition을 만족했다는 범위로만 사용한다.
+
+`trafgen -P 1-1`은 CPU number가 아니라 one fork를 지정하는 옵션이다. 실제 trafgen output은
+모든 one-fork run에서 `CPU0`를 표시했다. 따라서 이전 기록의 `CPU1 only` 표현은 사용하지
+않는다. 이후 CPU 영향 시험에서만 `taskset`으로 CPU를 명시적으로 고정했다.
 
 이번 결과로 P1에 다음 두 사실이 확정됐다.
 
@@ -252,11 +258,63 @@ operational condition을 만족했다는 범위로만 사용한다.
 TMDS `/tmp/trafgen` binary는 후속 manual P1 run을 위해 남겼다. PTP config/log와 traffic
 process, temporary IPv4는 제거했다.
 
+### P1 rate boundary, CPU load, recovery 추가 결과: 2026-07-23
+
+동일한 SK `eth1` GM - TMDS `eth2` SLAVE L2/P2P hardware-timestamp path에서 one-fork trafgen
+60 s run을 추가했다. requested rate가 아니라 trafgen summary의 byte/time으로 계산한 achieved
+rate를 판정 기준으로 사용했다.
+
+| Requested rate | Achieved rate | 결과 | 관찰 |
+|---|---:|---|---|
+| 850 Mbit/s | 850.1 Mbit/s | 안정 | `SLAVE` 유지, offset `-21~+14 ns`, path delay `438~440 ns` |
+| 900 Mbit/s | 900.2 Mbit/s | 안정 | `SLAVE` 유지, offset `-19~+10 ns`, path delay는 일시 `447 ns` 후 회복 |
+| 950 Mbit/s | 953.9 Mbit/s | 안정 | `SLAVE` 유지, offset `-26~+14 ns`, path delay는 일시 `448 ns` 후 회복 |
+| 960 Mbit/s | 942.7 Mbit/s | 안정 참고 | requested rate보다 낮아 boundary 판정에는 사용하지 않음 |
+| 975 Mbit/s, run 1 | 971.1 Mbit/s | 불안정 | TMDS `SLAVE -> MASTER`, `ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES` 후 재수렴 |
+| 975 Mbit/s, run 2 | 971.2 Mbit/s | 안정 | 60 s 동안 상태 전이 없음 |
+| unlimited, repeat | 984.0 Mbit/s | 실패 재현 | peer-delay TX timestamp polling timeout, `SLAVE/LISTENING -> FAULTY` 반복 |
+
+따라서 현재 증거로 확정할 수 있는 경계는 다음과 같다.
+
+- actual `953.9 Mbit/s`까지는 이번 60 s run에서 안정적이었다.
+- actual 약 `971 Mbit/s`에서는 instability가 관찰됐지만 같은 조건의 2회 중 1회만 전이했다.
+- actual `984.0 Mbit/s`에서는 기존 near-line run과 이번 repeat 모두 peer-delay TX timestamp
+  timeout 및 `FAULTY`를 보였다.
+
+이는 hardware data-plane bandwidth limit 또는 CPU limit의 확정이 아니다. raw data traffic은
+SK netdev RX packet/byte delta와 sender accounting이 대응했지만, `rx_dropped`는 증가했고 CPSW
+세부 hardware counter에서는 RX FIFO/overrun drop으로 귀속되지 않았다. 따라서 이 counter는
+frame arrival 증거로만 사용하며 end-to-end loss-free proof로 해석하지 않는다.
+
+CPU 영향 시험은 다음 두 조건에서 수행했다.
+
+| Condition | Traffic | 결과 | 해석 범위 |
+|---|---:|---|---|
+| TMDS generator CPU0 고정, TMDS CPU1 busy-loop | 948.5 Mbit/s | `SLAVE` 유지 | 반대 CPU의 userspace load만으로 984 Mbit/s failure는 재현되지 않음 |
+| SK 유일 CPU0 busy-loop | 800.2 Mbit/s | `SLAVE` 유지 | SK userspace CPU contention만으로 800 Mbit/s gPTP failure는 재현되지 않음 |
+
+두 시험은 ICSSG IRQ affinity, kworker priority, driver/firmware timestamp queue를 분리한
+시험이 아니다. 따라서 CPU 또는 ICSSG timestamp path를 원인으로 배제하지 않는다.
+
+Recovery 시험 결과는 다음과 같다.
+
+- TMDS `ptp4l` restart: process start 후 약 7.2 s에 `SLAVE`, 약 18 s 내 수십 ns 이하로 수렴했다.
+- TMDS `eth2` 5 s link flap: link up 후 약 15.1 s에 `SLAVE`, 약 31 s 내 수십 ns 수준으로 수렴했다.
+
+raw TMDS `ptp4l`과 trafgen logs는 Git 제외 local artifact
+`artifacts/p1-2026-07-23/`에 보존했다. 해당 artifact의 SHA-256 manifest는
+`artifacts/p1-2026-07-23/checksums.sha256`이다. 종료 후 양 board의 `ptp4l` process와
+HWTSTAMP TX/RX를 off로 복귀했고, TMDS `/tmp/trafgen`만 남겼다.
+
+다음 P1 보완 항목은 actual `954~984 Mbit/s` 사이의 같은 achieved-rate 반복 sample을 늘려
+instability probability를 구하는 것, ICSSG IRQ/kworker/tx timestamp queue 증적을 수집하는 것,
+그리고 offset/recovery-time/rate tolerance의 board-specific acceptance budget을 정하는 것이다.
+
 ## 재개 판단과 다음 순서
 
-현재 user는 작업 중지를 지시했으며, pktgen test-kernel deployment scope 선택은 보류 상태다.
-P1 80% repeat은 current Image와 `/tmp/trafgen`으로 재실행할 수 있다. pktgen 자체를 재검토할
-경우에만 먼저 다음 둘 중 하나를 명시적으로 선택한다.
+pktgen test-kernel deployment scope 선택은 보류 상태다. P1 repeat 및 rate-boundary trial은
+current Image와 `/tmp/trafgen`으로 재실행할 수 있다. pktgen 자체를 재검토할 경우에만 먼저
+다음 둘 중 하나를 명시적으로 선택한다.
 
 1. 두 board를 full test-kernel transition한다. SK로 artifact를 전달할 USB/SD, TFTP/HTTP 또는 검증된 다른 transport가 필요하다.
 2. P1 high-rate만 위해 TMDS `eth2`를 pktgen sender로 test-kernel transition하고, SK `eth1`은 current clean kernel receiver로 유지한다. 이 선택은 2026-07-23 live deployment에서 test kernel rootfs boot failure로 중단됐다. 원인 분리와 non-live boot qualification 전에는 재시도하지 않는다.
@@ -277,7 +335,7 @@ P1 80% repeat은 current Image와 `/tmp/trafgen`으로 재실행할 수 있다. 
 - external SDK 원본, live SD/OSPI 및 workspace 밖 source는 수정하지 않는다.
 - current dirty kernel에 `pktgen.ko` 또는 modules만 deploy하지 않는다.
 - UART로 Image/module archive를 전송하지 않는다.
-- prior P1 results를 80%/near-line-rate 증거로 해석하지 않는다.
+- trafgen 도입 전 P1 UDP 결과를 80%/near-line-rate 증거로 해석하지 않는다.
 - P2/P3/P4로 넘어가기 전에 P1 high-rate generator capability와 timestamp qualification을 분리해 완료한다. high-rate generator capability의 80% subcase는 trafgen으로 완료했지만, timestamp qualification과 P1 전체 matrix는 별도 미완료다.
 
 ## 관련 기록
