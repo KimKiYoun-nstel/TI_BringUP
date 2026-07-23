@@ -16,6 +16,8 @@ P1 high-rate 결과, pktgen 전환 실패 및 다음 세션 재개 절차는
 P1의 목적, 시험 구성, 최종 판정, 제약 및 후속 선택지는
 [`docs/p1-gptp-load-validation-2026-07-23.md`](docs/p1-gptp-load-validation-2026-07-23.md)에
 정리한다.
+P2 Qbv 정량 검증의 현재 readiness, timestamp blocker와 qualification 순서는
+[`docs/p2-qbv-readiness-2026-07-23.md`](docs/p2-qbv-readiness-2026-07-23.md)에 정리한다.
 
 ## 현재 판정
 
