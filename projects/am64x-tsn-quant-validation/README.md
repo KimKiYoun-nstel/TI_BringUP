@@ -18,6 +18,9 @@ P1의 목적, 시험 구성, 최종 판정, 제약 및 후속 선택지는
 정리한다.
 P2 Qbv 정량 검증의 현재 readiness, timestamp blocker와 qualification 순서는
 [`docs/p2-qbv-readiness-2026-07-23.md`](docs/p2-qbv-readiness-2026-07-23.md)에 정리한다.
+P2 CPSW direct control-plane replay의 실제 결과와 raw artifact는
+[`docs/p2-qbv-control-replay-2026-07-24.md`](docs/p2-qbv-control-replay-2026-07-24.md)에
+정리한다.
 
 ## 현재 판정
 
