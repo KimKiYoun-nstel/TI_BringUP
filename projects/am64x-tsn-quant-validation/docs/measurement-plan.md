@@ -35,18 +35,20 @@ packet format, PHC 동기, generator achieved rate를 점검한 뒤 같은 Stage
 현재 CPSW Linux RX filter는 PTP event에 제한되므로 일반 UDP one-way latency는 CPSW receiver
 path에서 전제하지 않는다. 상세한 path 선택은 `workspace-sdk-cross-check.md`를 따른다.
 
-### Stage 1: 조건 고정 A/B 비교
+### Stage 1: 조건 고정 Case 검증
 
-| Test ID | 비교 | Traffic | 필수 증적 |
+| Test ID | 조건 | Traffic | 필수 증적 |
 |---|---|---|---|
-| `QBV_1G_01` | all-open/off vs HW taprio on | PCP 7 periodic 128 B critical + PCP 0 1500 B background | qdisc/offload, queue hit, raw paired timestamp, gate phase, loss, percentile |
+| `QBV_MULTICLASS_01` | HW taprio ON, TC2 500 us / TC1 250 us / TC0 250 us | PCP 2/TC2 periodic 128 B critical + PCP 0/TC0 background | schedule, TX/RX raw-HW count, TX phase, TC0 offered/received rate and drop, gPTP state |
 | `QBU_1G_01` | IET off vs IET on | express 64~128 B periodic + preemptible 1500 B 80~95% load | MAC Merge state, fragment/reassembly/error delta, raw paired timestamp, percentile |
 | `COMBO_1G_01` | Qbv vs Qbv+Qbu | critical periodic + saturating preemptible background | Qbv/Qbu state, gate violation, counter, raw paired timestamp, percentile |
 
-각 case의 packet size, rate, period, duration, queue mapping, PHC source, CPU load,
-CPU affinity, qdisc, background profile는 off/on 두 조건에서 동일해야 한다. 최초 유효성
-확인은 각 조건을 최소 10회 수행하고, 회당 5~10분으로 한다. 이 기준을 만족한 뒤에만
-1시간 장시간 run을 별도 case로 수행한다.
+각 case는 packet size, rate, period, duration, queue mapping, PHC source, CPU load,
+CPU affinity, qdisc와 background profile를 manifest에 고정한다. `QBV_MULTICLASS_01`은
+all-open control과 latency percentile을 비교하지 않는다. TC0 offered rate가 250 Mbit/s
+allocation을 초과하고 queue drop이 발생한 상태에서 TC2 TX phase가 500 us window에 남는지를
+판정한다. formal contract는 5 runs x 300 s이며 상세 criterion은
+`p2-q3-multiclass-window-validation-plan-2026-07-28.md`를 따른다.
 
 ### Stage 2: link speed 분리
 
@@ -68,20 +70,19 @@ Git에는 manifest, checksum, summary, 해석만 남긴다.
   ptp-health.json           # state, offset, path delay, clock uncertainty
   sender.csv                # sequence, TX raw-HW timestamp, traffic class
   receiver.csv              # sequence, RX raw-HW timestamp, traffic class
-  paired.csv                # sequence, latency, validity reason
+  paired.csv                # latency case에만: sequence, latency, validity reason
   qos-before.txt
   qos-after.txt
   counters-before.txt
   counters-after.txt
   generator.json            # requested/achieved rate, period error, CPU state
-  summary.json              # min, mean, p95, p99, p99.9, max, loss, outlier count
+  summary.json              # case별 phase/rate/drop 또는 latency 통계
   checksums.sha256
 ```
 
-`summary.json`에는 `valid`, `invalid_reason`, `timestamp_method`, `clock_uncertainty_ns`,
-`sample_count`, `paired_count`, `loss_count`, `outlier_definition`을 반드시 넣는다.
-percentile은 `valid=true`이며 paired sample count와 clock uncertainty가 사전 정의한
-latency budget보다 충분히 작은 경우에만 성능 결론으로 해석한다.
+`summary.json`에는 최소 `valid`, `invalid_reason`, `sample_count`, timestamp source와 case별
+pass/fail metric을 넣는다. latency case의 percentile은 `valid=true`이며 paired sample count와
+clock uncertainty가 사전 정의한 latency budget보다 충분히 작은 경우에만 성능 결론으로 해석한다.
 
 ## 중단 기준
 
@@ -89,7 +90,7 @@ latency budget보다 충분히 작은 경우에만 성능 결론으로 해석한
 - PHC 관계 또는 offset bound가 기록되지 않음
 - sequence pairing loss의 원인을 sender, wire, receiver 중 구분할 수 없음
 - background contention, Qbv queue hit, Qbu fragment가 실제로 발생하지 않음
-- off/on 조건 사이 packet size, rate, period, duration, CPU state, qdisc가 달라짐
+- case contract의 packet size, rate, period, duration, CPU state, qdisc가 달라짐
 - receiver application 또는 host capture가 병목으로 판단됨
 - 반복 run의 분산 또는 timestamp uncertainty가 기대 개선량보다 큼
 

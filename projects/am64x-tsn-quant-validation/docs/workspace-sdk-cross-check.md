@@ -299,17 +299,18 @@ readiness를 다시 확인한다.
 
 ### P2: Qbv gate conformance
 
-기준 path는 기능 동작이 확인된 SK `eth0(CPSW) -> TMDS eth1(CPSW)`다. 이 path에서
-먼저 all-open과 hardware `taprio` schedule을 같은 link speed, packet size, period,
-PCP/queue map, background load로 비교한다.
+기준 path는 기능 동작이 확인된 SK `eth0(CPSW) -> TMDS eth1(CPSW)`다. 이 path에서는
+hardware `taprio` ON schedule 안에서 TC0 background가 자기 allocation을 초과한 backlog를
+만들고도 TC2 critical traffic이 지정 window에 release되는지를 확인한다. all-open control은
+gate effect sanity 확인에만 사용하며 latency-improvement 비교로 해석하지 않는다.
 
 수집값:
 
 - configured/operational schedule, base-time, cycle-time, queue/class counter
-- priority별 RX timestamp phase: `(rx_timestamp - base_time) mod cycle_time`
+- critical TX raw-HW phase: `(tx_timestamp - base_time) mod cycle_time`
 - expected window 내/외 packet count와 ratio
-- phase error p95/p99/p99.9/max, inter-packet gap histogram, burst count, spill-over
-- queue drop와 offered/achieved rate
+- phase p95/p99/max, window miss count와 ratio
+- TC0 queue drop와 source offered/TMDS achieved rate
 
 MCU+ EST source의 good/bad 판정식은 Linux raw sample의 분석 기준으로 사용한다.
 즉 time slot이 class의 expected window 안이면 good, 밖이면 bad로 집계한다. MCU+ example의

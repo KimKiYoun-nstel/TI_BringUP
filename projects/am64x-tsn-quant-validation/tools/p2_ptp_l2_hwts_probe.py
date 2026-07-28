@@ -19,7 +19,7 @@ SCM_TIMESTAMPING = 37
 SO_PRIORITY = 12
 SOL_PACKET = 263
 PACKET_ADD_MEMBERSHIP = 1
-PACKET_MR_PROMISC = 1
+PACKET_MR_MULTICAST = 0
 PACKET_IGNORE_OUTGOING = 23
 MSG_ERRQUEUE = socket.MSG_ERRQUEUE
 
@@ -29,7 +29,6 @@ SOF_TIMESTAMPING_RX_HARDWARE = 1 << 2
 SOF_TIMESTAMPING_RX_SOFTWARE = 1 << 3
 SOF_TIMESTAMPING_SOFTWARE = 1 << 4
 SOF_TIMESTAMPING_RAW_HARDWARE = 1 << 6
-SOF_TIMESTAMPING_OPT_TSONLY = 1 << 11
 TIMESPEC_SET = struct.Struct("qqqqqq")
 
 
@@ -66,7 +65,7 @@ def interface_mac(iface):
 def timestamp_flags(mode):
     common = SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_RAW_HARDWARE
     if mode == "send":
-        return common | SOF_TIMESTAMPING_TX_HARDWARE | SOF_TIMESTAMPING_TX_SOFTWARE | SOF_TIMESTAMPING_OPT_TSONLY
+        return common | SOF_TIMESTAMPING_TX_HARDWARE | SOF_TIMESTAMPING_TX_SOFTWARE
     return common | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RX_SOFTWARE
 
 
@@ -91,8 +90,11 @@ def make_ptp_sync(source_mac, sequence, vlan_id, pcp, frame_size):
     ptp[6:8] = b"\x02\x00"  # twoStepFlag
     ptp[20:28] = source_mac[:3] + b"\xff\xfe" + source_mac[3:]
     ptp[28:30] = b"\x00\x01"
-    ptp[30:32] = sequence.to_bytes(2, "big")
+    ptp[30:32] = (sequence & 0xFFFF).to_bytes(2, "big")
     ptp[33] = 0x7F
+    # Sync is two-step, so its originTimestamp is ignored. Retain a run-unique
+    # sequence there because the on-wire PTP header sequence is only 16 bits.
+    ptp[40:44] = sequence.to_bytes(4, "big")
     ethernet = PTP_MULTICAST + source_mac
     if vlan_id:
         tci = ((pcp & 0x7) << 13) | vlan_id
@@ -105,6 +107,8 @@ def make_socket(args):
     sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(ETH_P_1588))
     sock.bind((args.iface, 0))
     mode = args.mode
+    # Long runs can briefly queue timestamped PTP frames behind background NAPI work.
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4 * 1024 * 1024)
     sock.setsockopt(socket.SOL_SOCKET, SO_TIMESTAMPING, timestamp_flags(mode))
     if mode == "send" and args.socket_priority is not None:
         sock.setsockopt(socket.SOL_SOCKET, SO_PRIORITY, args.socket_priority)
@@ -114,7 +118,7 @@ def make_socket(args):
         sock.setsockopt(SOL_PACKET, PACKET_IGNORE_OUTGOING, 1)
     sock.setblocking(False)
     if mode == "recv":
-        membership = struct.pack("IHH8s", socket.if_nametoindex(args.iface), PACKET_MR_PROMISC, 0, b"\x00" * 8)
+        membership = struct.pack("IHH8s", socket.if_nametoindex(args.iface), PACKET_MR_MULTICAST, 6, PTP_MULTICAST + b"\x00" * 2)
         sock.setsockopt(SOL_PACKET, PACKET_ADD_MEMBERSHIP, membership)
     return sock
 
@@ -126,36 +130,60 @@ def write_csv(path, rows):
         writer.writerows(rows)
 
 
+def frame_sequence(frame):
+    ptp_offset = 18 if len(frame) >= 18 and frame[12:14] == b"\x81\x00" else 14
+    if len(frame) < ptp_offset + 44 or frame[ptp_offset - 2:ptp_offset] != ETH_P_1588.to_bytes(2, "big"):
+        return None
+    # Ignore gPTP control traffic; only domain-127 Sync frames belong to this run.
+    if frame[ptp_offset] != 0x00 or frame[ptp_offset + 4] != 127:
+        return None
+    return int.from_bytes(frame[ptp_offset + 40:ptp_offset + 44], "big")
+
+
+def drain_tx_timestamps(sock, rows):
+    while True:
+        try:
+            frame, cmsgs, _, _ = sock.recvmsg(2048, 256, MSG_ERRQUEUE)
+        except BlockingIOError:
+            return
+        sequence = frame_sequence(frame)
+        if sequence not in rows:
+            continue
+        source, timestamp_ns = timestamp_from_cmsgs(cmsgs)
+        if source != "none":
+            rows[sequence]["timestamp_source"] = source
+            rows[sequence]["timestamp_ns"] = timestamp_ns
+
+
 def send(args):
     sock = make_socket(args)
     source_mac = interface_mac(args.iface)
-    rows = []
+    rows = {}
+    start = time.monotonic()
     try:
         for offset in range(args.count):
-            sequence = (args.start_seq + offset) & 0xFFFF
-            sock.send(make_ptp_sync(source_mac, sequence, args.vlan_id, args.pcp, args.frame_size))
-            deadline = time.monotonic() + args.timeout_sec
-            source, timestamp_ns = "none", None
-            while time.monotonic() < deadline:
-                remaining = deadline - time.monotonic()
+            sequence = args.start_seq + offset
+            due = start + offset * args.interval_ms / 1000.0
+            while time.monotonic() < due:
+                remaining = due - time.monotonic()
                 if remaining <= 0:
                     break
                 ready, _, _ = select.select([sock], [], [], remaining)
-                if not ready:
-                    break
-                try:
-                    _, cmsgs, _, _ = sock.recvmsg(256, 256, MSG_ERRQUEUE)
-                except BlockingIOError:
-                    continue
-                source, timestamp_ns = timestamp_from_cmsgs(cmsgs)
-                if source != "none":
-                    break
-            rows.append({"sequence": sequence, "timestamp_source": source, "timestamp_ns": timestamp_ns or ""})
-            time.sleep(args.interval_ms / 1000.0)
+                if ready:
+                    drain_tx_timestamps(sock, rows)
+            rows[sequence] = {"sequence": sequence, "timestamp_source": "none", "timestamp_ns": ""}
+            sock.send(make_ptp_sync(source_mac, sequence, args.vlan_id, args.pcp, args.frame_size))
+            drain_tx_timestamps(sock, rows)
+        deadline = time.monotonic() + args.timeout_sec
+        while any(row["timestamp_source"] == "none" for row in rows.values()) and time.monotonic() < deadline:
+            ready, _, _ = select.select([sock], [], [], deadline - time.monotonic())
+            if ready:
+                drain_tx_timestamps(sock, rows)
     finally:
         sock.close()
-    write_csv(args.csv, rows)
-    return rows
+    ordered_rows = [rows[args.start_seq + offset] for offset in range(args.count)]
+    write_csv(args.csv, ordered_rows)
+    return ordered_rows
 
 
 def recv(args):
@@ -169,12 +197,9 @@ def recv(args):
             if not ready:
                 break
             frame, cmsgs, _, _ = sock.recvmsg(2048, 256)
-            ptp_offset = 14
-            if len(frame) >= 18 and frame[12:14] == b"\x81\x00":
-                ptp_offset = 18
-            if len(frame) < ptp_offset + 32 or frame[ptp_offset - 2:ptp_offset] != ETH_P_1588.to_bytes(2, "big"):
+            sequence = frame_sequence(frame)
+            if sequence is None:
                 continue
-            sequence = int.from_bytes(frame[ptp_offset + 30:ptp_offset + 32], "big")
             if not args.start_seq <= sequence < args.start_seq + args.count:
                 continue
             source, timestamp_ns = timestamp_from_cmsgs(cmsgs)

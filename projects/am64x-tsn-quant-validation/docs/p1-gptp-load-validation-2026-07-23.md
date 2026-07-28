@@ -22,7 +22,7 @@ stability PASS로 사용하지 않는다. 이 결과는 ICSSG hardware specifica
 
 ## 시험 목적
 
-gPTP는 Qbv gate timing, Qbu/Qbv A/B 비교, timestamp pairing에 필요한 공통 시간축의 기반이다.
+gPTP는 Qbv gate timing, Qbu A/B 비교, timestamp pairing에 필요한 공통 시간축의 기반이다.
 P1의 목적은 다음 질문에 답하는 것이다.
 
 > Ethernet link가 큰 background traffic을 처리하는 중에도 TMDS ICSSG의 gPTP packet과
@@ -187,8 +187,8 @@ P1을 다시 열 필요는 없지만, 아래 시험은 원인 분리 또는 TSN 
 2. 동일 achieved near-line rate에서 gPTP traffic class/queue mapping을 확인하고 Qbv off/on 또는
    priority queue A/B로 gPTP protection 효과를 본다.
 3. 950 Mbit/s 부근을 여러 번 반복해 operational stable envelope를 더 좁힌다.
-4. Stage 0 `QUALIFY_TIMESTAMP_1G_01`을 수행해 P2 Qbv/Qbu latency A/B에 필요한 TX/RX raw-HW
-   timestamp와 sequence pairing을 확보한다.
+4. Stage 0 `QUALIFY_TIMESTAMP_1G_01`을 수행해 P2 Qbv phase/Qbu latency 검증에 필요한 TX/RX
+   raw-HW timestamp와 sequence pairing을 확보한다.
 
 ## 증적과 관련 문서
 
