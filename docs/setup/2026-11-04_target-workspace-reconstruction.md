@@ -93,4 +93,41 @@ TF-A/OP-TEE의 과거 진단용 `*-diag` working diff/stash는 이번 재구성�
 
 ## 실행 결과
 
-실행 결과와 재구성된 source SHA 및 전송 검증 기록은 후속 실행 후 이 문서와 대상 `~/ti/migration-logs/`에 남긴다.
+2026-11-04 대상에서 실행 및 검증을 완료했다.
+
+| source | 대상 HEAD |
+|---|---|
+| 기본 U-Boot | `3b922aef185897b244ae1d03fe9053fe99f1948b` |
+| local-fullchain U-Boot | `aa2cfc68ec252fa75ccb45fe8b15f8b52ed65877` |
+| Linux | `c214492085504176b9c252a7175e4e60b4b442af` |
+| MCU+ C Case | `af8d69d3b7e66ae5130770f234a9559dce9a366f` |
+| MCU+ 재설치 baseline | `f370eb54efe59104b2335ad6c799a979543239a1` |
+| TF-A | `44fcd9c2d62460a780a5e76f6e65202c37d8dbb7` |
+| OP-TEE | `60706ecef7619a01c5f5da20ea12a832699a1440` |
+
+- 6개 source의 tracked/untracked 변경 없음 확인, `verify-workspace-state.sh` 통과.
+- U-Boot bootdelay=5/10과 MCU+ C Case 두 commit의 stable patch-id가 각각 공식 patch와 일치.
+- MCU+ local bare seed에 `main`과 `phase2-tsn-c-case` 생성 완료.
+- 최초 MCU+ 재구성은 중첩 prefix 때문에 두 번째 patch에서 실패했다. 기존 설치와 실패 사본은 대상 migration log 영역에 보관했다. 원본 installer를 올바른 prefix로 재실행하고 `--execute-mcu`로 MCU+ 단계만 재구성하여 성공했다. 이 옵션도 기존 목적지가 없어야 실행된다.
+- 원본 C Case patch에는 생성 makefile의 whitespace 경고가 있으나 내용 변경 없이 두 patch 모두 적용 성공했다.
+- archive 및 manifest 자체의 SHA-256, 해제 후 99 + 5,832개 파일의 size/SHA-256 전수 일치.
+- 대상 DTS local 경로 3개를 새 홈 경로로 생성했다. 상위 repo는 clean이며 공용 UART 파일은 이전 시작 커밋과 동일하다.
+- 대상 `.agents/` 부재 및 quantitative-validation `artifacts/`에 `.gitkeep`만 있는 상태 확인.
+- 전체 kernel/U-Boot/MCU+ build나 보드 boot는 실행하지 않았다. 현재 확인은 source 재구성, patch 동일성 및 이전 binary 무결성 범위다.
+- 작업 후 대상 가용 디스크 약 278GB.
+
+압축파일 SHA-256:
+
+```text
+c23bacd3e7c0eff7f5e8c2839dae78deff3e177ca3ab646a5cf91942a666bda9  board-design.tar.gz
+c05d03076bb86d6c4cc095f97e28781c387dc11e742246e7a987f37a0652e3ba  board-images.tar.gz
+```
+
+대상 증적 경로:
+
+- `~/ti/migration-archives/20261104/`: archive 2개, 파일별 manifest 2개, `SHA256SUMS`.
+- `~/ti/migration-logs/archive-verification.json`: 99개/5,832개 파일 전수 검증 결과.
+- `~/ti/migration-logs/workspace-reconstruction.log`: 최초 source 재구성과 MCU+ 실패 원인.
+- `~/ti/migration-logs/mcu-plus-reinstall.log`, `workspace-reconstruction-mcu.log`: 재설치 및 MCU+ 재구성 성공.
+- `~/ti/migration-logs/final-source-verification.txt`: source SHA, patch-id, clean 상태, UART 제외 확인.
+- `~/ti/migration-logs/initial-source-copies-20261104/`, `mcu-plus-prefix-initial-20261104/`, `mcu-plus-first-reconstruction-20261104/`: 대상에서 생성했던 초기/실패 사본 보관. 원본 장비에서 설치 폴더를 전송한 것이 아니다.
