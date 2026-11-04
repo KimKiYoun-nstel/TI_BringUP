@@ -18,6 +18,10 @@ VLAN_DEV=${VLAN_DEV:-${IFACE}.${VLAN_ID}}
 LOCAL_CIDR=${LOCAL_CIDR:-10.31.0.1/24}
 PORT_A=${PORT_A:-5001}
 PORT_B=${PORT_B:-5002}
+PORT_A_PRIORITY=${PORT_A_PRIORITY:-3}
+PORT_B_PRIORITY=${PORT_B_PRIORITY:-2}
+PORT_A_PCP=${PORT_A_PCP:-7}
+PORT_B_PCP=${PORT_B_PCP:-6}
 SET_TX_QUEUES=${SET_TX_QUEUES:-}
 DISABLE_RROBIN=${DISABLE_RROBIN:-no}
 RESET_ROOT_QDISC=${RESET_ROOT_QDISC:-yes}
@@ -57,7 +61,8 @@ sleep "$LINK_WAIT_SEC"
 ip link add link "$IFACE" name "$VLAN_DEV" type vlan id "$VLAN_ID"
 
 if [[ "$SET_VLAN_EGRESS_MAP" == yes ]]; then
-    ip link set "$VLAN_DEV" type vlan egress 0:0 1:1 2:2 3:3 4:4 5:5 6:6 7:7
+    ip link set "$VLAN_DEV" type vlan egress \
+        0:0 1:1 2:"$PORT_B_PCP" 3:"$PORT_A_PCP" 4:4 5:5 6:6 7:7
 fi
 
 ip addr flush dev "$VLAN_DEV" 2>/dev/null || true
@@ -68,10 +73,10 @@ if [[ "$ADD_FILTERS" == yes ]]; then
     tc qdisc add dev "$VLAN_DEV" clsact 2>/dev/null || true
     tc filter replace dev "$VLAN_DEV" egress protocol ip prio 1 u32 \
         match ip dport "$PORT_A" 0xffff \
-        action skbedit priority 7
+        action skbedit priority "$PORT_A_PRIORITY"
     tc filter replace dev "$VLAN_DEV" egress protocol ip prio 2 u32 \
         match ip dport "$PORT_B" 0xffff \
-        action skbedit priority 6
+        action skbedit priority "$PORT_B_PRIORITY"
 fi
 
 if [[ "$ROLE" == receiver ]]; then
