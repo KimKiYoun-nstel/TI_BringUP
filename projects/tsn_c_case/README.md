@@ -13,7 +13,8 @@
 
 ## 현재 기준
 
-- 로드맵 원문: `.agents/am64x_c_case_execution_roadmap_plan.md`
+- 현재 기준: `docs/project-review.md`와 `docs/closure-status.md`.
+  초기 로컬 로드맵은 작업 계획 참고자료였으며 실행 의존성이 아니다.
 - 현재 최종 결론:
   - `gptp_icssg_switch` donor 기반 Path B remoteproc bring-up 자체는 성공했다.
   - 그러나 최종 fresh-start 검증 기준으로 donor와 같은 bridge-generated gPTP 기능은 성립하지 않았다.

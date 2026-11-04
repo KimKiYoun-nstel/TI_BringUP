@@ -5,6 +5,10 @@ Thumbs.db
 .idea/
 *:Zone.Identifier
 
+# Python interpreter caches are regenerated on each host.
+__pycache__/
+*.py[cod]
+
 # logs that are too large; curated logs should be committed as markdown
 *.log
 *.tmp

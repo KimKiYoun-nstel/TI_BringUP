@@ -15,7 +15,9 @@ DSCP/PCP 확인을 위한 사전 환경 구성과 후속 실험을 관리하기 
 
 ## 기준 문서
 
-- `.agents/am64x_sk_tsn_switch_tmds_endpoint_env_setup.md`
+- [환경 구성 계획](docs/plan.md), [보드/포트 구성](docs/board-matrix.md),
+  [재현 가이드](docs/2026-06-26_testb-replay-guide.md)를 현재 기준으로 사용한다.
+- 초기 로컬 작업 가이드는 계획 수립 참고자료였으며 실행 의존성이 아니다.
 
 ## 문서
 
