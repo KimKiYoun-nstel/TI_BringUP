@@ -30,6 +30,7 @@
 
 ## 완료
 
+- [x] 보드 미연결 상태에서 projects의 TSN 시험 기록과 로컬 집계를 대조해 [Ethernet 장치별 검증 종합 정리](../outputs/am64x-tsn-validation-summary.md) 작성 (Qbv window PASS 범위, Qbu 최신 무손실 표본과 재현성 한계 포함)
 - [x] UART daemon/client/MCP를 target profile 기반 TCP 기본 경로와 단일 generic MCP 구조로 정리
 - [x] TMDS64EVM C Case C0 example inventory 작성
 - [x] TMDS64EVM C Case C1 baseline Linux 상태 수집
