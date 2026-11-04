@@ -227,6 +227,8 @@ USB 성공 경로는 단순 media 교체가 아니라
 - `docs/boards/`: 보드별 검증 결과와 고정 메모
 - `docs/bringup-logs/`: 날짜별 실행 로그와 원본 증적
 - `docs/setup/`: SDK, 툴체인, 호스트 환경 준비 절차
+  - [Ubuntu 24.04 개발 호스트 이전 준비 기록](docs/setup/2026-11-04_ubuntu24-host-migration.md): 설치 패키지 전송/설치 결과, Git 이전 후속 작업, 원격/현장 작업 구분
+  - [대상 workspace 재구성 가이드](docs/setup/2026-11-04_target-workspace-reconstruction.md): 사용자 확정 범위, 원본 패키지 기반 source 재구성, 회로도/DB 및 image archive
 - `docs/research/`: 조사 중인 메모와 비교/가설 정리
 - `docs/decisions/`: 채택한 결정과 근거
 - `docs/tasks/`: 현재 작업 추적과 다음 액션
