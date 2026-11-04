@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "test_id": "QBU_1G_TIMING_VARIANCE_01",
+  "link": "TMDS eth1 CPSW -> SK eth1 CPSW, existing 1 Gbps/full direct cable",
+  "baseline": {
+    "id": "P3_QBU_ACTIVATION_BASELINE_20260730",
+    "status": "accepted",
+    "record": "docs/p3-qbu-activation-baseline-2026-07-30.md",
+    "golden_case_id": "timing-unpinned-default",
+    "required_repeats": 3,
+    "minimum_measurement_valid_runs": 3,
+    "minimum_activation_probability": 1.0,
+    "scope": "50M/50M timing variance root-cause isolation; not a production-profile qualification."
+  },
+  "negative_control": {
+    "case_id": "timing-control-off",
+    "mode": "off",
+    "duration_sec": 30,
+    "preemptible_rate": "50M",
+    "preemptible_length": 1472,
+    "express_rate": "50M",
+    "express_length": 1472,
+    "repeats": 1,
+    "purpose": "The 50M/50M control must remain free of MAC Merge counter deltas."
+  },
+  "on_cases": [
+    {
+      "case_id": "timing-unpinned-default",
+      "duration_sec": 300,
+      "preemptible_rate": "50M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "repeats": 3,
+      "purpose": "Historical scheduler-default and iperf3 1000-us pacing control."
+    },
+    {
+      "case_id": "timing-flow-cpu-split",
+      "duration_sec": 300,
+      "preemptible_rate": "50M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "preemptible_cpu": 0,
+      "express_cpu": 1,
+      "repeats": 3,
+      "purpose": "Pin each TMDS sender flow to its observed CPSW TX IRQ CPU."
+    },
+    {
+      "case_id": "timing-pacing-100us",
+      "duration_sec": 300,
+      "preemptible_rate": "50M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "pacing_timer_us": 100,
+      "repeats": 3,
+      "purpose": "Reduce userspace generator pacing interval without CPU pinning."
+    },
+    {
+      "case_id": "timing-flow-cpu-split-pacing-100us",
+      "duration_sec": 300,
+      "preemptible_rate": "50M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "preemptible_cpu": 0,
+      "express_cpu": 1,
+      "pacing_timer_us": 100,
+      "repeats": 3,
+      "purpose": "Test the CPU placement and reduced pacing interaction."
+    }
+  ]
+}

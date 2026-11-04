@@ -24,7 +24,7 @@ runner를 만들지 않는다.
 1. 현재 Linux timestamp 경로의 packet type별 한계를 직접 확인한다.
 2. gPTP 안정성을 traffic/load 조건별 수치로 수집한다.
 3. Qbv는 RX timestamp 기반 gate conformance와 burst/gap을 먼저 정량화한다.
-4. Qbu는 이미 증명된 100 Mbps actual fragmentation 조건을 수동 재현해 counter와 loss를 정량화한다.
+4. Qbu는 current CPSW-CPSW direct line에서 이미 증명된 TMDS-sender 1 Gbps actual fragmentation 조건을 수동 재현해 counter와 loss를 정량화한다.
 5. Qbu one-way tail latency는 receiver MAC block과 timestamp filter 조건을 충족하는 경로를 확정한 뒤 수행한다.
 6. CBS는 generic `tc cbs` hardware offload가 아니라 CPSW `tx_maxrate` HW rate limiter를 별도 정량화한다.
 7. Qbv+Qbu 복합 A/B와 MCU+ reference 시험은 앞 단계의 측정 경로가 성립한 뒤 진행한다.
@@ -42,7 +42,7 @@ traffic contention, queue, PHC 조건을 실제 수치로 확인해 정량 결�
 | CPSW RX HWTSTAMP | PTP V1/V2 event filter만 수용, `HWTSTAMP_FILTER_ALL/SOME` 거절 | generic UDP RX raw-HW 시험 미수행 | 일반 UDP RX-HW를 전제하지 않음; PTP event 측정 경로 또는 다른 receiver를 선정 |
 | ICSSG RX HWTSTAMP | `HWTSTAMP_FILTER_ALL`을 수용하고 get path도 ALL 반환 | TMDS `eth2`의 packet-level 수집은 미시험 | generic packet RX-HW 수집 후보. CPSW sender와의 PHC 동기 및 physical pair를 먼저 확인 |
 | gPTP | CPTS/PHC 및 Linux `ptp4l` 기반 | SK `eth1`-TMDS `eth2`에서 TMDS SLAVE, delay 439~440 ns 관찰 | load별 offset/dispersion/recovery 수집을 먼저 수행 |
-| Qbu/IET | standard ethtool MAC Merge API 및 counter 구현 | TMDS sender 1 Gbps 및 SK sender 100 Mbps에서 actual fragment/reassembly 확인 | counter/loss 정량은 즉시 가능; latency A/B는 측정 경로 확정 후 수행 |
+| Qbu/IET | standard ethtool MAC Merge API 및 counter 구현 | current CPSW-CPSW line의 TMDS sender 1 Gbps와 historical SK sender 100 Mbps에서 actual fragment/reassembly 확인 | TMDS-sender 1 Gbps counter/loss 정량은 즉시 가능; latency A/B는 측정 경로 확정 후 수행 |
 | CPSW generic CBS HW offload | `setup_tc`는 taprio/mqprio만 처리 | `tc cbs ... offload 1` 실패, software CBS 적용 성공 | `tc cbs offload 1`을 HW Qav 시험으로 재사용하지 않음 |
 | CPSW HW rate limiter | `ndo_set_tx_maxrate`와 queue rate programming 구현 | 정량 시험 없음 | CBS/Qav와 구분한 rate-accuracy 수동 시험 대상으로 사용 |
 | MCU+ CPSW TSN EST | `am64x-evm` 공식 문서/예제와 modulo 판정 source 확인 | 실행 기록 없음 | Linux 결과의 분석 기준 및 별도 TMDS reference 시험 |
@@ -323,29 +323,35 @@ provenance가 확정되기 전에는 실행 대상이 아니다.
 
 ### P3: Qbu actual fragmentation 정량화
 
-SK CPSW sender 100 Mbps certificate가 이미 있다.
+P3의 현재 기준은 `TMDS eth1 -> SK eth1` CPSW direct line이다. P2 formal의
+`SK eth0 -> TMDS eth1` 및 아래 historical certificate의 SK eth0 경로와 구분한다.
+historical golden direction은 TMDS CPSW sender에서 SK CPSW receiver다.
 
 ```text
-SK eth1 sender -> TMDS eth1 receiver
-80 Mbps preemptible UDP + 10 Mbps express UDP
-1472 byte, 30 s, force mode
-TX fragment +25130, receiver assembly OK +25123
+TMDS eth1 sender -> SK eth0 receiver
+1 Gbps/full, autoneg on
+200 Mbps preemptible UDP + 50 Mbps express UDP
+1472 byte, 30 s, verify-enabled on
+TX fragment +3329, receiver assembly OK +3328
 ```
 
-다만 이 certificate의 physical pair는 현재 active topology와 다를 수 있다. P3에서는
-해당 pair를 먼저 cable peer proof로 재확정하거나, 현재 배선에서 같은 CPSW-to-CPSW
-조건을 만들고 새 certificate를 작성한다.
+SK sender 100 Mbps certificate(`+25130` TX fragment, `+25123` assembly OK)는 SK sender
+1 Gbps overlap 분석을 위한 별도 historical diagnostic이다. P3 canonical path로 다시
+배선하거나 100 Mbps로 speed를 변경하는 근거가 아니다.
 
-IET off/on 각각에서 다음을 같은 time window에 기록한다.
+IET off는 golden profile의 counter causality를 확인하는 negative control 1회로만 사용한다.
+P3의 주 결과는 IET on 상태에서 preemptible/express rate, frame size, PPS 조건을 바꾸는
+traffic sweep이다. 각 time window에서 다음을 기록한다.
 
 - `MACMergeFragCountTx/Rx`, `MACMergeFrameAssOkCount`, assembly/SMD error
 - express와 preemptible flow의 sent/received/lost packet
 - actual offered/achieved rate, PCP/TC/queue counter, CPU load
 - link speed, verify/force mode, minimum fragment size
 
-이 단계는 Qbu가 실제로 fragment/reassemble했는지와 loss/error가 없는지를 정량화한다.
-fragment가 0인 run은 Qbu latency 비교가 아니라 traffic overlap 또는 classification의
-원인 분석 run으로 보존한다.
+case aggregate는 activation probability, fragment/reassembly/error rate, achieved rate/loss의
+분포를 만든다. configuration과 traffic gate가 통과한 fragment `0` run은 Qbu failure가 아니라
+`inactive` traffic region으로 보존한다. 동일 case에서 active/inactive가 섞이면 `intermittent`
+region으로 분류해 packet timing, burst, CPU/queue service 축을 추가 조사한다.
 
 ### P4: Qbu tail latency A/B
 
@@ -422,7 +428,7 @@ runtime cleanup만 확인했으며, 현재 cable peer MAC mapping과 HWTSTAMP fi
 2. CPSW와 ICSSG 각각에 requested/returned HWTSTAMP filter를 수동 확인한다.
 3. 같은 physical link에서 gPTP idle/load log를 수집해 PHC offset bound를 만든다.
 4. P2의 timestamp frame type과 `plget` source provenance 여부를 결정한다.
-5. P3의 100 Mbps Qbu certificate를 current cable pair에서 새로 수집한다.
+5. P3의 TMDS-sender 1 Gbps Qbu certificate를 current cable pair에서 IET off/on control로 새로 수집한다.
 6. P3 결과와 receiver HWTSTAMP capability에 따라 P4의 CPSW-ICSSG 또는 external timestamp 경로를 선택한다.
 
 이 순서를 끝내면 Qbv, Qbu, CBS, MCU+ reference의 측정 방법과 결과 해석 경계가 모두

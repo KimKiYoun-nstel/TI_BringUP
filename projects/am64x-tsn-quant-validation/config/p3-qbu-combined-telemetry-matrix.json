@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "test_id": "QBU_1G_COMBINED_TELEMETRY_01",
+  "link": "TMDS eth1 CPSW -> SK eth1 CPSW, existing 1 Gbps/full direct cable",
+  "baseline": {
+    "id": "P3_QBU_ACTIVATION_BASELINE_20260730",
+    "status": "accepted",
+    "record": "docs/p3-qbu-activation-baseline-2026-07-30.md",
+    "golden_case_id": "combined-telemetry",
+    "required_repeats": 3,
+    "minimum_measurement_valid_runs": 3,
+    "minimum_activation_probability": 1.0,
+    "scope": "Loss-location telemetry under the fixed combined CPU/pacing profile; not an acceptance campaign."
+  },
+  "negative_control": {
+    "case_id": "combined-telemetry-control-off",
+    "mode": "off",
+    "duration_sec": 30,
+    "preemptible_rate": "50M",
+    "preemptible_length": 1472,
+    "express_rate": "50M",
+    "express_length": 1472,
+    "repeats": 1,
+    "purpose": "Confirm IET-off counters remain zero before loss-location diagnostics."
+  },
+  "on_cases": [
+    {
+      "case_id": "combined-telemetry",
+      "duration_sec": 300,
+      "preemptible_rate": "50M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "preemptible_cpu": 0,
+      "express_cpu": 1,
+      "pacing_timer_us": 100,
+      "repeats": 3,
+      "purpose": "Capture UDP MIB and per-CPU softnet deltas without production acceptance gating."
+    }
+  ]
+}

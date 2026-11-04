@@ -7,8 +7,8 @@ Qbu/IET 기능을 정량적으로 검증하기 위한 독립 작업 단위다. Q
 ON/OFF latency 우열이 아니라, lower-class backlog 아래에서 critical class가 지정 gate
 window 안에 service되는지를 raw-HW timestamp와 qdisc counter로 확인하는 것이다.
 
-기준 가이드는 `.agents/AM64x_TSN_정량_검증_가이드.md`와
-`.agents/AM64x_TSN_정량_검증_TI_SDK_활용_추가_가이드.md`다. 현재 증적의 상태는
+현재 시험 기준은 저장소가 관리하는 [`docs/measurement-plan.md`](docs/measurement-plan.md)와
+각 단계의 검증 계획/결과 문서다. 과거 작업 계획용 로컬 가이드는 실행 의존성이 아니다. 현재 증적의 상태는
 [`docs/guide-review.md`](docs/guide-review.md), workspace TI SDK source와의 교차 분석 및
 수동 시험 순서는 [`docs/workspace-sdk-cross-check.md`](docs/workspace-sdk-cross-check.md)에 기록한다.
 P1 high-rate 결과, pktgen 전환 실패 및 다음 세션 재개 절차는
@@ -20,6 +20,8 @@ P2 PCP 2 gate enforcement 결과는
 [`docs/p2-q0-gate-enforcement-2026-07-28.md`](docs/p2-q0-gate-enforcement-2026-07-28.md)에,
 현재 채택한 multiclass ON validation contract와 pilot 결과는
 [`docs/p2-q3-multiclass-window-validation-plan-2026-07-28.md`](docs/p2-q3-multiclass-window-validation-plan-2026-07-28.md)에 정리한다.
+P3 Qbu actual fragmentation off/on control의 준비 contract는
+[`docs/p3-qbu-fragmentation-quantification-plan-2026-07-28.md`](docs/p3-qbu-fragmentation-quantification-plan-2026-07-28.md)에 정리한다.
 
 ## 현재 판정
 
@@ -29,6 +31,7 @@ P2 PCP 2 gate enforcement 결과는
 | DSCP/PCP | 확인 | CPSW direct sender와 switchdev forwarding의 PCP 전달 |
 | Qbv | ON formal PASS | 5 x 300 s, TC0 backlog 아래 PCP 2/TC2 window service와 gPTP `SLAVE` 확인 |
 | Qbu/IET | 확인 | TMDS CPSW sender의 fragment 및 SK receiver reassembly counter 증가 |
+| P3 Qbu/IET envelope | 반복 시험 및 원인분리 수행 | TMDS `eth1` -> SK `eth1`, 최신 5 x 300 s 무손실 diagnostic 표본 확보; production profile 미확정 |
 | one-way latency | 직접 측정 미수행 | 현 보드 불가로 판정한 근거 없음; CPSW direct path의 수동 측정 경로 확인 필요 |
 | Qbv window isolation | 정량 확인 | raw-HW phase, TC0 allocation 초과 backlog, queue drop으로 판정 |
 
@@ -44,6 +47,13 @@ P2 Qbv multiclass ON pilot과 formal campaign은 각각
 `tools/p2_qbv_multiclass_pilot.py`, `tools/p2_qbv_multiclass_campaign.py` runner를 사용한다.
 runner는 P2-Q0 PCP 2 gate enforcement qualification을 전제로 TC0 allocation 초과 backlog와
 TC2 window service를 같이 검증한다.
+P3는 `tools/p3_qbu_operational_campaign.py`로 실행한다.
+`SK eth1 <-> TMDS eth1` 1 Gbps CPSW-CPSW cable을 유지하며, TMDS sender -> SK receiver
+historical golden direction에서 IET on traffic sweep의 active/inactive/intermittent region을
+정량화한다. IET off는 golden profile의 negative control 1회이며 runner는 link speed/autoneg/
+cable을 바꾸지 않는다.
+P2 formal 경로의 `SK eth0 -> TMDS eth1`과 P3 경로를 구분한다. P3의 최신 판정과
+남은 질문은 [`docs/p3-qbu-status-2026-07-31.md`](docs/p3-qbu-status-2026-07-31.md)를 따른다.
 그 외 정량 검증은 board 설정, traffic 생성, packet capture, counter와 raw data를
 각 test case 기록지와 함께 검토하는 방식으로 수행한다.
 

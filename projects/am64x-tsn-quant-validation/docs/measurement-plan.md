@@ -40,7 +40,7 @@ path에서 전제하지 않는다. 상세한 path 선택은 `workspace-sdk-cross
 | Test ID | 조건 | Traffic | 필수 증적 |
 |---|---|---|---|
 | `QBV_MULTICLASS_01` | HW taprio ON, TC2 500 us / TC1 250 us / TC0 250 us | PCP 2/TC2 periodic 128 B critical + PCP 0/TC0 background | schedule, TX/RX raw-HW count, TX phase, TC0 offered/received rate and drop, gPTP state |
-| `QBU_1G_01` | IET off vs IET on | express 64~128 B periodic + preemptible 1500 B 80~95% load | MAC Merge state, fragment/reassembly/error delta, raw paired timestamp, percentile |
+| `QBU_1G_OPERATIONAL_01` | IET on traffic sweep, existing CPSW-to-CPSW line | TMDS sender: preemptible/express rate, frame-size, PPS condition matrix | activation probability, fragment/reassembly/error rate, per-flow rate/loss, active/inactive/intermittent region |
 | `COMBO_1G_01` | Qbv vs Qbv+Qbu | critical periodic + saturating preemptible background | Qbv/Qbu state, gate violation, counter, raw paired timestamp, percentile |
 
 각 case는 packet size, rate, period, duration, queue mapping, PHC source, CPU load,
@@ -49,13 +49,18 @@ all-open control과 latency percentile을 비교하지 않는다. TC0 offered ra
 allocation을 초과하고 queue drop이 발생한 상태에서 TC2 TX phase가 500 us window에 남는지를
 판정한다. formal contract는 5 runs x 300 s이며 상세 criterion은
 `p2-q3-multiclass-window-validation-plan-2026-07-28.md`를 따른다.
+`QBU_1G_OPERATIONAL_01`은 P3 Qbu/IET operational envelope case이며 raw
+timestamp/latency percentile case가 아니다. IET off는 golden profile의 negative control
+1회이고, 주 결과는 IET on traffic sweep의 activation region이다. 상세 contract는
+`p3-qbu-fragmentation-quantification-plan-2026-07-28.md`를 따른다.
 
 ### Stage 2: link speed 분리
 
-100 Mbps와 1 Gbps는 합산하지 않는다. Stage 1의 timestamp/generator gate를 각 speed에서
-다시 통과한 뒤 `QBU_100M_01`과 `QBU_1G_01`을 독립 결과로 관리한다. 실제 100 Mbps
-path는 run 전 preflight로 cable pair와 CPSW endpoint를 확정하며, 과거 결과만으로 고정하지
-않는다.
+100 Mbps와 1 Gbps는 합산하지 않는다. P3 `QBU_1G_OPERATIONAL_01`은 current CPSW-CPSW
+cable pair에서 historical golden TMDS-sender direction을 기준으로 traffic-conditioned
+activation region을 만든다. 100 Mbps SK-sender certificate와 Qbu latency case는 해당
+speed/path의 traffic/timestamp gate를 별도로 통과한 뒤 독립 결과로 관리한다. 모든 run은
+preflight로 cable pair와 CPSW endpoint를 다시 확정하며, 과거 결과만으로 고정하지 않는다.
 
 ## Run 데이터 계약
 

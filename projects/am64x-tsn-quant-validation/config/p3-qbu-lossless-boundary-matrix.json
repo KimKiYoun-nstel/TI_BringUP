@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "test_id": "QBU_1G_LOSSLESS_BOUNDARY_02",
+  "link": "TMDS eth1 CPSW -> SK eth1 CPSW, existing 1 Gbps/full direct cable",
+  "baseline": {
+    "id": "P3_QBU_ACTIVATION_BASELINE_20260730",
+    "status": "accepted",
+    "record": "docs/p3-qbu-activation-baseline-2026-07-30.md",
+    "golden_case_id": "golden-baseline",
+    "required_repeats": 3,
+    "minimum_measurement_valid_runs": 3,
+    "minimum_activation_probability": 1.0,
+    "scope": "Qbu on/off hardware-counter causality and activation repeatability; not a loss-free production profile."
+  },
+  "negative_control": {
+    "case_id": "golden-control-off",
+    "mode": "off",
+    "duration_sec": 30,
+    "preemptible_rate": "200M",
+    "preemptible_length": 1472,
+    "express_rate": "50M",
+    "express_length": 1472,
+    "repeats": 1,
+    "purpose": "IET disabled state must not produce MAC Merge fragment/reassembly deltas."
+  },
+  "on_cases": [
+    {
+      "case_id": "golden-baseline",
+      "duration_sec": 30,
+      "preemptible_rate": "200M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "repeats": 3,
+      "purpose": "Requalify the accepted TMDS-sender activation baseline before the boundary sweep."
+    },
+    {
+      "case_id": "boundary-preemptible-50m",
+      "duration_sec": 60,
+      "preemptible_rate": "50M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "repeats": 3,
+      "purpose": "Confirm the initial loss-free activation candidate over a longer window."
+    },
+    {
+      "case_id": "boundary-preemptible-75m",
+      "duration_sec": 60,
+      "preemptible_rate": "75M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "repeats": 3,
+      "purpose": "Measure the first intermediate preemptible-load point."
+    },
+    {
+      "case_id": "boundary-preemptible-100m",
+      "duration_sec": 60,
+      "preemptible_rate": "100M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "repeats": 3,
+      "purpose": "Measure the central intermediate preemptible-load point."
+    },
+    {
+      "case_id": "boundary-preemptible-125m",
+      "duration_sec": 60,
+      "preemptible_rate": "125M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "repeats": 3,
+      "purpose": "Measure the upper intermediate preemptible-load point."
+    },
+    {
+      "case_id": "boundary-preemptible-150m",
+      "duration_sec": 60,
+      "preemptible_rate": "150M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "repeats": 3,
+      "purpose": "Measure the final point below the degraded 200 Mbit/s golden profile."
+    }
+  ]
+}

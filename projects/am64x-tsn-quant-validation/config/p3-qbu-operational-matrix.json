@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "test_id": "QBU_1G_OPERATIONAL_01",
+  "link": "TMDS eth1 CPSW -> SK eth1 CPSW, existing 1 Gbps/full direct cable",
+  "baseline": {
+    "id": "P3_QBU_ACTIVATION_BASELINE_20260730",
+    "status": "accepted",
+    "record": "docs/p3-qbu-activation-baseline-2026-07-30.md",
+    "golden_case_id": "golden-baseline",
+    "required_repeats": 3,
+    "minimum_measurement_valid_runs": 3,
+    "minimum_activation_probability": 1.0,
+    "scope": "Qbu on/off hardware-counter causality and activation repeatability; not a loss-free production profile."
+  },
+  "negative_control": {
+    "case_id": "golden-control-off",
+    "mode": "off",
+    "duration_sec": 30,
+    "preemptible_rate": "200M",
+    "preemptible_length": 1472,
+    "express_rate": "50M",
+    "express_length": 1472,
+    "repeats": 1,
+    "purpose": "IET disabled state must not produce MAC Merge fragment/reassembly deltas."
+  },
+  "on_cases": [
+    {
+      "case_id": "golden-baseline",
+      "duration_sec": 30,
+      "preemptible_rate": "200M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "repeats": 3,
+      "purpose": "Historical TMDS-sender actual-Qbu profile reproducibility."
+    },
+    {
+      "case_id": "reduced-preemptible-load",
+      "duration_sec": 30,
+      "preemptible_rate": "50M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "repeats": 3,
+      "purpose": "Measure activation change when preemptible wire occupancy is reduced."
+    },
+    {
+      "case_id": "reduced-express-rate",
+      "duration_sec": 30,
+      "preemptible_rate": "200M",
+      "preemptible_length": 1472,
+      "express_rate": "10M",
+      "express_length": 1472,
+      "repeats": 3,
+      "purpose": "Measure activation change when express arrival frequency is reduced."
+    },
+    {
+      "case_id": "high-express-pps",
+      "duration_sec": 30,
+      "preemptible_rate": "200M",
+      "preemptible_length": 1472,
+      "express_rate": "10M",
+      "express_length": 64,
+      "repeats": 3,
+      "purpose": "Separate express offered bandwidth from express packet-arrival frequency."
+    },
+    {
+      "case_id": "elevated-preemptible-load",
+      "duration_sec": 30,
+      "preemptible_rate": "400M",
+      "preemptible_length": 1472,
+      "express_rate": "50M",
+      "express_length": 1472,
+      "repeats": 3,
+      "purpose": "Observe the higher preemptible-load region without claiming line-rate saturation."
+    }
+  ]
+}
