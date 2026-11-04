@@ -19,6 +19,10 @@
 
 원본 파일과 설치 방법 및 SHA-256은 [설치 기록](2026-11-04_ubuntu24-host-migration.md)에 있다. MCU+ SDK는 standalone SDK이며 Linux SDK 설치만으로 생성되지 않는다. TF-A/OP-TEE source는 Linux SDK 안에 있으나 현재 프로젝트가 사용하는 정확한 commit은 추가 Git fetch가 필요하다.
 
+MCU+ installer의 `--prefix`는 SDK 자체 경로가 아니라 부모 `"$HOME/ti/am64x"`로
+지정해야 한다. 설치 후 `~/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27/imports.mak`가
+직접 존재해야 하며 재구성 도구가 이를 사전 검사한다.
+
 ## 2. README의 로컬 가이드 참조 정리
 
 감사 당시 README 3개가 아래 작업 계획 4개를 직접 참조했다.

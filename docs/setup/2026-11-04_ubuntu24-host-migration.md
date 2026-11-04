@@ -86,7 +86,7 @@ chmod u+x am64x/*Install.bin am64x/*installer.run
   --mode unattended \
   --prefix "$HOME/ti/am64x/ti-processor-sdk-linux-am64xx-evm-12.00.00.07.04"
 ./am64x/mcu_plus_sdk_am64x_12_00_00_27-linux-x64-installer.run \
-  --mode unattended --prefix "$HOME/ti/am64x/mcu_plus_sdk_am64x_12_00_00_27"
+  --mode unattended --prefix "$HOME/ti/am64x"
 
 tar -xJf gcc-arm-9.2-2019.12-x86_64-aarch64-none-elf.tar.xz
 sudo ~/ti/ccs2040/ccs/install_scripts/install_drivers.sh
@@ -94,6 +94,10 @@ sudo usermod -aG dialout prodigyrcn
 ```
 
 TI permissions/Blackhawk/J-Link 설치 스크립트 성공과 `/etc/udev/rules.d/71-ti-permissions.rules`, `99-jlink.rules` 생성을 확인했다. 새 SSH 세션에서 `dialout` 그룹 포함도 확인했다. 기존 데스크톱 세션은 로그아웃/로그인 후 적용한다.
+
+후속 workspace 재구성에서 MCU+ installer가 prefix 아래에 SDK 폴더명을 추가한다는 점을
+확인했다. 최초의 SDK 이름까지 포함한 prefix는 중첩 설치를 만들었으므로, 위 명령을
+부모 `~/ti/am64x` prefix로 정정하고 대상에서 원본 installer를 재실행했다.
 
 ### 도구 확인 결과
 

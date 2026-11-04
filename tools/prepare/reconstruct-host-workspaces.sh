@@ -3,8 +3,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-if [[ "${1:---print}" != --execute ]]; then
-    printf '%s\n' 'Usage: bash tools/prepare/reconstruct-host-workspaces.sh --execute' \
+MODE="${1:---print}"
+if [[ "$MODE" != --execute && "$MODE" != --execute-mcu ]]; then
+    printf '%s\n' 'Usage: bash tools/prepare/reconstruct-host-workspaces.sh --execute | --execute-mcu' \
         'Requires SDK/MCU+ installers already run on this host and empty destination source paths.' \
         'Creates kernel baseline, U-Boot default/fullchain, MCU+ C Case, TF-A and OP-TEE topics.'
     exit 0
@@ -22,9 +23,12 @@ TFA_HEAD=44fcd9c2d62460a780a5e76f6e65202c37d8dbb7
 OPTEE_HEAD=60706ecef7619a01c5f5da20ea12a832699a1440
 SEED="$TI_WORKSPACE/local_git_repo/mcu_plus_sdk_am64x_12_00_00_27.git"
 
-for name in ti-u-boot-sdk12 ti-u-boot-sdk12-sk-am64b-local-fullchain \
-    ti-linux-kernel-sdk12 mcu_plus_sdk_am64x_12_00_00_27 \
-    trusted-firmware-a-2.14+git optee-os-4.9.0+git; do
+NAMES=(mcu_plus_sdk_am64x_12_00_00_27)
+if [[ "$MODE" == --execute ]]; then
+    NAMES+=(ti-u-boot-sdk12 ti-u-boot-sdk12-sk-am64b-local-fullchain \
+        ti-linux-kernel-sdk12 trusted-firmware-a-2.14+git optee-os-4.9.0+git)
+fi
+for name in "${NAMES[@]}"; do
     if [[ -e "$WORKSPACE_ROOT/$name" ]]; then
         printf '[ERROR] Destination already exists: %s\n' "$WORKSPACE_ROOT/$name" >&2
         exit 1
@@ -32,6 +36,10 @@ for name in ti-u-boot-sdk12 ti-u-boot-sdk12-sk-am64b-local-fullchain \
 done
 [[ ! -e "$SEED" ]] || { printf '[ERROR] Seed exists: %s\n' "$SEED" >&2; exit 1; }
 [[ -d "$MCU_PLUS_SDK_INSTALL_ROOT" && -d "$BOARD_SUPPORT" ]]
+if [[ ! -f "$MCU_PLUS_SDK_INSTALL_ROOT/imports.mak" ]]; then
+    printf '[ERROR] MCU+ root must contain imports.mak; install with --prefix "$HOME/ti/am64x".\n' >&2
+    exit 1
+fi
 mkdir -p "$WORKSPACE_ROOT" "$TI_WORKSPACE/local_git_repo"
 
 clone_sdk() {
@@ -45,29 +53,31 @@ clone_sdk() {
     git -C "$dest" switch -c migration-reconstructed "$commit"
 }
 
-clone_sdk ti-linux-kernel-sdk12 ti-linux-kernel-6.18.13+git-ti "$KBASE"
-git -C "$KERNEL_SRC" tag ti-sdk-12.00.00.07.04-baseline "$KBASE"
-clone_sdk ti-u-boot-sdk12 ti-u-boot-2026.01+git "$UBASE"
-git -C "$UBOOT_SRC" tag ti-sdk-12.00.00.07.04-baseline "$UBASE"
-git -C "$UBOOT_SRC" am "$ROOT/bsp/u-boot/patches/0002-am64x-evm-a53-set-bootdelay-to-5.patch"
+if [[ "$MODE" == --execute ]]; then
+    clone_sdk ti-linux-kernel-sdk12 ti-linux-kernel-6.18.13+git-ti "$KBASE"
+    git -C "$KERNEL_SRC" tag ti-sdk-12.00.00.07.04-baseline "$KBASE"
+    clone_sdk ti-u-boot-sdk12 ti-u-boot-2026.01+git "$UBASE"
+    git -C "$UBOOT_SRC" tag ti-sdk-12.00.00.07.04-baseline "$UBASE"
+    git -C "$UBOOT_SRC" am "$ROOT/bsp/u-boot/patches/0002-am64x-evm-a53-set-bootdelay-to-5.patch"
 
-FULLCHAIN="$WORKSPACE_ROOT/ti-u-boot-sdk12-sk-am64b-local-fullchain"
-git -C "$UBOOT_SRC" worktree add -b migration-local-fullchain "$FULLCHAIN" "$UBASE"
-git -C "$FULLCHAIN" am \
-    "$ROOT/bsp/u-boot/patches/0001-am64x-rm-cfg-assign-mcu-gpio-router-to-main-0-r5-1.patch" \
-    "$ROOT/bsp/u-boot/patches/0006-am64x-evm-a53-local-fullchain-bootdelay-10.patch"
+    FULLCHAIN="$WORKSPACE_ROOT/ti-u-boot-sdk12-sk-am64b-local-fullchain"
+    git -C "$UBOOT_SRC" worktree add -b migration-local-fullchain "$FULLCHAIN" "$UBASE"
+    git -C "$FULLCHAIN" am \
+        "$ROOT/bsp/u-boot/patches/0001-am64x-rm-cfg-assign-mcu-gpio-router-to-main-0-r5-1.patch" \
+        "$ROOT/bsp/u-boot/patches/0006-am64x-evm-a53-local-fullchain-bootdelay-10.patch"
 
-clone_sdk trusted-firmware-a-2.14+git trusted-firmware-a-2.14+git "$TFA_HEAD" \
-    https://git.trustedfirmware.org/TF-A/trusted-firmware-a.git
-clone_sdk optee-os-4.9.0+git optee-os-4.9.0+git "$OPTEE_HEAD" \
-    https://github.com/OP-TEE/optee_os.git
+    clone_sdk trusted-firmware-a-2.14+git trusted-firmware-a-2.14+git "$TFA_HEAD" \
+        https://git.trustedfirmware.org/TF-A/trusted-firmware-a.git
+    clone_sdk optee-os-4.9.0+git optee-os-4.9.0+git "$OPTEE_HEAD" \
+        https://github.com/OP-TEE/optee_os.git
+fi
 
 # This copy is local to the target, from its freshly installed MCU+ package.
 # No installed source tree is transferred between hosts.
 cp -a "$MCU_PLUS_SDK_INSTALL_ROOT" "$MCU_PLUS_SDK_PATH"
 git -C "$MCU_PLUS_SDK_PATH" init -b main
 git -C "$MCU_PLUS_SDK_PATH" add -A
-git -C "$MCU_PLUS_SDK_PATH" commit -m 'baseline: import reinstalled mcu plus sdk 12.00.00.27'
+git -C "$MCU_PLUS_SDK_PATH" commit --quiet -m 'baseline: import reinstalled mcu plus sdk 12.00.00.27'
 git -C "$MCU_PLUS_SDK_PATH" tag ti-mcu-plus-sdk-12.00.00.27-baseline
 git -C "$MCU_PLUS_SDK_PATH" switch -c phase2-tsn-c-case
 git -C "$MCU_PLUS_SDK_PATH" am \
