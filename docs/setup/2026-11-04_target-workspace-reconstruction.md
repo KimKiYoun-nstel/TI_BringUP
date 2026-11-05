@@ -131,3 +131,7 @@ c05d03076bb86d6c4cc095f97e28781c387dc11e742246e7a987f37a0652e3ba  board-images.t
 - `~/ti/migration-logs/mcu-plus-reinstall.log`, `workspace-reconstruction-mcu.log`: 재설치 및 MCU+ 재구성 성공.
 - `~/ti/migration-logs/final-source-verification.txt`: source SHA, patch-id, clean 상태, UART 제외 확인.
 - `~/ti/migration-logs/initial-source-copies-20261104/`, `mcu-plus-prefix-initial-20261104/`, `mcu-plus-first-reconstruction-20261104/`: 대상에서 생성했던 초기/실패 사본 보관. 원본 장비에서 설치 폴더를 전송한 것이 아니다.
+
+## 후속 호스트 준비 상태 검토
+
+재구성 이후의 비빌드 실행 점검과 보완 항목은 [새 호스트 bring-up 준비 상태 검토](2026-11-04_host-bringup-readiness-review.md)에 정리했다. MCU+ `construct` 누락, Git identity, 공용 검증기의 옛 경로, 프로젝트별 SBL 입력 및 네트워크 배포 준비를 구분한다. UART/MCP와 실제 빌드·부팅은 해당 검토 범위에서도 제외했다.
