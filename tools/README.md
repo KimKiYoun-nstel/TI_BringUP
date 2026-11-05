@@ -15,9 +15,10 @@ tools/
   build/    artifact build 스크립트
   install/  보드 반영(deploy/install) 스크립트
   uart/
-    uart-mcp-server.py      MCP stdio adapter for uartd
-    uartctl.py             daemon client CLI
-    uartd.py               persistent UART daemon
+    official/python/       공식 daemon·CLI·API·GUI·MCP 예제
+    official/manuals/      공식 배포 문서
+    integration/           repo 전용 CLI wrapper·MCP·target 해석
+    config/targets.json    보드별 접속 설정
 ```
 
 ## 기본 사용 순서
@@ -145,43 +146,31 @@ kernel modules:
 
 UART 로그 감시, reboot 이후 boot 출력 추적, U-Boot 진입, 명령 전송, Linux shell prompt 확인 같은 반복 작업에는 daemon 모델을 기본으로 사용한다.
 
-- `tools/uart/uartd.py`: UART 포트를 계속 점유하는 daemon
-- `tools/uart/uartctl.py`: daemon에 접속해 `status`, `send`, `expect`, `tail`, `stop`를 수행하는 client CLI
-- `tools/uart/uart-mcp-server.py`: Agent가 사용하는 MCP adapter
-- `tools/uart/targets.json`: target 이름과 TCP/Unix endpoint를 정의하는 프로파일
+- `tools/uart/official/`: 공식 코드·문서 원천. 공식 MCP는 참고 예제다.
+- `tools/uart/integration/cli.py`: 공식 CLI를 재사용하는 repo wrapper
+- `tools/uart/integration/mcp_server.py`: repo 독립 MCP stdio 서버
+- `tools/uart/config/targets.json`: target별 endpoint·토큰 파일 설정
 
-사전 준비:
-
-```bash
-python3 -m pip install pyserial
-```
-
-daemon 방식 기본 예시:
+이 장비는 원격 daemon을 사용하며 CLI/API/MCP에 외부 Python 패키지가 필요하지 않다.
+저장소 루트에서 실행한다.
 
 ```bash
-./tools/uart/uartd.py start --port /dev/ttyUSB1 --baud 115200
-./tools/uart/uartctl.py status
-./tools/uart/uartctl.py tail
-./tools/uart/uartctl.py expect 'Hit any key to stop autoboot' --timeout 5
-./tools/uart/uartctl.py send '' --newline
-./tools/uart/uartctl.py stop
+python3 tools/uart/integration/cli.py --target sk status
+python3 tools/uart/integration/cli.py --target sk tail --lines 80
+python3 tools/uart/integration/cli.py --target tmds watch --backlog-lines 40
+python3 tools/uart/integration/cli.py --target sk attach --backlog-lines 20
 ```
 
-이 모델에서는 `uartd.py`가 UART를 단독으로 열고, 모든 UART 출력은 기본적으로 `logs/runtime_log`에 append된다. 로컬 SK 보드 daemon은 기본적으로 Unix socket과 TCP `127.0.0.1:17001`을 함께 연다. 사용자나 상위 Agent는 직접 serial port를 다시 열지 않고 `uartctl.py`로 daemon에 붙어서 제어한다.
-
-`uartd.py`/`uartctl.py`는 **persistent session** 용도다. 사람이 `tail`로 계속 UART를 보고 있고, 다른 Agent가 동시에 `expect` 또는 `send`를 수행해야 하는 경우를 기본 시나리오로 본다.
-
-기본적으로 `uartd.py`가 `logs/runtime_log`에 append하므로, 작업 중 다른 terminal에서 다음처럼 바로 확인할 수 있다.
-
-```bash
-tail -f logs/runtime_log
-```
-
-daemon 모델에서 `uartd.py`는 기본적으로 `logs/runtime_log`를 사용한다. socket, pid, runtime log 경로를 바꾸려면 `--socket`, `--pid-file`, `--runtime-log` 옵션을 사용한다. TCP listener를 끄려면 `--no-tcp`, host/port를 바꾸려면 `--tcp-host`/`--tcp-port` 또는 `--tcp HOST:PORT`를 사용한다.
+UART는 원격 `uartd`만 직접 연다. 로그 증적은 같은 target의 status에 표시되는
+`runtime_log`와 tail이 기준이며 원격 로그가 로컬 `logs/runtime_log`로 자동 동기화되지는 않는다.
+`attach` 종료는 `Ctrl-]` 다음 `q`다. 공식 신규 daemon은 command 중 exclusive 송신
+lease를 사용하므로 RW attach를 종료한 뒤 Agent command를 실행한다.
 
 구조 설명, 역할 분리, terminal A/B 사용 예시는 `docs/common/UART_DAEMON_AGENT_WORKFLOW.md`를 참고한다.
 
-프로젝트에서 opencode가 UART MCP를 직접 사용하려면 루트의 `opencode.jsonc`를 참고한다. 기본 설정은 `tools/uart/targets.json`의 `sk` target을 사용하며, MCP tool 호출 시 `target: "tmds"` 또는 `target: "custom"`처럼 target을 명시해 endpoint를 바꿀 수 있다.
+프로젝트 OpenCode 설정은 repo 전용 `integration/mcp_server.py`를 실행한다.
+기본 target은 `sk`이며 MCP 호출 시 `target: "tmds"`로 변경한다.
+공식 배포본 관리와 CLI 상세 사용법은 [UART 도구 안내](uart/README.md)를 참고한다.
 
 ## Option A 기준 동작 원칙
 

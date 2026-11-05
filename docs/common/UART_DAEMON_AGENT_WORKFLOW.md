@@ -1,298 +1,142 @@
-# UART Daemon / Agent Workflow
+# UART daemon 기반 Agent 작업 절차
 
-## 목적
+## 현재 구조
 
-이 문서는 TI_Bringup 저장소에서 host 측 UART helper를 **daemon + client** 구조로 운용하는 이유와 실제 사용 절차를 정리한다.
+2026-11-05부터 현 Ubuntu workspace는 `192.168.0.33`의 UART daemon을 TCP로 사용한다.
+UART 물리 포트의 소유자는 해당 서버의 `uartd`다.
 
-대상 상황:
+MCP server는 repo별로 독립 구성한다. 이 repo의 `tools/uart/integration/mcp_server.py`는
+공식 `official/python/uart_api.py`를 통해 원격 daemon과 통신하고 보드 선택 및 bring-up 도구를 제공한다.
+공식 `official/python/uart_mcp.py`와 MCP 매뉴얼은 UART 호출을 MCP로 노출하는 참고 예제다.
+공식 코드·문서는 ZIP 없이 Git source/docs로 관리하며,
+갱신은 [공식 UART 배포본 갱신 절차](../../tools/uart/UPGRADING.md)를 따른다.
+공식 소스·문서는 `official/{python,manuals}/`, repo 전용 wrapper·MCP는 `integration/`에 둔다.
+파일 해시 관리는 하지 않는다.
 
-- reboot 직후 boot log를 계속 수집해야 하는 경우
-- autoboot 중단, U-Boot prompt 진입, Linux login prompt 확인을 자동화해야 하는 경우
-- 사람과 Agent가 같은 UART 세션을 동시에 관찰하거나 제어해야 하는 경우
-- UART 출력 전체를 `logs/runtime_log`에 지속적으로 남겨야 하는 경우
+| target | 보드 | endpoint | 확인된 UART |
+|---|---|---|---|
+| `sk` | SK-AM64B | `192.168.0.33:17001` | COM10 / 115200 |
+| `tmds` | TMDS64EVM | `192.168.0.33:17002` | COM7 / 115200 |
 
-## 구성 요소
+보드의 Boot ROM → SPL → U-Boot → Linux → service/application 흐름을 같은 daemon 세션으로
+관찰한다. UART 접속 자체를 위해 현 장비에서 serial port를 직접 열지 않는다.
+COM 번호는 조회 시점의 값이며 재연결 후 `uart_list_ports`/`uart_status`로 확인한다.
 
-`tools/uart/` 아래의 관련 helper는 daemon 중심으로 운용한다.
+## 먼저 확인할 것
 
-- `uartd.py`
-  - UART port owner daemon
-  - `/dev/ttyUSB*`를 계속 열고 유지한다.
-  - 모든 UART 출력을 `logs/runtime_log`에 append한다.
-  - local Unix domain socket과 TCP 제어 인터페이스를 제공할 수 있다.
-- `uartctl.py`
-  - daemon client CLI
-  - `status`, `send`, `expect`, `command`, `tail`, `attach`, `watch`, `stop` 같은 제어를 수행한다.
-  - 기본 transport는 target profile 기반 TCP다.
-- `uart-mcp-server.py`
-  - Agent가 사용하는 MCP adapter
-  - UART를 직접 열지 않고 target profile이 가리키는 daemon JSON API만 호출한다.
-
-## 언제 daemon 모델을 써야 하는가
-
-다음 중 하나라도 해당하면 `uartd.py` + `uartctl.py`를 우선 고려한다.
-
-- 한 프로세스가 UART를 계속 점유해야 한다.
-- 사람은 계속 UART 출력을 보고 있고, 다른 Agent는 필요 시 명령을 보내야 한다.
-- serial port를 여러 도구가 번갈아 다시 여는 것보다 단일 owner가 더 안전하다.
-- `logs/runtime_log`를 세션 전체 증적으로 일관되게 유지해야 한다.
-
-현재 저장소 기준 권장 모델은 daemon owner + client 제어 구조다.
-
-## 기본 파일
-
-daemon 기본 경로는 다음과 같다.
+1. 의도한 target을 명시해 `uart_status`를 조회한다.
+2. `serial_state=connected`, 실제 `port`, `baud`, `instance_id`를 확인한다.
+3. `uart_tail`로 최근 콘솔 상태를 확인한다.
+4. U-Boot는 `=> `, Linux root는 `# `, 로그인 대기는 `login:`을 기준으로 판단한다.
+5. 현재 boot 단계와 맞는 명령을 실행한다. 오래된 prompt만으로 현재 상태를 단정하지 않는다.
 
 ```text
-logs/runtime_log   UART output append log
-logs/uartd.sock    local Unix socket control channel (fallback)
-logs/uartd.pid     daemon pid file
-logs/uartd.log     daemon internal log
-tools/uart/targets.json  target name -> TCP/Unix endpoint profile
+uart_status(target="sk")
+uart_tail(target="sk", lines=80)
+uart_command(target="sk", line="uname -a", expect="# ", timeout=10, newline="lf")
 ```
 
-## 기본 사용 순서
+두 보드의 endpoint/token/session은 서로 다르다. 기본 target은 SK이지만 여러 보드를 다루는 작업은
+모든 호출에 target을 명시한다. 현재 `custom` target은 배정되어 있지 않다.
 
-### 1. daemon 준비 상태 확인
+## MCP 설정과 인증
 
-현재 저장소의 기본 운영에서는 각 보드 UART를 이 host에서 직접 열지 않고,
-외부 host에서 이미 실행 중인 `uartd` TCP endpoint에 붙는다.
+- `opencode.jsonc`: `mcp.uart` → `/usr/bin/python3 ./tools/uart/integration/mcp_server.py`.
+- `tools/uart/config/targets.json`: endpoint와 target별 토큰 파일 경로.
+- `tools/uart/.secrets/{sk,tmds}.token`: Git 제외, 로컬에서만 보관하는 서버 인증 토큰.
+- Python 표준 라이브러리 기반 repo adapter를 사용하므로 FastMCP 설치는 필요하지 않다.
 
-현재 기본 매핑:
+repo 루트에서 OpenCode를 실행한다. 설정 변경은 실행 중 세션에 hot reload되지 않으므로 종료 후
+재시작한다. 재시작 후 `tools/list`에 UART tool 11개가 보이는지 확인한다.
+토큰 선택 우선순위와 새 장비 준비는 [UART 도구 가이드](../../tools/uart/README.md)를 따른다.
 
-```text
-custom -> 192.168.0.170:17001
-tmds   -> 192.168.0.170:17002
-sk     -> 192.168.0.170:17003
-```
+## 입력과 출력 대기
 
-따라서 이 host에서 보통 먼저 할 일은 `uartd.py start`가 아니라 `uartctl.py status`다.
+- 일반 명령: `uart_command(line=..., expect=...)`. 한 요청에서 명령 전송 이후 출력만 기다린다.
+- 입력만 전송: `uart_sendline(line=...)`.
+- 개행 없이 raw 입력: `uart_send(text=..., newline=false)`. Ctrl-C 등은 실제 제어 문자를 전달한다.
+- 출력만 대기: `uart_expect(pattern=..., from="now")`.
+- 이미 도착한 출력 검색: `uart_expect(pattern=..., from="buffer")`.
+- 특정 이후 구간 검색: `from_offset`을 사용한다. offset은 daemon의 문자 위치다.
 
-### 2. 상태 확인
+pattern은 정규식이 아닌 리터럴 부분 문자열이다. `uart_sendline`/`uart_command`의 개행은
+`lf`, `crlf`, `cr`, `none` 중 선택한다. 현재 MCP 설정의 기본 개행은 LF다.
+배포 FastMCP와 달리 repo의 `uart_command` 인자는 `text`가 아닌 **`line`**이다.
+
+timeout은 명령이 실행되지 않았다는 의미가 아니다. 같은 명령을 반복하지 말고 `uart_tail`로 최근
+출력을 확인한 뒤 다음 동작을 결정한다. 별도 send → expect 사이에 prompt가 이미 도착할 수 있으므로
+일반 명령은 `uart_command`를 우선 사용한다.
+
+## 연결 상태와 포트 변경
+
+신버전 daemon은 UART가 없어도 TCP 제어 연결을 유지할 수 있다.
+
+- `status.ok=true`는 daemon 응답 성공이다. `serial_state`, `port`, `last_serial_error`를 함께 본다.
+- `uart_list_ports`: 서버 호스트의 serial 장치를 조회한다.
+- `uart_set_port(port=..., baud=..., force=false)`: daemon 재시작 없이 포트를 연결/전환한다.
+- `uart_disconnect(force=false)`: UART만 해제하며 daemon과 TCP는 유지한다.
+- `uart_baud(baud=...)`: 현재 연결의 baud를 바꾼다.
+
+이 동작들은 해당 daemon을 공유하는 모든 client에 영향을 준다. RW attach가 있으면 포트 전환이
+거절되며, 전환이 의도된 경우에만 `force=true`를 사용한다. expect/command 진행 중에는 완료 후
+다시 시도한다. 새 포트 열기에 실패하면 기존 연결을 보존한다.
+`session_generation`이 바뀌면 새 연결 세션으로 구분하고 이전 검색 buffer와 혼동하지 않는다.
+
+`rw_attach_clients`, `ro_attach_clients`, `last_writer`로 공유 상태를 확인한다.
+공식 신규 daemon은 `send_expect`에 기본 exclusive lease를 사용한다. RW attach가 있거나
+다른 command가 실행 중이면 command 시작을 거절하므로, 사용을 마친 RW attach를 먼저 종료한다.
+RO 모니터링은 가능하다. 실제 적용 동작은 원격 daemon 버전을 기준으로 확인한다.
+
+## reboot → U-Boot
+
+`uart_reboot_to_uboot`는 Linux shell/login 상태 확인, reboot, autoboot 중단, U-Boot prompt 대기를
+한 흐름으로 처리하는 기존 helper다. 실제 reboot가 필요한 작업에서 사용한다.
+실패하면 `uart_tail`로 마지막 boot 단계와 prompt를 확인하고 같은 reboot를 무조건 반복하지 않는다.
+보드별 autoboot 문구가 다르면 helper 인자를 조정한다.
+
+## UART 증적의 기준
+
+기준은 **선택한 target의 daemon이 기록한 `runtime_log`**다.
+`uart_status.runtime_log`는 서버 파일 경로이며 현재는 원격 Windows 경로다.
+현 Ubuntu의 `logs/runtime_log`는 자동 동기화되지 않는다.
+
+- 원격 작업은 같은 target의 `uart_tail` 또는 CLI `tail`/`watch`를 우선 증적으로 사용한다.
+- 로컬 `logs/runtime_log`가 있으면 대상 보드/수집 시점이 일치하는 링크 또는 복사본인지 확인한다.
+- 로그를 장기 보관할 때 target, endpoint, instance_id, session_generation, 수집 시점을 함께 기록한다.
+- kernel boot/reboot/panic은 UART 증적으로 판단하고, steady-state는 SSH/journal/`dmesg`/`/sys`를 함께 본다.
+
+## CLI fallback
+
+MCP 기능 제약, adapter 연결 진단, 사람용 interactive console 또는 read-only live watch가 필요한 경우
+CLI를 사용한다.
 
 ```bash
-./tools/uart/uartctl.py status
+python3 tools/uart/integration/cli.py --target sk status
+python3 tools/uart/integration/cli.py --target sk tail --lines 80
+python3 tools/uart/integration/cli.py --target sk watch --backlog-lines 40
+python3 tools/uart/integration/cli.py --target sk attach --backlog-lines 20
+python3 tools/uart/integration/cli.py --target tmds command 'uname -a' --expect '# ' --timeout 10
 ```
 
-기본 target은 `tools/uart/targets.json`의 `default_target`이며 현재는 `sk`다. 즉 인자를 생략하면 기본적으로 TCP `192.168.0.170:17003`로 접속한다.
-
-다른 target 예시:
-
-```bash
-./tools/uart/uartctl.py --target tmds status
-./tools/uart/uartctl.py --target custom status
-```
-
-예상 정보:
-
-- daemon pid
-- UART port
-- baudrate
-- socket path
-- runtime log path
-- 연결된 client 수
-- 현재 daemon 수신 offset
-- backlog 시작 offset
-- 현재 메모리 buffer 길이
-
-### 3. 출력 관찰
-
-방법 A: daemon client로 보기
-
-```bash
-./tools/uart/uartctl.py tail
-```
-
-방법 B: raw log 파일 직접 보기
-
-```bash
-tail -f logs/runtime_log
-```
-
-사람이 계속 UART 출력을 확인하려면 보통 방법 B가 가장 단순하다.
-
-방법 C: read-only raw UART 콘솔처럼 보기
-
-```bash
-./tools/uart/uartctl.py watch
-```
-
-`watch`는 read-only live console이다. backlog를 같이 보려면 `--backlog-lines`를 사용한다.
-
-### 4. 입력 전송
-
-줄바꿈 없이 raw text 전송:
-
-```bash
-./tools/uart/uartctl.py send "boot"
-```
-
-줄바꿈 포함 전송:
-
-```bash
-./tools/uart/uartctl.py send "printenv bootcmd" --newline
-./tools/uart/uartctl.py send "" --newline
-```
-
-마지막 예시는 autoboot 중단용 Enter 입력에 사용할 수 있다.
-
-직접 interactive console처럼 붙으려면:
-
-```bash
-./tools/uart/uartctl.py attach
-```
-
-기본 detach sequence는 `Ctrl-]` 다음 `q`다.
-
-### 4.1 프롬프트 동기화 command 전송
-
-현재 저장소의 권장 제어 방식은 `send`와 `expect`를 따로 분리하는 것보다,
-하나의 command 요청에서 전송과 기대 문자열 대기를 함께 묶는 것이다.
-
-```bash
-./tools/uart/uartctl.py command "usb start" --expect "=> " --timeout 20
-./tools/uart/uartctl.py command "printenv bootcmd" --expect "=> " --timeout 5
-./tools/uart/uartctl.py command "root" --expect "root@am64xx-evm:~#" --timeout 10
-```
-
-이 방식의 목적:
-
-- 예전 backlog 안에 남아 있던 `=> ` 또는 `login:`을 새 프롬프트로 오인하지 않기
-- command 전송 직후의 새 UART 출력만 기준으로 다음 prompt를 기다리기
-- 성공 시 실제 UART output text와 match offset을 함께 받아 후속 판단에 쓰기
-
-### 5. 문자열 대기
-
-```bash
-./tools/uart/uartctl.py expect "Hit any key to stop autoboot" --timeout 5
-./tools/uart/uartctl.py expect "=> " --timeout 3
-./tools/uart/uartctl.py expect "login:" --timeout 60
-```
-
-`expect`는 현재 daemon이 보유 중인 UART backlog와 이후 새로 들어오는 출력 모두를 기준으로 매치한다.
-현재 구현에서는 match 성공 시 `output`, timeout 시 `tail`과 `output_since_start`도 함께 반환하므로,
-상위 Agent가 timeout 이후 현재 상태를 다시 해석하기 쉽다.
-
-새 출력만 기준으로 대기하고 싶으면 `--fresh`를 사용한다.
-
-```bash
-./tools/uart/uartctl.py expect "login:" --timeout 10 --fresh
-./tools/uart/uartctl.py expect "=> " --timeout 5 --fresh
-```
-
-특정 daemon offset 이후만 보고 싶으면 `--from-offset`를 사용한다.
-
-```bash
-./tools/uart/uartctl.py expect "=> " --from-offset 1200 --timeout 5
-```
-
-## backlog-aware expect 와 fresh expect 의 차이
-
-`uartd.py`는 UART 전체 backlog를 메모리 buffer에 유지한다. 그래서 단순 `expect`는 과거에 이미 출력된
-문자열도 바로 매치할 수 있다.
-
-```text
-expect
-  - daemon backlog + 새 출력 모두 검색
-  - 로그 관찰/상태 확인에는 유용
-
-expect --fresh
-  - 요청 시점 이후 새 출력만 검색
-  - U-Boot prompt 동기화, login prompt 동기화에 권장
-
-command --expect
-  - daemon 내부에서 send + expect 를 하나의 transaction 으로 처리
-  - 제어용 자동화에서는 가장 권장
-```
-
-### 6. daemon 종료
-
-```bash
-./tools/uart/uartctl.py stop
-```
-
-## 예시 workflow
-
-### reboot 감시 후 U-Boot 진입
-
-terminal A:
-
-```bash
-./tools/uart/uartctl.py --target sk attach
-```
-
-terminal B:
-
-```bash
-./tools/uart/uartctl.py expect "Hit any key to stop autoboot" --timeout 5 --fresh
-./tools/uart/uartctl.py send "" --newline
-./tools/uart/uartctl.py expect "=> " --timeout 3 --fresh
-./tools/uart/uartctl.py command "printenv bootcmd" --expect "=> " --timeout 3
-```
-
-이 구조에서는 사람은 terminal A에서 raw UART를 계속 보고, Agent 또는 사용자 명령은 terminal B에서 수행할 수 있다.
-
-## Agent 사용 원칙
-
-- 상위 Agent는 가능하면 serial port를 직접 다시 열지 않는다.
-- 이미 `uartd.py`가 실행 중이면 `uartctl.py`를 통해 접근한다.
-- `logs/runtime_log`는 UART 1차 증적이므로, 자동화 중에도 다른 terminal에서 확인 가능해야 한다.
-- 장시간 세션 중 예상 밖 동작이 보이면 `runtime_log`, `uartd.log`, `status` 정보를 함께 본다.
-- 제어 자동화에서는 backlog-aware `expect`보다 `command --expect` 또는 `expect --fresh`를 우선 사용한다.
-- 현재 프롬프트가 불확실하면 먼저 empty newline을 보내고(`send "" --newline`), 그 뒤 원하는 프롬프트를 fresh mode로 확인한다.
-- 커스텀 보드 target은 원격 host에서 daemon이 실행될 수 있으므로, 원격 host의 `logs/runtime_log` 파일 자체를 local filesystem 증적으로 직접 참조할 수 있다고 가정하지 않는다.
-
-## 운영 주의사항
-
-- UART port는 한 번에 하나의 owner만 여는 것이 안전하다. daemon 모델에서는 `uartd.py`만 owner다.
-- daemon 실행 중 다른 terminal에서 `picocom`, `screen`, `minicom`, 별도 Python script 등으로 같은 port를 다시 열면 충돌할 수 있다.
-- 외부 host daemon의 `runtime_log`는 이 host local path와 다를 수 있으므로 status 응답의 경로를 기준으로 본다.
-- `uartctl.py tail`은 편의용 stream이고, 원본 증적 확인은 `logs/runtime_log` 기준으로 판단한다.
-- `uartctl attach`는 terminal raw mode를 사용하므로 비정상 종료 시 `reset` 또는 `stty sane`가 필요할 수 있다.
-
-## 권장 모델
-
-현재 저장소의 기본 UART 운용 모델은 `외부 uartd + local uartctl.py`다.
-
-- `uartd.py`
-  - 원격 host 측 UART owner
-  - target별 `runtime_log` 증적 유지
-- `uartctl.py`
-  - 사용자/Agent 제어 인터페이스
-  - `status`, `send`, `expect`, `tail`, `stop`
-
-즉 **계속 붙어 있는 UART owner와 외부 제어 인터페이스**가 기본이고, 사람과 Agent는 같은 daemon 세션을 공유하는 방향으로 운용한다.
-
-## MCP adapter
-
-Agent는 `tools/uart/uart-mcp-server.py`를 통해 UART daemon에 접근할 수 있다.
-
-기본 운용은 generic `uart` MCP 하나를 사용하고, tool argument의 `target`으로 `sk`, `tmds`, `custom`을 선택하는 방식이다.
-
-기본 구조:
-
-```text
-opencode Agent
-  -> MCP stdio
-  -> uart-mcp-server.py
-  -> target profile (`sk`, `tmds`, `custom`)
-  -> tcp://127.0.0.1:17001 or target-specific endpoint
-  -> uartd.py
-  -> /dev/ttyUSBx or remote host serial port
-```
-
-초기 MCP tool은 다음 5개를 기준으로 한다.
-
-- `uart_status`
-- `uart_tail`
-- `uart_sendline`
-- `uart_expect`
-- `uart_command`
-
-중요 원칙:
-
-- MCP adapter는 UART 포트를 직접 열지 않는다.
-- UART owner는 항상 `uartd.py` 하나다.
-- 사람이 `attach` 중이어도 MCP write는 차단하지 않는다.
-- MCP command 중에도 attach 입력은 차단하지 않는다.
-- target 선택은 별도 MCP alias가 아니라 tool argument의 `target`으로 수행한다.
+CLI `send` 기본값은 개행 없음이며 `--newline`으로 LF를 넣는다. CLI `expect`는 기본 buffer 검색,
+`--fresh`는 요청 이후 검색이다. MCP `uart_expect` 기본값은 `from="now"`이므로 구분한다.
+CLI `tail`은 backlog 후 계속 구독하며 단발 조회가 아니다. `tail`/`watch` 종료는 Ctrl-C다.
+`attach`는 Ctrl-] 다음 q로 종료한다.
+
+## 통합 검증 기록
+
+2026-11-05 초기 통합에서 로컬 fake serial/socket 테스트를 수행했다.
+원격 SK/TMDS 모두 인증된 status/tail/ports 조회와 MCP stdio initialize/list/call에 성공했다.
+조회 시 두 보드는 `serial_state=connected`, 최근 로그는 Linux root prompt였다.
+초기 통합 검증은 읽기 전용으로 수행했다. 후속 정리에서는 두 보드 각각 CLI `attach`를
+pseudo-terminal에서 실행하고 marker 출력/`uname -n` 입력, 보드 출력/root prompt 수신,
+`Ctrl-]` 다음 q 종료를 확인했다. 종료 후 두 daemon의 `attach_clients=0`도 확인했다.
+실제 reboot와 원격 포트/baud 변경은 실행하지 않았다.
+
+상세 증적: [2026-11-05 폴더 정리 및 attach 검증](../bringup-logs/2026-11-05_uart-tool-cleanup-and-attach-validation.md).
+
+이후 사용자가 제공한 새 `manuals/`, `python/` 배포본으로 교체하고 공식/repo 계층을 최종 정리했다.
+이 구조의 검증 기록은 [공식 소스 재구성 및 보드 확인](../bringup-logs/2026-11-05_uart-official-source-reorganization.md)을 따른다.
+
+배포 매뉴얼 원본은 `tools/uart/official/manuals/`, 실제 프로젝트용 인자/설정의 기준은
+`tools/uart/README.md`와 repo MCP tool schema다.

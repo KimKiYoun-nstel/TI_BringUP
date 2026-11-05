@@ -1,64 +1,41 @@
-# UART MCP Test Todo
+# UART MCP 새 세션 확인
 
-새 세션에서 단일 `uart` MCP와 `target` 파라미터가 정상 동작하는지 빠르게 확인한다.
-
-## 전제
-
-- opencode를 재시작해서 최신 `opencode.jsonc`를 반영한다.
-- 로컬 SK `uartd`는 실행 중이어야 한다.
-  - 기본 TCP: `127.0.0.1:17001`
-- 커스텀 보드 원격 `uartd`도 실행 중이어야 한다.
-  - target profile: `192.168.0.170:17001`
+OpenCode를 종료 후 repo 루트에서 재시작해 최신 `opencode.jsonc`를 반영한다.
+`tools/uart/.secrets/{sk,tmds}.token`이 준비되어 있고 원격 daemon이 실행 중이어야 한다.
 
 ## 확인 목표
 
-- MCP server는 `uart` 하나만 보인다.
-- 각 tool에 `target` 파라미터가 보인다.
-- `target=sk`와 `target=custom` 호출이 각각 정상 동작한다.
+- 단일 `uart` MCP에 tool 11개가 보이고 모두 `target` 인자를 제공한다.
+- `sk=192.168.0.33:17001`, `tmds=192.168.0.33:17002`로 인증된 호출이 라우팅된다.
+- `uart_send`, `uart_list_ports`, `uart_set_port`, `uart_disconnect`, `uart_baud` 신기능이 보인다.
 
-## 테스트 순서
+## 읽기 전용 확인 순서
 
-### 1. tool 목록 확인
+각 target에 다음을 호출한다.
 
-- `uart_status`
-- `uart_tail`
-- `uart_sendline`
-- `uart_expect`
-- `uart_command`
-- 각 tool input schema에 `target`이 있는지 확인
-
-### 2. SK target 테스트
-
-- `uart_status` with `target=sk`
-- `uart_tail` with `target=sk`, `lines=20`
-- `uart_command` with:
-
-```json
-{"target":"sk","line":"uname -n","expect":"# ","timeout":5}
+```text
+uart_status(target="sk")
+uart_tail(target="sk", lines=20)
+uart_list_ports(target="sk")
+uart_status(target="tmds")
+uart_tail(target="tmds", lines=20)
+uart_list_ports(target="tmds")
 ```
 
 기대 결과:
 
-- endpoint가 `tcp://127.0.0.1:17001`
-- shell prompt 또는 `linux_root` 상태 확인
-- `uname -n` 출력 확인
+- `status.ok=true`와 `serial_state=connected`, 올바른 endpoint/instance_id를 확인한다.
+- `tail`은 해당 보드의 최근 로그를 반환한다. prompt 상태는 조회 시점에 따라 다를 수 있다.
+- `list_ports`는 원격 서버의 COM 목록을 반환한다.
 
-### 3. custom target 테스트
-
-- `uart_status` with `target=custom`
-- `uart_tail` with `target=custom`, `lines=20`
-- `uart_expect` with:
+보드 입력이 필요한 작업에서는 prompt 확인 후 다음 형식으로 실행한다.
 
 ```json
-{"target":"custom","pattern":"# ","timeout":1,"from":"buffer"}
+{"target":"sk","line":"uname -n","expect":"# ","timeout":5,"newline":"lf"}
 ```
 
-기대 결과:
+위 JSON은 `uart_command` 인자다. timeout이면 재전송 전에 같은 target의 `uart_tail`을 확인한다.
+포트 전환/baud 변경/reboot는 실제 작업에서 필요할 때 수행한다.
 
-- endpoint가 `tcp://192.168.0.170:17001`
-- root shell prompt backlog 또는 현재 상태 확인
-
-## 주의
-
-- 커스텀 보드는 원격 host에서 daemon이 실행 중이므로 local filesystem의 `runtime_log` 직접 확인을 기대하지 않는다.
-- 커스텀 보드에 이미 다른 사용자가 `attach` 중일 수 있으므로, 새 세션 테스트는 가능하면 `status`, `tail`, `expect` 위주로 진행한다.
+원격 `runtime_log`는 서버 파일이다. 로컬 `logs/runtime_log`와 자동 동기화되는 것으로 가정하지 않는다.
+상세 사용법은 [tools/uart/README.md](tools/uart/README.md)를 따른다.

@@ -55,13 +55,18 @@ docs/common/ISSUE_RESOLUTION_WORKFLOW.md
 logs/runtime_log
 ```
 
-`logs/runtime_log`는 board의 UART terminal 로그와 동기화된 링크 파일로 간주한다. 따라서 kernel boot, reboot 직후 상태, early service startup timing, panic/crash 직전후 출력처럼 **UART에서 직접 보이는 boot/runtime 증적**이 필요할 때 이 파일을 우선 reference로 사용한다. UART 관련 판단의 기준 로그는 항상 `logs/runtime_log`다. 반대로 OS 부팅 이후의 일반적인 steady-state 동작 분석은 SSH, systemd journal, `/sys`, `dmesg`, 서비스 상태, 애플리케이션 출력 등을 함께 본다.
+UART 증적의 원본은 선택한 target의 `uartd`가 기록하는 `runtime_log`다. 로컬 `logs/runtime_log`는 해당 보드와 수집 시점이 맞는 링크/복사본일 때 사용한다. 현재 원격 daemon 구성에서는 로그가 자동으로 로컬에 동기화되지 않으므로 같은 target의 MCP `uart_tail`을 우선 사용하고 `uart_status.runtime_log`로 서버 경로를 확인한다. kernel boot, reboot 직후 상태, early service startup timing, panic/crash 전후처럼 **UART에서 직접 보이는 boot/runtime 증적**은 이 기준으로 판단한다. 반대로 OS 부팅 이후의 일반적인 steady-state 동작 분석은 SSH, systemd journal, `/sys`, `dmesg`, 서비스 상태, 애플리케이션 출력 등을 함께 본다.
 
 reboot 이후 UART 출력 감시, autoboot 중단, U-Boot prompt 진입, boot command 검증, Linux prompt 확인처럼 **UART 상호작용 자체를 재현하거나 자동화**해야 하는 작업은 daemon 기준 구조를 사용한다.
 
-- `tools/uart/uartd.py`: UART port owner daemon
-- `tools/uart/uartctl.py`: 사람 또는 로컬 script가 직접 사용하는 CLI
-- `tools/uart/uart-mcp-server.py`: Agent가 사용하는 MCP adapter
+- `tools/uart/official/python/uartd.py`: 공식 UART port owner daemon 원천
+- `tools/uart/integration/cli.py`: 사람 또는 로컬 script가 사용하는 repo CLI wrapper
+- `tools/uart/integration/mcp_server.py`: Agent가 사용하는 repo 독립 MCP adapter
+- `tools/uart/config/targets.json`: 보드별 endpoint·토큰 파일 설정
+
+공식 코드·문서는 `tools/uart/official/{python,manuals}/`로 관리하고 repo 전용 변경은
+`integration/`에 둔다. 공식 `uart_mcp.py`는 예제이며 repo MCP 실행 대상이 아니다.
+공식 파일의 별도 해시 관리는 하지 않는다.
 
 구조와 사용 절차의 상세 설명은 `docs/common/UART_DAEMON_AGENT_WORKFLOW.md`를 우선 참고한다.
 
@@ -69,7 +74,7 @@ reboot 이후 UART 출력 감시, autoboot 중단, U-Boot prompt 진입, boot co
 
 이 프로젝트에서 UART 사용 원칙은 다음과 같다.
 
-1. UART 로그의 기준은 항상 `logs/runtime_log`다.
+1. UART 로그의 기준은 선택한 target daemon의 `runtime_log`다. 원격 접속 시 MCP `uart_tail`로 확인하며, 로컬 `logs/runtime_log`는 동기화된 대상/시점을 확인한다.
 2. UART를 통한 boot log 확인과 입출력 상호작용은 기본적으로 `uart` MCP 서버를 사용한다.
 3. MCP server 제공 tool의 기능 제약 때문에 작업을 계속 진행할 수 없을 때만 `uartctl.py`를 직접 사용한다.
 4. UART port는 오직 `uartd.py`만 직접 연다. Agent와 사용자는 모두 `uartd`를 통해 같은 세션을 공유한다.
@@ -88,13 +93,14 @@ reboot 이후 UART 출력 감시, autoboot 중단, U-Boot prompt 진입, boot co
 
 사용 기준:
 
-1. 현재 콘솔 상태가 불명확하면 먼저 `uart_tail`을 사용한다.
+1. target을 명시하고 `uart_status`로 `serial_state`, `port`, `instance_id`를 확인한다. 현재 콘솔 상태가 불명확하면 `uart_tail`을 사용한다. 현재 `sk=192.168.0.33:17001`, `tmds=192.168.0.33:17002`이며 토큰 파일은 `tools/uart/.secrets/`에 Git 제외 상태로 둔다.
 2. U-Boot prompt는 `=> `, Linux root shell prompt는 `# `, login prompt는 `login:`을 기준으로 판단한다.
 3. 일반 명령은 `uart_command`를 사용한다.
 4. 입력만 필요하면 `uart_sendline`을 사용한다.
 5. 출력만 기다릴 때는 `uart_expect`를 사용한다.
 6. timeout이 발생하면 같은 명령을 반복하지 말고 `uart_tail`로 최근 출력을 다시 확인한다.
-7. 사람이 `uartctl attach`를 보고 있어도 MCP write는 허용된다. 다만 동시 입력 충돌은 사용자가 판단한다.
+7. 사람이 RW `attach` 중이면 공유 입력 충돌에 주의한다. 공식 신규 daemon의 command는 기본 exclusive lease를 사용하므로 RW attach를 종료한 뒤 실행한다. RO 모니터링은 함께 사용할 수 있다.
+8. `uart_list_ports`, `uart_set_port`, `uart_disconnect`, `uart_baud`로 원격 UART 연결을 관리한다. 포트 전환은 공유 client에 영향을 주며, `session_generation`이 바뀌면 새로운 연결 세션으로 구분한다.
 
 ## UART CLI fallback 지침
 
@@ -107,14 +113,14 @@ reboot 이후 UART 출력 감시, autoboot 중단, U-Boot prompt 진입, boot co
 
 대표 명령:
 
-- `./tools/uart/uartctl.py status`
-- `./tools/uart/uartctl.py tail`
-- `./tools/uart/uartctl.py watch`
-- `./tools/uart/uartctl.py attach`
-- `./tools/uart/uartctl.py send ...`
-- `./tools/uart/uartctl.py command ... --expect ...`
+- `python3 tools/uart/integration/cli.py --target sk status`
+- `python3 tools/uart/integration/cli.py --target sk tail`
+- `python3 tools/uart/integration/cli.py --target sk watch`
+- `python3 tools/uart/integration/cli.py --target sk attach`
+- `python3 tools/uart/integration/cli.py --target sk send ...`
+- `python3 tools/uart/integration/cli.py --target sk command ... --expect ...`
 
-다만 CLI fallback을 사용하더라도 판단 기준 로그는 여전히 `logs/runtime_log`다.
+CLI fallback에서도 같은 target daemon의 `runtime_log`가 판단 기준이다. 원격 파일 경로를 로컬 경로로 해석하지 않는다.
 
 ## Repository의 현재 성격
 

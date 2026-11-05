@@ -3,18 +3,15 @@
   "targets": {
     "sk": {
       "transport": "tcp",
-      "tcp": "192.168.0.170:17003",
+      "tcp": "192.168.0.33:17001",
+      "token_file": "../.secrets/sk.token",
       "description": "Remote SK-AM64B uartd"
     },
     "tmds": {
       "transport": "tcp",
-      "tcp": "192.168.0.170:17002",
+      "tcp": "192.168.0.33:17002",
+      "token_file": "../.secrets/tmds.token",
       "description": "Remote TMDS64EVM uartd"
-    },
-    "custom": {
-      "transport": "tcp",
-      "tcp": "192.168.0.170:17001",
-      "description": "Remote custom board uartd"
     }
   }
 }

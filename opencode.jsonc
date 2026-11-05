@@ -23,12 +23,11 @@
       "type": "local",
       "command": [
         "/usr/bin/python3",
-        "/home/nstel/ti/TI_Bringup/tools/uart/uart-mcp-server.py"
+        "./tools/uart/integration/mcp_server.py"
       ],
       "enabled": true,
       "environment": {
         "PYTHONUNBUFFERED": "1",
-        "UART_TARGETS_FILE": "/home/nstel/ti/TI_Bringup/tools/uart/targets.json",
         "UART_TARGET": "sk",
         "UART_MCP_DEFAULT_NEWLINE": "lf",
         "UART_MCP_DEFAULT_TIMEOUT": "10"

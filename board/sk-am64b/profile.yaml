@@ -8,8 +8,8 @@ management:
   primary_ip: null
 uart:
   transport: tcp
-  endpoint: 192.168.0.170:17003
-  control_tool: python3 tools/uart/uartctl.py --target sk
+  endpoint: 192.168.0.33:17001
+  control_tool: python3 tools/uart/integration/cli.py --target sk
 lab_links:
   - name: gptp_eth1_direct
     interface: eth1

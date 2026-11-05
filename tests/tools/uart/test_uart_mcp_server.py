@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import tools.uart.uart_mcp_server as uart_mcp_server
+from tools.uart.integration import mcp_server as uart_mcp_server
 from tests.tools.uart.test_uartd import DaemonHarness
 
 
@@ -22,9 +23,11 @@ class UartMcpServerTests(unittest.TestCase):
             harness.start()
             try:
                 harness.fake_serial.read_queue.put(b'U-Boot SPL 2026.01\r\n=> ')
-                client = uart_mcp_server.UartdClient(harness.config.socket_path)
+                args = uart_mcp_server.build_parser().parse_args([
+                    '--socket', str(harness.config.socket_path),
+                ])
 
-                tail_result = uart_mcp_server.handle_tool_call(client, 'uart_tail', {'lines': 20}, 5.0, 'crlf')
+                tail_result = uart_mcp_server.handle_tool_call(args, 'uart_tail', {'lines': 20}, 5.0, 'crlf')
                 structured_tail = tail_result['structuredContent']
                 self.assertTrue(structured_tail['ok'])
                 self.assertEqual(structured_tail['state_hint'], 'uboot')
@@ -38,7 +41,7 @@ class UartMcpServerTests(unittest.TestCase):
                 thread = threading.Thread(target=delayed_command_output, daemon=True)
                 thread.start()
                 command_result = uart_mcp_server.handle_tool_call(
-                    client,
+                    args,
                     'uart_command',
                     {'line': 'printenv', 'expect': '=> ', 'timeout': 2, 'newline': 'crlf'},
                     5.0,
@@ -60,8 +63,8 @@ class UartMcpServerTests(unittest.TestCase):
                 harness.fake_serial.read_queue.put(b'login: ')
                 proc = subprocess.Popen(
                     [
-                        'python3',
-                        '/home/nstel/ti/TI_Bringup/tools/uart/uart-mcp-server.py',
+                        sys.executable,
+                        str(Path(__file__).resolve().parents[3] / 'tools/uart/integration/mcp_server.py'),
                         '--socket',
                         str(harness.config.socket_path),
                     ],

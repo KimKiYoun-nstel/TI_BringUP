@@ -12,15 +12,23 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from uart_endpoint import DEFAULT_TARGETS_FILE
-from uart_endpoint import Endpoint
-from uart_endpoint import EndpointConfigError
-from uart_endpoint import available_targets
-from uart_endpoint import default_target_name
-from uart_endpoint import endpoint_from_options
+if __package__:
+    from .endpoint import (DEFAULT_TARGETS_FILE, Endpoint, EndpointConfigError,
+                                available_targets, default_target_name,
+                                endpoint_from_options, resolve_token)
+    from .distribution import uart_api
+else:
+    from endpoint import (DEFAULT_TARGETS_FILE, Endpoint, EndpointConfigError,
+                               available_targets, default_target_name,
+                               endpoint_from_options, resolve_token)
+    from distribution import uart_api
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+JsonSocketReader = uart_api.JsonSocketReader
+UARTAPIError = uart_api.UARTAPIError
+api_request = uart_api.request
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_TIMEOUT = float(os.environ.get("UART_MCP_DEFAULT_TIMEOUT", "10"))
 DEFAULT_NEWLINE = os.environ.get("UART_MCP_DEFAULT_NEWLINE", "crlf")
 PROTOCOL_VERSION = "2024-11-05"
@@ -33,9 +41,19 @@ class UartMcpError(Exception):
 @dataclass
 class UartdClient:
     endpoint: Endpoint
+    token_file: str | None = None
 
     def request(self, payload: dict[str, Any], timeout: float | None = None) -> dict[str, Any]:
-        effective_timeout = timeout if timeout is not None else DEFAULT_TIMEOUT + 3
+        effective_timeout = timeout if timeout is not None else DEFAULT_TIMEOUT + 6
+        token = resolve_token(self.endpoint, self.token_file)
+        if self.endpoint.kind == "tcp":
+            return api_request(self.endpoint.description, payload, token=token,
+                               timeout=effective_timeout)
+
+        # The official API is TCP-only; retain the local Unix socket adapter.
+        payload = dict(payload)
+        if token:
+            payload["token"] = token
         with self._connect(effective_timeout) as sock:
             sock.settimeout(effective_timeout)
             sock.sendall((json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8"))
@@ -43,33 +61,20 @@ class UartdClient:
         return response
 
     def _connect(self, timeout: float) -> socket.socket:
-        if self.endpoint.kind == "tcp":
-            assert self.endpoint.host is not None and self.endpoint.port is not None
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(timeout)
-            sock.connect((self.endpoint.host, self.endpoint.port))
-            return sock
-
         if not hasattr(socket, "AF_UNIX"):
             raise UartMcpError("Unix socket transport is not available on this platform. Use TCP target profiles instead.")
         assert self.endpoint.socket_path is not None
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.settimeout(timeout)
-        sock.connect(str(self.endpoint.socket_path))
+        try:
+            sock.settimeout(timeout)
+            sock.connect(str(self.endpoint.socket_path))
+        except OSError:
+            sock.close()
+            raise
         return sock
 
     def _recv_json(self, sock: socket.socket) -> dict[str, Any]:
-        buffer = ""
-        while True:
-            chunk = sock.recv(65536)
-            if not chunk:
-                raise UartMcpError("uartd closed the connection")
-            buffer += chunk.decode("utf-8", errors="replace")
-            if "\n" not in buffer:
-                continue
-            line, _rest = buffer.split("\n", 1)
-            if line.strip():
-                return json.loads(line)
+        return JsonSocketReader(sock).recv_json()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -77,10 +82,11 @@ def build_parser() -> argparse.ArgumentParser:
     transport = parser.add_mutually_exclusive_group()
     transport.add_argument("--socket", default=None)
     transport.add_argument("--tcp", default=None)
-    parser.add_argument("--target", default=None, help="Named UART target from tools/uart/targets.json")
+    parser.add_argument("--target", default=None, help="Named UART target from tools/uart/config/targets.json")
     parser.add_argument("--targets-file", default=str(DEFAULT_TARGETS_FILE), help="UART target profile JSON path")
     parser.add_argument("--default-timeout", type=float, default=DEFAULT_TIMEOUT)
     parser.add_argument("--default-newline", default=DEFAULT_NEWLINE)
+    parser.add_argument("--token-file", default=None, help="Override target authentication token file")
     return parser
 
 
@@ -113,6 +119,42 @@ def target_input_schema(default_target: str, targets: list[str]) -> dict[str, An
 def tool_definitions(default_target: str, targets: list[str]) -> list[dict[str, Any]]:
     target_schema = target_input_schema(default_target, targets)
     return [
+        {
+            "name": "uart_send",
+            "description": "Send text without waiting. No newline by default; supports raw control characters.",
+            "inputSchema": {"type": "object", "properties": {
+                "target": target_schema, "text": {"type": "string"},
+                "newline": {"enum": [False, True, "lf", "crlf", "cr", "none"], "default": False},
+            }, "required": ["text"]},
+        },
+        {
+            "name": "uart_list_ports",
+            "description": "List serial ports on the remote daemon host. Read-only.",
+            "inputSchema": {"type": "object", "properties": {"target": target_schema}},
+        },
+        {
+            "name": "uart_set_port",
+            "description": "Connect or switch the daemon UART without restarting TCP. Affects all clients; force permits switching with RW attach clients.",
+            "inputSchema": {"type": "object", "properties": {
+                "target": target_schema, "port": {"type": "string"},
+                "baud": {"type": "integer", "minimum": 1},
+                "force": {"type": "boolean", "default": False},
+            }, "required": ["port"]},
+        },
+        {
+            "name": "uart_disconnect",
+            "description": "Disconnect UART while keeping the daemon and TCP connections alive. Affects all clients.",
+            "inputSchema": {"type": "object", "properties": {
+                "target": target_schema, "force": {"type": "boolean", "default": False},
+            }},
+        },
+        {
+            "name": "uart_baud",
+            "description": "Change the daemon UART baud rate for all clients.",
+            "inputSchema": {"type": "object", "properties": {
+                "target": target_schema, "baud": {"type": "integer", "minimum": 1},
+            }, "required": ["baud"]},
+        },
         {
             "name": "uart_status",
             "description": "Check the persistent UART daemon status, including serial port, baudrate, active clients, current RX offset, and recent writer metadata. Use this before interacting with a real board over UART.",
@@ -151,7 +193,8 @@ def tool_definitions(default_target: str, targets: list[str]) -> list[dict[str, 
                     "target": target_schema,
                     "pattern": {"type": "string"},
                     "timeout": {"type": "number", "default": DEFAULT_TIMEOUT},
-                    "from": {"type": "string", "enum": ["now", "buffer"], "default": "now"},
+                    "from": {"type": "string", "enum": ["now", "fresh", "buffer"], "default": "now"},
+                    "from_offset": {"type": "integer", "minimum": 0},
                 },
                 "required": ["pattern"],
             },
@@ -208,7 +251,9 @@ def make_tool_result(payload: dict[str, Any], text: str, is_error: bool = False)
 def summarize_status(data: dict[str, Any]) -> str:
     return (
         f"uartd target={data.get('target')} endpoint={data.get('endpoint')} port={data.get('port')} baud={data.get('baud')} clients={data.get('clients')} "
-        f"attach_clients={data.get('attach_clients', data.get('attached_clients', 0))} offset={data.get('offset')}"
+        f"serial_state={data.get('serial_state')} generation={data.get('session_generation')} "
+        f"attach_clients={data.get('attach_clients', data.get('attached_clients', 0))} offset={data.get('offset')} "
+        f"error={data.get('error', data.get('last_serial_error'))}"
     )
 
 
@@ -216,6 +261,7 @@ def normalize_tail(data: dict[str, Any]) -> dict[str, Any]:
     text = data.get("text", "")
     return {
         "ok": data.get("ok", False),
+        "error": data.get("error"),
         "target": data.get("target"),
         "endpoint": data.get("endpoint"),
         "lines": data.get("lines"),
@@ -322,30 +368,57 @@ def client_from_request(args: argparse.Namespace, arguments: dict[str, Any]) -> 
         )
     except EndpointConfigError as exc:
         raise UartMcpError(str(exc)) from exc
-    return UartdClient(endpoint=endpoint)
+    return UartdClient(endpoint=endpoint, token_file=getattr(args, "token_file", None))
 
 
 def handle_tool_call(args: argparse.Namespace, name: str, arguments: dict[str, Any], default_timeout: float, default_newline: str) -> dict[str, Any]:
     start = time.monotonic()
     client = client_from_request(args, arguments)
 
+    management_actions = {
+        "uart_list_ports": "list_ports", "uart_set_port": "set_port",
+        "uart_disconnect": "disconnect_port", "uart_baud": "baud",
+    }
+    if name in management_actions:
+        payload: dict[str, Any] = {"action": management_actions[name]}
+        if name == "uart_set_port":
+            port = arguments.get("port")
+            if not isinstance(port, str) or not port.strip():
+                raise UartMcpError("uart_set_port requires a non-empty port")
+            payload["port"] = port
+        if name == "uart_baud" or "baud" in arguments:
+            baud = arguments.get("baud")
+            if isinstance(baud, bool) or not isinstance(baud, int) or baud <= 0:
+                raise UartMcpError("baud must be a positive integer")
+            payload["baud"] = baud
+        if name in {"uart_set_port", "uart_disconnect"}:
+            force = arguments.get("force", False)
+            if not isinstance(force, bool):
+                raise UartMcpError("force must be boolean")
+            payload["force"] = force
+        raw = attach_endpoint_metadata(client.request(payload, timeout=default_timeout + 6), client.endpoint)
+        return make_tool_result(raw, json.dumps(raw, ensure_ascii=False), is_error=not raw.get("ok"))
+
     if name == "uart_status":
-        raw = attach_endpoint_metadata(client.request({"action": "status"}, timeout=default_timeout + 3), client.endpoint)
+        raw = attach_endpoint_metadata(client.request({"action": "status"}, timeout=default_timeout + 6), client.endpoint)
         return make_tool_result(raw, summarize_status(raw), is_error=not raw.get("ok"))
 
     if name == "uart_tail":
         lines = int(arguments.get("lines", 120))
-        raw = attach_endpoint_metadata(client.request({"action": "tail_once", "lines": lines}, timeout=default_timeout + 3), client.endpoint)
+        raw = attach_endpoint_metadata(client.request({"action": "tail_once", "lines": lines}, timeout=default_timeout + 6), client.endpoint)
         normalized = normalize_tail(raw)
-        return make_tool_result(normalized, normalized.get("text", ""), is_error=not normalized.get("ok"))
+        return make_tool_result(normalized, normalized.get("text") or normalized.get("error") or "", is_error=not normalized.get("ok"))
 
-    if name == "uart_sendline":
-        line = arguments.get("line")
+    if name in {"uart_send", "uart_sendline"}:
+        field = "text" if name == "uart_send" else "line"
+        line = arguments.get(field)
         if not isinstance(line, str):
-            raise UartMcpError("uart_sendline requires string field 'line'")
-        newline = arguments.get("newline", default_newline)
-        raw = attach_endpoint_metadata(client.request({"action": "send", "text": line, "newline": newline}, timeout=default_timeout + 3), client.endpoint)
-        return make_tool_result(raw, f"sent {raw.get('sent', '')!r}", is_error=not raw.get("ok"))
+            raise UartMcpError(f"{name} requires string field '{field}'")
+        newline = arguments.get("newline", False if name == "uart_send" else default_newline)
+        if newline not in (False, True, "lf", "crlf", "cr", "none"):
+            raise UartMcpError("unsupported newline")
+        raw = attach_endpoint_metadata(client.request({"action": "send", "text": line, "newline": newline}, timeout=default_timeout + 6), client.endpoint)
+        return make_tool_result(raw, f"sent {raw.get('sent', '')!r}" if raw.get("ok") else raw.get("error", "send failed"), is_error=not raw.get("ok"))
 
     if name == "uart_expect":
         pattern = arguments.get("pattern")
@@ -353,7 +426,10 @@ def handle_tool_call(args: argparse.Namespace, name: str, arguments: dict[str, A
             raise UartMcpError("uart_expect requires string field 'pattern'")
         timeout = float(arguments.get("timeout", default_timeout))
         from_mode = arguments.get("from", "now")
-        raw = attach_endpoint_metadata(client.request({"action": "expect", "pattern": pattern, "timeout": timeout, "from": from_mode}, timeout=timeout + 3), client.endpoint)
+        payload = {"action": "expect", "pattern": pattern, "timeout": timeout, "from": from_mode}
+        if "from_offset" in arguments:
+            payload["from_offset"] = arguments["from_offset"]
+        raw = attach_endpoint_metadata(client.request(payload, timeout=timeout + 6), client.endpoint)
         normalized = normalize_expect(raw, int((time.monotonic() - start) * 1000))
         return make_tool_result(normalized, normalized.get("output", normalized.get("error", "")), is_error=not normalized.get("ok"))
 
@@ -366,7 +442,7 @@ def handle_tool_call(args: argparse.Namespace, name: str, arguments: dict[str, A
         newline = arguments.get("newline", default_newline)
         raw = attach_endpoint_metadata(client.request(
             {"action": "send_expect", "text": line, "expect": expect, "timeout": timeout, "newline": newline},
-            timeout=timeout + 3,
+            timeout=timeout + 6,
         ), client.endpoint)
         normalized = normalize_command(raw, int((time.monotonic() - start) * 1000))
         return make_tool_result(normalized, normalized.get("output", normalized.get("output_since_command", normalized.get("error", ""))), is_error=not normalized.get("ok"))
@@ -397,17 +473,17 @@ def handle_tool_call(args: argparse.Namespace, name: str, arguments: dict[str, A
             if not isinstance(value, str):
                 raise UartMcpError(f"uart_reboot_to_uboot requires string field '{label}'")
 
-        tail = normalize_tail(attach_endpoint_metadata(client.request({"action": "tail_once", "lines": 40}, timeout=default_timeout + 3), client.endpoint))
+        tail = normalize_tail(attach_endpoint_metadata(client.request({"action": "tail_once", "lines": 40}, timeout=default_timeout + 6), client.endpoint))
         state_before = tail.get("state_hint", "unknown")
         steps: list[dict[str, Any]] = []
 
         if state_before == "password_prompt":
-            raw = attach_endpoint_metadata(client.request({"action": "send_expect", "text": "", "expect": login_prompt, "timeout": shell_timeout, "newline": newline, "from": "fresh"}, timeout=shell_timeout + 3), client.endpoint)
+            raw = attach_endpoint_metadata(client.request({"action": "send_expect", "text": "", "expect": login_prompt, "timeout": shell_timeout, "newline": newline, "from": "fresh"}, timeout=shell_timeout + 6), client.endpoint)
             steps.append({"name": "password_to_login", **normalize_command(raw, int((time.monotonic() - start) * 1000))})
             state_before = "linux_login"
 
         if state_before == "linux_login":
-            raw = attach_endpoint_metadata(client.request({"action": "send_expect", "text": login_user, "expect": shell_prompt, "timeout": shell_timeout, "newline": newline, "from": "fresh"}, timeout=shell_timeout + 3), client.endpoint)
+            raw = attach_endpoint_metadata(client.request({"action": "send_expect", "text": login_user, "expect": shell_prompt, "timeout": shell_timeout, "newline": newline, "from": "fresh"}, timeout=shell_timeout + 6), client.endpoint)
             normalized = normalize_command(raw, int((time.monotonic() - start) * 1000))
             steps.append({"name": "login_to_shell", **normalized})
             if not normalized.get("ok"):
@@ -418,14 +494,14 @@ def handle_tool_call(args: argparse.Namespace, name: str, arguments: dict[str, A
         if state_before != "linux_root":
             raise UartMcpError(f"uart_reboot_to_uboot requires Linux shell/login state, got '{state_before}'")
 
-        raw = attach_endpoint_metadata(client.request({"action": "send_expect", "text": reboot_command, "expect": autoboot_prompt, "timeout": reboot_timeout, "newline": newline, "from": "fresh"}, timeout=reboot_timeout + 3), client.endpoint)
+        raw = attach_endpoint_metadata(client.request({"action": "send_expect", "text": reboot_command, "expect": autoboot_prompt, "timeout": reboot_timeout, "newline": newline, "from": "fresh"}, timeout=reboot_timeout + 6), client.endpoint)
         normalized = normalize_command(raw, int((time.monotonic() - start) * 1000))
         steps.append({"name": "reboot_to_autoboot", **normalized})
         if not normalized.get("ok"):
             result = normalize_reboot_flow({"ok": False, "state_before": state_before, "steps": steps, "final_prompt": None}, int((time.monotonic() - start) * 1000))
             return make_tool_result(result, normalized.get("output_since_command", normalized.get("error", "")), is_error=True)
 
-        raw = attach_endpoint_metadata(client.request({"action": "send_expect", "text": "", "expect": uboot_prompt, "timeout": uboot_timeout, "newline": newline, "from": "fresh"}, timeout=uboot_timeout + 3), client.endpoint)
+        raw = attach_endpoint_metadata(client.request({"action": "send_expect", "text": "", "expect": uboot_prompt, "timeout": uboot_timeout, "newline": newline, "from": "fresh"}, timeout=uboot_timeout + 6), client.endpoint)
         normalized = normalize_command(raw, int((time.monotonic() - start) * 1000))
         steps.append({"name": "interrupt_to_uboot", **normalized})
 
@@ -514,7 +590,7 @@ def serve(args: argparse.Namespace) -> int:
                 continue
 
             write_message(sys.stdout, make_error_response(message_id, -32601, f"Method not found: {method}"))
-        except (EndpointConfigError, UartMcpError, OSError, json.JSONDecodeError, socket.timeout) as exc:
+        except (EndpointConfigError, UARTAPIError, UartMcpError, OSError, ValueError) as exc:
             if message_id is None:
                 continue
             write_message(sys.stdout, make_error_response(message_id, -32000, str(exc)))

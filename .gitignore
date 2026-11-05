@@ -70,6 +70,8 @@ __pycache__/
 logs/uartd.*
 logs/runtime_log.pre*
 tools/uart/__pycache__
+tools/uart/.secrets/
+tools/uart/.venv/
 tests/tools/uart/__pycache__
 
 .sisyphus/

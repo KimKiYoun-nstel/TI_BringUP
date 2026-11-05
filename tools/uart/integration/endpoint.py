@@ -9,12 +9,12 @@ from pathlib import Path
 from typing import Any
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2] if len(Path(__file__).resolve().parents) >= 3 else Path.cwd()
+REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SOCKET_PATH = REPO_ROOT / "logs" / "uartd.sock"
 DEFAULT_TCP_HOST = "127.0.0.1"
 DEFAULT_TCP_PORT = 17001
 DEFAULT_TCP = f"{DEFAULT_TCP_HOST}:{DEFAULT_TCP_PORT}"
-DEFAULT_TARGETS_FILE = Path(os.environ.get("UART_TARGETS_FILE", Path(__file__).with_name("targets.json")))
+DEFAULT_TARGETS_FILE = Path(os.environ.get("UART_TARGETS_FILE", Path(__file__).resolve().parents[1] / "config" / "targets.json"))
 
 
 class EndpointConfigError(Exception):
@@ -28,6 +28,7 @@ class Endpoint:
     host: str | None = None
     port: int | None = None
     target: str | None = None
+    token_file: Path | None = None
 
     @property
     def description(self) -> str:
@@ -100,13 +101,20 @@ def resolve_target_endpoint(target: str, targets_file: Path | None = None) -> En
 
     transport = str(raw.get("transport", "tcp")).strip().lower()
     base_path = Path(data.get("_path", DEFAULT_TARGETS_FILE)).parent
+    token_file = raw.get("token_file")
+    if token_file is not None:
+        if not isinstance(token_file, str):
+            raise EndpointConfigError(f"UART target '{target}' field 'token_file' must be a string")
+        token_file = Path(token_file).expanduser()
+        if not token_file.is_absolute():
+            token_file = base_path / token_file
 
     if transport == "tcp":
         tcp_value = raw.get("tcp", DEFAULT_TCP)
         if not isinstance(tcp_value, str):
             raise EndpointConfigError(f"UART target '{target}' field 'tcp' must be a string")
         host, port = parse_tcp_endpoint(tcp_value)
-        return Endpoint(kind="tcp", host=host, port=port, target=target)
+        return Endpoint(kind="tcp", host=host, port=port, target=target, token_file=token_file)
 
     if transport == "unix":
         socket_value = raw.get("socket", str(DEFAULT_SOCKET_PATH))
@@ -115,7 +123,7 @@ def resolve_target_endpoint(target: str, targets_file: Path | None = None) -> En
         socket_path = Path(socket_value)
         if not socket_path.is_absolute():
             socket_path = (base_path / socket_path).resolve()
-        return Endpoint(kind="unix", socket_path=socket_path, target=target)
+        return Endpoint(kind="unix", socket_path=socket_path, target=target, token_file=token_file)
 
     raise EndpointConfigError(f"UART target '{target}' transport must be 'tcp' or 'unix'")
 
@@ -136,3 +144,20 @@ def endpoint_from_options(
 
     target_name = target or default_target_name(Path(targets_file) if targets_file is not None else None)
     return resolve_target_endpoint(target_name, Path(targets_file) if targets_file is not None else None)
+
+
+def resolve_token(endpoint: Endpoint, token_file: str | Path | None = None) -> str:
+    """Explicit file, environment file/value, then per-target file; never log secrets."""
+    path = token_file or os.environ.get("UARTD_TOKEN_FILE")
+    if not path and os.environ.get("UARTD_TOKEN"):
+        return os.environ["UARTD_TOKEN"].strip()
+    path = path or endpoint.token_file
+    if not path:
+        return ""
+    try:
+        token = Path(path).expanduser().read_text(encoding="utf-8-sig").strip()
+    except OSError as exc:
+        raise EndpointConfigError(f"Cannot read UART token file {path}: {exc}") from exc
+    if not token:
+        raise EndpointConfigError(f"UART token file is empty: {path}")
+    return token

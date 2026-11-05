@@ -11,7 +11,10 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import tools.uart.uartd as uartd
+from tools.uart.integration.distribution import load_module, uart_api
+
+uartd = load_module("uartd")
+JsonSocketReader = uart_api.JsonSocketReader
 
 
 class FakeSerial:
@@ -19,6 +22,7 @@ class FakeSerial:
         self.read_queue: queue.Queue[bytes] = queue.Queue()
         self.writes: list[bytes] = []
         self.closed = False
+        self.timeout = kwargs.get("timeout", 0.02)
 
     def read(self, _size: int) -> bytes:
         try:
@@ -39,6 +43,7 @@ class FakeSerial:
 
 class DaemonHarness:
     def __init__(self, tmp_path: Path) -> None:
+        self.readers = {}
         self.fake_serial = FakeSerial()
         self.patch = patch.object(uartd, "serial", SimpleNamespace(Serial=lambda **kwargs: self.fake_serial))
         self.patch.start()
@@ -53,6 +58,9 @@ class DaemonHarness:
             write_timeout=0.05,
             encoding="utf-8",
             exclusive=False,
+            tcp_host=None,
+            tcp_port=None,
+            enable_unix_socket=True,
         )
         self.daemon = uartd.UartDaemon(self.config)
         self.thread = threading.Thread(target=self.daemon.run_loop, daemon=True)
@@ -60,7 +68,7 @@ class DaemonHarness:
     def start(self) -> None:
         self.daemon._write_pid()
         self.daemon._setup_serial()
-        self.daemon._setup_socket()
+        self.daemon._setup_servers()
         self.thread.start()
         deadline = time.time() + 5
         while time.time() < deadline:
@@ -83,30 +91,24 @@ class DaemonHarness:
 
     def request(self, payload: dict) -> dict:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+            sock.settimeout(5)
             sock.connect(str(self.config.socket_path))
             sock.sendall((json.dumps(payload) + "\n").encode("utf-8"))
             return self._recv_json(sock)
 
     def open_stream(self, payload: dict) -> tuple[socket.socket, dict]:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.settimeout(5)
         sock.connect(str(self.config.socket_path))
         sock.sendall((json.dumps(payload) + "\n").encode("utf-8"))
         return sock, self._recv_json(sock)
 
     def _recv_json(self, sock: socket.socket) -> dict:
-        buffer = ""
-        deadline = time.time() + 5
-        while time.time() < deadline:
-            chunk = sock.recv(4096)
-            if not chunk:
-                raise AssertionError("socket closed before JSON response")
-            buffer += chunk.decode("utf-8", errors="replace")
-            if "\n" not in buffer:
-                continue
-            line, _rest = buffer.split("\n", 1)
-            if line.strip():
-                return json.loads(line)
-        raise AssertionError("timed out waiting for JSON response")
+        reader = self.readers.setdefault(sock, JsonSocketReader(sock))
+        return reader.recv_json()
+
+    def raw_recv(self, sock: socket.socket) -> bytes:
+        return self.readers[sock].take_remaining() or sock.recv(4096)
 
 
 class UartDaemonTests(unittest.TestCase):
@@ -145,7 +147,7 @@ class UartDaemonTests(unittest.TestCase):
         self.assertEqual(command["matched"], "=> ")
         self.assertIn("=> ", command["output"])
         self.assertEqual(command["expect"], "=> ")
-        self.assertTrue(command["shared_write"])
+        self.assertFalse(command["shared_write"])
         prompt_thread.join(timeout=1)
 
         tail_sock, response = self.harness.open_stream({"action": "tail", "lines": 20})
@@ -181,11 +183,12 @@ class UartDaemonTests(unittest.TestCase):
 
     def test_attach_and_watch_streams(self) -> None:
         self.harness.fake_serial.read_queue.put(b"booting...\r\n")
+        self.assertTrue(self.harness.request({"action": "expect", "pattern": "booting...", "timeout": 1})["ok"])
         watch_sock, watch_response = self.harness.open_stream({"action": "attach", "mode": "ro", "backlog_lines": 10})
         try:
             self.assertTrue(watch_response["ok"])
             self.assertEqual(watch_response["mode"], "ro")
-            watch_data = watch_sock.recv(4096)
+            watch_data = self.harness.raw_recv(watch_sock)
             self.assertIn(b"booting...", watch_data)
 
             watch_sock.sendall(b"ignored")
@@ -200,7 +203,7 @@ class UartDaemonTests(unittest.TestCase):
             self.assertEqual(attach_response["mode"], "rw")
 
             self.harness.fake_serial.read_queue.put(b"=> ")
-            attach_data = attach_sock.recv(4096)
+            attach_data = self.harness.raw_recv(attach_sock)
             self.assertEqual(attach_data, b"=> ")
 
             attach_sock.sendall(b"printenv\r")

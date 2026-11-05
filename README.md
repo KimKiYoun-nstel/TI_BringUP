@@ -120,22 +120,22 @@ TI_Bringup/
 
 `tools/uart/` 아래에는 board별 외부 `uartd`와 연동하는 Python 기반 UART client/MCP helper를 둔다.
 
-- `tools/uart/uartd.py`: UART port owner daemon
-- `tools/uart/uartctl.py`: daemon client CLI
-- `tools/uart/uart-mcp-server.py`: MCP stdio adapter for agents
-- `tools/uart/targets.json`: SK/custom board target endpoint profile
+- `tools/uart/official/`: 공식 UART 코드(`python/`)·문서(`manuals/`)
+- `tools/uart/integration/cli.py`: daemon client CLI wrapper
+- `tools/uart/integration/mcp_server.py`: repo 독립 MCP stdio adapter
+- `tools/uart/config/targets.json`: SK/TMDS endpoint 및 토큰 파일 profile
 
-이 helper들은 `uartd.py`가 점유 중인 UART를 TCP endpoint로 공유받아 제어한다. 현재 기본 모델은 board별 외부 host에서 `uartd.py`가 UART port를 계속 점유하고, `uartctl.py`와 `uart-mcp-server.py`는 **TCP endpoint를 기본 경로**로 daemon에 접속해 제어하는 구조다. 이 방식은 사람이 `tail`로 출력을 보면서 다른 Agent가 `send`/`expect`를 수행하는 workflow에 적합하다.
+이 helper들은 `uartd.py`가 점유 중인 UART를 TCP endpoint로 공유받아 제어한다. 현재 기본 모델은 board별 외부 host에서 `uartd.py`가 UART port를 계속 점유하고, `uartctl.py`와 `mcp_server.py`는 **TCP endpoint를 기본 경로**로 daemon에 접속해 제어하는 구조다. 이 방식은 사람이 `tail`로 출력을 보면서 다른 Agent가 `send`/`expect`를 수행하는 workflow에 적합하다.
 
-Agent 연동은 `uart-mcp-server.py`를 통해 수행한다. 이 adapter는 UART를 직접 열지 않고 persistent daemon JSON API만 호출하며, `tools/uart/targets.json` 기준으로 `sk`, `tmds`, `custom` target endpoint를 선택할 수 있다. 프로젝트 루트의 `opencode.jsonc`는 단일 generic `uart` MCP를 등록하고, 실제 호출 시 `target` 파라미터로 보드를 구분한다.
+Agent 연동은 `integration/mcp_server.py`를 통해 수행한다. 이 adapter는 UART를 직접 열지 않고 공식 API로 persistent daemon에 접속하며, `tools/uart/config/targets.json` 기준으로 `sk=192.168.0.33:17001`, `tmds=192.168.0.33:17002`를 선택한다. 프로젝트 루트의 `opencode.jsonc`는 단일 generic `uart` MCP를 등록하고, 실제 호출 시 `target` 파라미터로 보드를 구분한다. 인증 파일은 Git에서 제외되는 `tools/uart/.secrets/`에 둔다. 공식 코드·문서는 원형으로 관리하고, repo 맞춤 코드는 `integration/`에서 확장한다.
 
 원칙:
 
-- UART helper는 `logs/runtime_log`와 같은 UART 증적 수집 흐름을 보조하는 도구다.
+- UART 증적의 기준은 선택한 target daemon의 `runtime_log`다. 원격 로그는 MCP `uart_tail`로 확인하고, 로컬 `logs/runtime_log`는 해당 target/수집 시점이 일치하는 경우에만 사용한다.
 - helper가 자동화를 수행하더라도 최종 판단은 boot/U-Boot/kernel/runtime 로그를 직접 확인해 내려야 한다.
 - 보드별 bring-up 절차가 고정되면 `tools/uart/*.json` plan 또는 board 문서에서 재사용 가능한 시나리오로 관리할 수 있다.
 
-상세 구조와 daemon/client 사용 절차는 [docs/common/UART_DAEMON_AGENT_WORKFLOW.md](/home/nstel/ti/TI_Bringup/docs/common/UART_DAEMON_AGENT_WORKFLOW.md)를 참고한다.
+상세 구조와 daemon/client 사용 절차는 [UART 도구 가이드](tools/uart/README.md)와 [Agent workflow](docs/common/UART_DAEMON_AGENT_WORKFLOW.md)를 참고한다.
 
 ## 빠른 시작
 

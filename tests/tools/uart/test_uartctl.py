@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-import tools.uart.uartctl as uartctl
+from tools.uart.integration import cli as uartctl
 
 
 class UartCtlParserTests(unittest.TestCase):

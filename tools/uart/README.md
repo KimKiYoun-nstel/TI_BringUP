@@ -1,359 +1,142 @@
-# UART daemon 다중 인스턴스 실행 가이드
+# TI_Bringup UART 도구 모음
 
-## 목적
+공식 UART Tool 배포 코드와 TI_Bringup 전용 연동 코드를 함께 관리한다.
+현재 공식 원천은 사용자가 제공한 `manuals/`, `python/` 배포본이며,
+두 폴더의 `VERSION`은 `0.1.0-dev`다.
 
-이 문서는 하나의 host에서 여러 UART daemon을 동시에 실행하는 방법을 정리한다.
-예를 들어 Windows host에서 `COM7`은 TCP `17001`, `COM11`은 TCP `17003`으로 각각 독립 실행할 수 있다.
-
-```text
-COM7  -> uartd.py instance A -> TCP 0.0.0.0:17001
-COM11 -> uartd.py instance B -> TCP 0.0.0.0:17003
-```
-
-핵심 원칙은 다음과 같다.
+## 디렉터리와 책임
 
 ```text
-1. UART port는 인스턴스마다 달라야 한다.
-2. TCP port는 인스턴스마다 달라야 한다.
-3. pid/log/socket 파일도 인스턴스마다 달라야 한다.
+tools/uart/
+  README.md
+  UPGRADING.md                 공식 배포본 갱신 절차
+  official/                    공식 원천, repo 맞춤 수정은 하지 않음
+    manuals/                   공식 사용자·Python·API·MCP 매뉴얼
+    python/                    공식 Python 소스와 VERSION
+      uart_api.py              TCP JSON 요청·응답 API
+      uartctl.py               CLI, attach/watch 구현
+      uartd.py                 UART 소유 daemon
+      uart_runtime.py          daemon I/O worker·로그 구현
+      uartgui.py               공식 GUI
+      uart_mcp.py              공식 MCP 예제
+  integration/                 이 repo에서 수정·확장하는 연동 코드
+    distribution.py            공식 standalone Python 모듈 로딩
+    endpoint.py                target·endpoint·토큰 해석
+    cli.py                     공식 CLI에 --target/--targets-file 추가
+    mcp_server.py              repo 독립 MCP stdio 서버
+  config/
+    targets.json               보드별 endpoint·토큰 파일 경로
+  .secrets/                    로컬 인증 파일, Git 제외
 ```
 
-이번 수정본의 `uartd.py`는 `--port`와 `--tcp` 또는 `--tcp-port`를 기준으로 pid/log/socket 기본 파일명을 자동 분리한다.
-따라서 아래처럼 `COM port`와 `TCP port`만 다르게 주면 N개 인스턴스를 실행할 수 있다.
-
----
-
-## 수정된 동작 요약
-
-### 기존 문제
-
-기존 구조에서는 여러 인스턴스를 실행할 때 기본 파일 경로가 겹칠 수 있었다.
+공식 코드의 버그 수정은 공식 프로젝트에서 배포 후 반입한다.
+이 repo의 target 정책, MCP 도구와 bring-up 흐름은 `integration/`에서 수정한다.
+공식 `uart_mcp.py`는 참고 예제이며 실제 OpenCode MCP 실행 대상은
+`integration/mcp_server.py`다. 공식 배포본은 코드·문서 자체를 Git으로 관리하며
+별도 파일 해시, manifest, 해시 검사기는 사용하지 않는다.
 
 ```text
-logs/uartd.pid
-logs/runtime_log
-logs/uartd.log
-logs/uartd.sock
+OpenCode ── stdio MCP ── integration/mcp_server.py
+                              │ target·토큰·bring-up 도구
+                         official/python/uart_api.py
+                              │ TCP JSON API
+                    원격 uartd ── Serial ── 보드
 ```
 
-두 개 이상의 daemon이 같은 파일을 공유하면 다음 문제가 생긴다.
+MCP 서버는 로컬 stdio 프로세스이며 별도 TCP listener를 열지 않는다.
+TCP 통신은 공식 `uart_api.request()`를 사용한다. Unix socket 연동에만
+공식 API의 JSON reader를 재사용하는 repo 호환 경로가 있다.
+`cli.py`는 공식 CLI의 attach/watch/command 구현을 재사용한다.
 
-- pid file이 마지막 실행 인스턴스로 덮어써짐
-- runtime log가 여러 UART 출력으로 섞임
-- daemon log가 섞임
-- Linux/WSL에서는 Unix socket path 충돌 가능
-- `--tcp 0.0.0.0:PORT`로 bind한 경우 readiness check가 `0.0.0.0`으로 접속하려 해서 실패 가능
+## 보드와 인증
 
-### 수정 후
+| target | endpoint | 보드 |
+|---|---|---|
+| `sk` (기본) | `192.168.0.33:17001` | SK-AM64B |
+| `tmds` | `192.168.0.33:17002` | TMDS64EVM |
 
-수정본은 명시적인 `--pid-file`, `--runtime-log`, `--daemon-log`, `--socket`이 없으면 자동으로 인스턴스별 파일명을 만든다.
+`config/targets.json`의 `token_file`은 해당 JSON 폴더 기준 상대 경로다.
+현재 각각 `../.secrets/sk.token`, `../.secrets/tmds.token`을 사용한다.
+토큰은 Git에 추가하지 않는다. 파일 권한은 `600`, `.secrets/`는 `700`을 사용한다.
 
-예:
+토큰 우선순위:
 
-```text
-COM7 + TCP 17001
-  logs/uartd-COM7-17001.pid
-  logs/runtime_log-uartd-COM7-17001
-  logs/uartd-COM7-17001.log
+1. `--token-file`
+2. `UARTD_TOKEN_FILE`
+3. `UARTD_TOKEN`
+4. target profile의 `token_file`
 
-COM11 + TCP 17003
-  logs/uartd-COM11-17003.pid
-  logs/runtime_log-uartd-COM11-17003
-  logs/uartd-COM11-17003.log
-```
+`--tcp` 또는 `--socket`은 target endpoint보다 우선한다. endpoint를 직접 지정하면
+target 토큰을 자동 선택하지 않으므로 `--token-file` 또는 환경 변수를 지정한다.
+CLI/API 및 repo MCP는 Python 표준 라이브러리만으로 실행된다.
+공식 daemon/GUI/공식 MCP를 직접 실행하는 경우의 의존성은
+[공식 Python README](official/python/README.md)를 따른다.
 
-Linux/WSL에서 Unix socket을 함께 사용할 경우에도 기본 socket path가 인스턴스별로 분리된다.
+## CLI 사용
 
-```text
-logs/uartd-dev-ttyUSB0-17001.sock
-logs/uartd-dev-ttyUSB1-17003.sock
-```
-
----
-
-## Windows PowerShell 사용 예
-
-### COM7 daemon 시작
-
-```powershell
-py uartd.py start --port COM7 --baud 115200 --tcp 0.0.0.0:17001
-```
-
-### COM11 daemon 시작
-
-```powershell
-py uartd.py start --port COM11 --baud 115200 --tcp 0.0.0.0:17003
-```
-
-`0.0.0.0`은 모든 네트워크 인터페이스에 bind한다는 뜻이다.
-클라이언트가 접속할 때는 `0.0.0.0`이 아니라 실제 접속 가능한 주소를 사용한다.
-
-로컬 PowerShell에서 접속:
-
-```powershell
-py uartctl.py --tcp 127.0.0.1:17001 status
-py uartctl.py --tcp 127.0.0.1:17001 attach
-
-py uartctl.py --tcp 127.0.0.1:17003 status
-py uartctl.py --tcp 127.0.0.1:17003 attach
-```
-
-다른 PC 또는 WSL/Linux에서 Windows host로 접속:
+저장소 루트에서 실행한다. 이 장비에서는 원격 daemon에 접속한다.
 
 ```bash
-python3 uartctl.py --tcp 192.168.0.170:17001 status
-python3 uartctl.py --tcp 192.168.0.170:17001 attach
-
-python3 uartctl.py --tcp 192.168.0.170:17003 status
-python3 uartctl.py --tcp 192.168.0.170:17003 attach
+python3 tools/uart/integration/cli.py --target sk status
+python3 tools/uart/integration/cli.py --target tmds status
+python3 tools/uart/integration/cli.py --target sk ports
+python3 tools/uart/integration/cli.py --target sk tail --lines 80
+python3 tools/uart/integration/cli.py --target tmds watch --backlog-lines 40
+python3 tools/uart/integration/cli.py --target sk attach --backlog-lines 20
+python3 tools/uart/integration/cli.py --target sk command 'uname -n' --expect '# ' --timeout 10
+python3 tools/uart/integration/cli.py --target sk send 'root' --newline
+python3 tools/uart/integration/cli.py --target sk expect 'login:' --timeout 10 --fresh
 ```
 
-### daemon 상태 확인
-
-각 인스턴스는 TCP endpoint로 구분해서 확인한다.
-
-```powershell
-py uartd.py status --tcp 127.0.0.1:17001
-py uartd.py status --tcp 127.0.0.1:17003
-```
-
-또는 `uartctl.py`로 확인한다.
-
-```powershell
-py uartctl.py --tcp 127.0.0.1:17001 status
-py uartctl.py --tcp 127.0.0.1:17003 status
-```
-
-### daemon 정상 종료
-
-```powershell
-py uartd.py stop --tcp 127.0.0.1:17001
-py uartd.py stop --tcp 127.0.0.1:17003
-```
-
-또는 `uartctl.py`로 종료한다.
-
-```powershell
-py uartctl.py --tcp 127.0.0.1:17001 stop
-py uartctl.py --tcp 127.0.0.1:17003 stop
-```
-
-### Windows 프로세스 확인
-
-```powershell
-Get-CimInstance Win32_Process |
-  Where-Object { $_.CommandLine -match "uartd\.py" } |
-  Format-Table ProcessId, CommandLine -AutoSize
-```
-
-### Windows 프로세스 강제 종료
-
-정상 종료가 안 될 때만 사용한다.
-
-```powershell
-Get-CimInstance Win32_Process |
-  Where-Object { $_.CommandLine -match "uartd\.py" } |
-  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
-```
-
-특정 TCP port 인스턴스만 종료하고 싶으면 command line으로 필터링한다.
-
-```powershell
-Get-CimInstance Win32_Process |
-  Where-Object { $_.CommandLine -match "uartd\.py" -and $_.CommandLine -match "17001" } |
-  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
-```
-
----
-
-## Linux / WSL 사용 예
-
-### /dev/ttyUSB0 daemon 시작
+CLI `tail`은 backlog 출력 후 JSON 이벤트를 계속 구독하며 `watch`는 RO raw 스트림이다.
+둘 다 지속 감시이므로 종료는 `Ctrl-C`다. 단발 조회는 MCP `uart_tail`을 사용한다.
+`attach`는 RX/TX이며 종료는 `Ctrl-]` 다음 `q`다.
+`--connect-timeout`, `--response-timeout`은 subcommand 앞에 지정하며,
+후자는 공식 CLI의 응답 timeout 옵션으로 그대로 전달한다.
+포트 변경·연결 해제·baud 변경은 공유 사용자에게 영향을 주므로 대상 확인 후 수행한다.
 
 ```bash
-python3 uartd.py start --port /dev/ttyUSB0 --baud 115200 --tcp 0.0.0.0:17001
+python3 tools/uart/integration/cli.py --target sk port COM10 --baud 115200
+python3 tools/uart/integration/cli.py --target sk baud 115200
+python3 tools/uart/integration/cli.py --target sk disconnect
 ```
 
-### /dev/ttyUSB1 daemon 시작
+## MCP 사용
+
+`opencode.jsonc`의 `mcp.uart`는
+`/usr/bin/python3 ./tools/uart/integration/mcp_server.py`를 실행한다.
+설정 변경 후에는 OpenCode를 완전히 종료하고 다시 시작한다.
+
+도구는 `uart_status`, `uart_tail`, `uart_list_ports`, `uart_set_port`,
+`uart_disconnect`, `uart_baud`, `uart_send`, `uart_sendline`, `uart_expect`,
+`uart_command`, `uart_reboot_to_uboot`다. 호출마다 `target`을 지정할 수 있다.
+일반 명령은 `uart_command`의 `line`을 사용한다. 공식 MCP 예제의 `text`와 구분한다.
+
+```json
+{"target":"sk"}
+{"target":"tmds","line":"uname -n","expect":"# ","timeout":10}
+```
+
+첫 예시는 `uart_status`, 둘째는 `uart_command` 인자다.
+먼저 status와 tail로 보드 상태를 확인한다. timeout 이후 명령을 바로 재전송하지 말고
+tail을 확인한다. 공식 신규 daemon은 command에 기본 exclusive lease를 사용한다.
+공유 RW attach와 command를 동시에 시작하지 말고 사용이 끝난 attach를 종료한다.
+원격 daemon의 실제 버전과 기능은 별도로 확인한다. 로컬 배포본 교체는 원격 서버를 갱신하지 않는다.
+
+## 로그·검증·갱신
+
+UART 증적은 선택한 daemon의 `status.runtime_log`와 같은 target의 `tail`이 기준이다.
+원격 Windows 로그 경로를 로컬 경로로 취급하지 않는다. 로컬 `logs/runtime_log`는
+대상과 수집 시점이 맞는 복사본/링크일 때만 사용한다.
 
 ```bash
-python3 uartd.py start --port /dev/ttyUSB1 --baud 115200 --tcp 0.0.0.0:17003
+python3 -B -m unittest discover -s tests/tools/uart -v
+opencode mcp list
 ```
 
-Linux/WSL에서는 기본적으로 Unix socket과 TCP가 함께 열린다.
-TCP만 사용하려면 `--no-unix-socket`을 추가한다.
+repo 테스트는 새 공식 daemon을 fake serial로 실행하여 CLI/MCP 연동, 인증,
+명령·timeout·attach 스트림·포트 변경을 확인한다. 실제 보드는 별도 status/tail/명령으로 확인한다.
 
-```bash
-python3 uartd.py start --port /dev/ttyUSB0 --baud 115200 --tcp 0.0.0.0:17001 --no-unix-socket
-python3 uartd.py start --port /dev/ttyUSB1 --baud 115200 --tcp 0.0.0.0:17003 --no-unix-socket
-```
-
-### 상태 확인
-
-```bash
-python3 uartd.py status --tcp 127.0.0.1:17001
-python3 uartd.py status --tcp 127.0.0.1:17003
-```
-
-또는:
-
-```bash
-python3 uartctl.py --tcp 127.0.0.1:17001 status
-python3 uartctl.py --tcp 127.0.0.1:17003 status
-```
-
-### attach
-
-```bash
-python3 uartctl.py --tcp 127.0.0.1:17001 attach
-python3 uartctl.py --tcp 127.0.0.1:17003 attach
-```
-
-### 종료
-
-```bash
-python3 uartd.py stop --tcp 127.0.0.1:17001
-python3 uartd.py stop --tcp 127.0.0.1:17003
-```
-
----
-
-## 명시적 로그 경로를 직접 지정하는 방법
-
-자동 파일명을 쓰지 않고 직접 경로를 지정할 수도 있다.
-
-```powershell
-py uartd.py start `
-  --port COM7 `
-  --baud 115200 `
-  --tcp 0.0.0.0:17001 `
-  --pid-file logs\uartd-com7.pid `
-  --runtime-log logs\runtime-com7.log `
-  --daemon-log logs\uartd-com7.log
-```
-
-```powershell
-py uartd.py start `
-  --port COM11 `
-  --baud 115200 `
-  --tcp 0.0.0.0:17003 `
-  --pid-file logs\uartd-com11.pid `
-  --runtime-log logs\runtime-com11.log `
-  --daemon-log logs\uartd-com11.log
-```
-
-일반적으로는 명시하지 않아도 된다. 수정본이 자동으로 분리한다.
-
----
-
-## 방화벽 확인
-
-Windows에서 `0.0.0.0:17001`처럼 외부 접속 가능하게 bind하면 Windows Defender Firewall에서 Python 또는 해당 TCP port 접근을 허용해야 할 수 있다.
-
-로컬 접속만 필요하면 `127.0.0.1` bind를 권장한다.
-
-```powershell
-py uartd.py start --port COM7 --baud 115200 --tcp 127.0.0.1:17001
-```
-
-다른 장비에서 접속해야 하면:
-
-```powershell
-py uartd.py start --port COM7 --baud 115200 --tcp 0.0.0.0:17001
-```
-
-클라이언트에서는 Windows host의 실제 IP를 사용한다.
-
-```bash
-python3 uartctl.py --tcp 192.168.0.170:17001 status
-```
-
----
-
-## 점검 순서
-
-### 1. daemon 프로세스 확인
-
-Windows:
-
-```powershell
-Get-CimInstance Win32_Process |
-  Where-Object { $_.CommandLine -match "uartd\.py" } |
-  Format-Table ProcessId, CommandLine -AutoSize
-```
-
-Linux/WSL:
-
-```bash
-pgrep -af uartd.py
-```
-
-### 2. TCP listen 확인
-
-Windows:
-
-```powershell
-netstat -ano | findstr ":17001"
-netstat -ano | findstr ":17003"
-```
-
-Linux/WSL:
-
-```bash
-ss -ltnp | grep -E '17001|17003'
-```
-
-### 3. uartd status 확인
-
-```powershell
-py uartd.py status --tcp 127.0.0.1:17001
-py uartd.py status --tcp 127.0.0.1:17003
-```
-
-### 4. uartctl attach 확인
-
-```powershell
-py uartctl.py --tcp 127.0.0.1:17001 attach
-py uartctl.py --tcp 127.0.0.1:17003 attach
-```
-
----
-
-## 주의사항
-
-- `--tcp 0.0.0.0:PORT`는 bind용 주소다. 클라이언트 접속에는 `127.0.0.1` 또는 Windows host의 실제 IP를 사용한다.
-- 같은 COM port를 두 daemon이 동시에 열 수 없다.
-- 같은 TCP port를 두 daemon이 동시에 listen할 수 없다.
-- 다른 프로그램이 COM port를 열고 있으면 `uartd.py`가 해당 port를 열 수 없다.
-- 원격 접속을 열 경우 방화벽과 네트워크 보안 정책을 확인한다.
-- 여러 daemon을 실행할 때는 각 인스턴스별 runtime log를 확인한다.
-
----
-
-## 빠른 실행 예
-
-Windows PowerShell:
-
-```powershell
-py uartd.py start --port COM7 --baud 115200 --tcp 0.0.0.0:17001
-py uartd.py start --port COM11 --baud 115200 --tcp 0.0.0.0:17003
-
-py uartctl.py --tcp 127.0.0.1:17001 status
-py uartctl.py --tcp 127.0.0.1:17003 status
-
-py uartctl.py --tcp 127.0.0.1:17001 attach
-py uartctl.py --tcp 127.0.0.1:17003 attach
-```
-
-Linux/WSL:
-
-```bash
-python3 uartd.py start --port /dev/ttyUSB0 --baud 115200 --tcp 0.0.0.0:17001
-python3 uartd.py start --port /dev/ttyUSB1 --baud 115200 --tcp 0.0.0.0:17003
-
-python3 uartctl.py --tcp 127.0.0.1:17001 status
-python3 uartctl.py --tcp 127.0.0.1:17003 status
-
-python3 uartctl.py --tcp 127.0.0.1:17001 attach
-python3 uartctl.py --tcp 127.0.0.1:17003 attach
-```
+- [공식 배포본 갱신](UPGRADING.md)
+- [공식 매뉴얼](official/manuals/README.md)
+- [Agent UART 워크플로](../../docs/common/UART_DAEMON_AGENT_WORKFLOW.md)
